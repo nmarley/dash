@@ -14,8 +14,10 @@
 
 #include <boost/filesystem/path.hpp>
 
-#include <leveldb/db.h>
-#include <leveldb/write_batch.h>
+#include <rocksdb/db.h>
+#include <rocksdb/table.h>
+#include <rocksdb/env.h>
+#include <rocksdb/write_batch.h>
 
 class dbwrapper_error : public std::runtime_error
 {
@@ -23,7 +25,7 @@ public:
     dbwrapper_error(const std::string& msg) : std::runtime_error(msg) {}
 };
 
-void HandleError(const leveldb::Status& status) throw(dbwrapper_error);
+void HandleError(const rocksdb::Status& status) throw(dbwrapper_error);
 
 /** Batch of changes queued to be written to a CDBWrapper */
 class CDBBatch
@@ -31,7 +33,7 @@ class CDBBatch
     friend class CDBWrapper;
 
 private:
-    leveldb::WriteBatch batch;
+    rocksdb::WriteBatch batch;
     const std::vector<unsigned char> *obfuscate_key;
 
 public:
@@ -46,13 +48,13 @@ public:
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
         ssKey.reserve(ssKey.GetSerializeSize(key));
         ssKey << key;
-        leveldb::Slice slKey(&ssKey[0], ssKey.size());
+        rocksdb::Slice slKey(&ssKey[0], ssKey.size());
 
         CDataStream ssValue(SER_DISK, CLIENT_VERSION);
         ssValue.reserve(ssValue.GetSerializeSize(value));
         ssValue << value;
         ssValue.Xor(*obfuscate_key);
-        leveldb::Slice slValue(&ssValue[0], ssValue.size());
+        rocksdb::Slice slValue(&ssValue[0], ssValue.size());
 
         batch.Put(slKey, slValue);
     }
@@ -63,7 +65,7 @@ public:
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
         ssKey.reserve(ssKey.GetSerializeSize(key));
         ssKey << key;
-        leveldb::Slice slKey(&ssKey[0], ssKey.size());
+        rocksdb::Slice slKey(&ssKey[0], ssKey.size());
 
         batch.Delete(slKey);
     }
@@ -72,16 +74,16 @@ public:
 class CDBIterator
 {
 private:
-    leveldb::Iterator *piter;
+    rocksdb::Iterator *piter;
     const std::vector<unsigned char> *obfuscate_key;
 
 public:
 
     /**
-     * @param[in] piterIn          The original leveldb iterator.
+     * @param[in] piterIn          The original rocksdb iterator.
      * @param[in] obfuscate_key    If passed, XOR data with this key.
      */
-    CDBIterator(leveldb::Iterator *piterIn, const std::vector<unsigned char>* obfuscate_key) :
+    CDBIterator(rocksdb::Iterator *piterIn, const std::vector<unsigned char>* obfuscate_key) :
         piter(piterIn), obfuscate_key(obfuscate_key) { };
     ~CDBIterator();
 
@@ -93,14 +95,14 @@ public:
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
         ssKey.reserve(ssKey.GetSerializeSize(key));
         ssKey << key;
-        leveldb::Slice slKey(&ssKey[0], ssKey.size());
+        rocksdb::Slice slKey(&ssKey[0], ssKey.size());
         piter->Seek(slKey);
     }
 
     void Next();
 
     template<typename K> bool GetKey(K& key) {
-        leveldb::Slice slKey = piter->key();
+        rocksdb::Slice slKey = piter->key();
         try {
             CDataStream ssKey(slKey.data(), slKey.data() + slKey.size(), SER_DISK, CLIENT_VERSION);
             ssKey >> key;
@@ -115,7 +117,7 @@ public:
     }
 
     template<typename V> bool GetValue(V& value) {
-        leveldb::Slice slValue = piter->value();
+        rocksdb::Slice slValue = piter->value();
         try {
             CDataStream ssValue(slValue.data(), slValue.data() + slValue.size(), SER_DISK, CLIENT_VERSION);
             ssValue.Xor(*obfuscate_key);
@@ -136,25 +138,25 @@ class CDBWrapper
 {
 private:
     //! custom environment this database is using (may be NULL in case of default environment)
-    leveldb::Env* penv;
+    rocksdb::Env* penv;
 
     //! database options used
-    leveldb::Options options;
+    rocksdb::Options options;
 
     //! options used when reading from the database
-    leveldb::ReadOptions readoptions;
+    rocksdb::ReadOptions readoptions;
 
     //! options used when iterating over values of the database
-    leveldb::ReadOptions iteroptions;
+    rocksdb::ReadOptions iteroptions;
 
     //! options used when writing to the database
-    leveldb::WriteOptions writeoptions;
+    rocksdb::WriteOptions writeoptions;
 
     //! options used when sync writing to the database
-    leveldb::WriteOptions syncoptions;
+    rocksdb::WriteOptions syncoptions;
 
     //! the database itself
-    leveldb::DB* pdb;
+    rocksdb::DB* pdb;
 
     //! a key used for optional XOR-obfuscation of the database
     std::vector<unsigned char> obfuscate_key;
@@ -185,10 +187,10 @@ public:
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
         ssKey.reserve(ssKey.GetSerializeSize(key));
         ssKey << key;
-        leveldb::Slice slKey(&ssKey[0], ssKey.size());
+        rocksdb::Slice slKey(&ssKey[0], ssKey.size());
 
         std::string strValue;
-        leveldb::Status status = pdb->Get(readoptions, slKey, &strValue);
+        rocksdb::Status status = pdb->Get(readoptions, slKey, &strValue);
         if (!status.ok()) {
             if (status.IsNotFound())
                 return false;
@@ -219,10 +221,10 @@ public:
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
         ssKey.reserve(ssKey.GetSerializeSize(key));
         ssKey << key;
-        leveldb::Slice slKey(&ssKey[0], ssKey.size());
+        rocksdb::Slice slKey(&ssKey[0], ssKey.size());
 
         std::string strValue;
-        leveldb::Status status = pdb->Get(readoptions, slKey, &strValue);
+        rocksdb::Status status = pdb->Get(readoptions, slKey, &strValue);
         if (!status.ok()) {
             if (status.IsNotFound())
                 return false;
