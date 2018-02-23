@@ -695,7 +695,7 @@ UniValue gobject(const JSONRPCRequest& request)
         UniValue objResult(UniValue::VOBJ);
 
         objResult.push_back(Pair("trigger", TRIGGER_SCHEMA_V1));
-        // objResult.push_back(Pair("proposal", PROPOSAL_SCHEMA_V1));
+        objResult.push_back(Pair("proposal", PROPOSAL_SCHEMA_V1));
 
         return objResult;
     }

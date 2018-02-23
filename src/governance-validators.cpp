@@ -368,7 +368,7 @@ bool CProposalValidator::GetJSONSchemaForObjectType(const int nObjectType, std::
     switch (nObjectType) {
         case GOVERNANCE_OBJECT_PROPOSAL:
             bIsKnownObjectType = true;
-            strValue = "Not yet implemented";
+            strValue = PROPOSAL_SCHEMA_V1;
             break;
         case GOVERNANCE_OBJECT_TRIGGER:
             bIsKnownObjectType = true;
