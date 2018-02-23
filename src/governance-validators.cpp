@@ -9,6 +9,11 @@
 
 #include <algorithm>
 
+// TODO: rapidjson for JSONSchema validation : http://rapidjson.org/md_doc_schema.html
+// #include "rapidjson/document.h"
+// #include "rapidjson/writer.h"
+// #include "rapidjson/stringbuffer.h"
+
 CProposalValidator::CProposalValidator(const std::string& strDataHexIn)
     : strDataHex(),
       objJSON(UniValue::VOBJ),
