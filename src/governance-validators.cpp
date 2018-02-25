@@ -248,6 +248,10 @@ void CProposalValidator::ParseJSONData()
     rapidjson::Document d;
     d.Parse(PROPOSAL_SCHEMA_V1.c_str());
 
+    // convert this to a SchemaDocument type
+    rapidjson::SchemaDocument sd(d);
+
+
     // try {
     //     if valid() {
     //         fJSONSchemaValid = true;
