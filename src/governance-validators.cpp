@@ -8,12 +8,17 @@
 #include "utilstrencodings.h"
 
 #include <algorithm>
+#include <sstream>
 
 // TODO: rapidjson for JSONSchema validation : http://rapidjson.org/md_doc_schema.html
 #include "rapidjson/document.h"
 #include "rapidjson/schema.h"
+#include "rapidjson/reader.h"
 // #include "rapidjson/writer.h"
+// #include "rapidjson/error/en.h"
 // #include "rapidjson/stringbuffer.h"
+// #include "rapidjson/prettywriter.h"
+
 
 // #include "valijson/adapters/rapidjson_adapter.hpp"
 // #include "valijson/utils/rapidjson_utils.hpp"
@@ -251,6 +256,14 @@ void CProposalValidator::ParseJSONData()
     // convert this to a SchemaDocument type
     rapidjson::SchemaDocument sd(d);
 
+    rapidjson::SchemaValidator validator(sd);
+
+    std::StringStream ss(strDataHex)
+    rapidjson::Reader reader;
+
+    reader.Parse(ss, validator);
+
+    // NGM
 
     // try {
     //     if valid() {
