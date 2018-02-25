@@ -10,9 +10,15 @@
 #include <algorithm>
 
 // TODO: rapidjson for JSONSchema validation : http://rapidjson.org/md_doc_schema.html
-// #include "rapidjson/document.h"
+#include "rapidjson/document.h"
 // #include "rapidjson/writer.h"
 // #include "rapidjson/stringbuffer.h"
+#include "valijson/adapters/rapidjson_adapter.hpp"
+#include "valijson/utils/rapidjson_utils.hpp"
+#include "valijson/schema.hpp"
+#include "valijson/schema_parser.hpp"
+#include "valijson/validator.hpp"
+
 
 CProposalValidator::CProposalValidator(const std::string& strDataHexIn)
     : strDataHex(),
