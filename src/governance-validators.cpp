@@ -46,6 +46,8 @@ void CProposalValidator::SetHexData(const std::string& strDataHexIn)
     std::vector<unsigned char> v = ParseHex(strDataHexIn);
     strDataHex = std::string(v.begin(), v.end());
     ParseJSONData();
+
+    // ValidateJSONDataAgainstSchema();
 }
 
 bool CProposalValidator::Validate()
@@ -240,7 +242,11 @@ void CProposalValidator::ParseJSONData()
         strErrorMessages += "Unknown exception;";
     }
 
+
     // validate json here...
+    rapidjson::Document d;
+    d.Parse(PROPOSAL_SCHEMA_V1)
+
     // try {
     //     if valid() {
     //         fJSONSchemaValid = true;
