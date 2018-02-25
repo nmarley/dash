@@ -242,10 +242,9 @@ void CProposalValidator::ParseJSONData()
         strErrorMessages += "Unknown exception;";
     }
 
-
     // validate json here...
     rapidjson::Document d;
-    d.Parse(PROPOSAL_SCHEMA_V1.c_str())
+    d.Parse(PROPOSAL_SCHEMA_V1.c_str());
 
     // try {
     //     if valid() {
