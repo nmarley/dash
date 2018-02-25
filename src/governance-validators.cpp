@@ -245,7 +245,7 @@ void CProposalValidator::ParseJSONData()
 
     // validate json here...
     rapidjson::Document d;
-    d.Parse(PROPOSAL_SCHEMA_V1)
+    d.Parse(PROPOSAL_SCHEMA_V1.c_str())
 
     // try {
     //     if valid() {
