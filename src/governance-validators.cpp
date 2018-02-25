@@ -258,7 +258,7 @@ void CProposalValidator::ParseJSONData()
 
     rapidjson::SchemaValidator validator(sd);
 
-    rapidjson::StringStream ss(strDataHex);
+    rapidjson::StringStream ss(strDataHex.c_str());
     rapidjson::Reader reader;
 
     reader.Parse(ss, validator);
