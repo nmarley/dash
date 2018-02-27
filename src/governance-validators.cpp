@@ -8,11 +8,17 @@
 #include "utilstrencodings.h"
 
 #include <algorithm>
+#include <sstream>
+
+#include "rapidjson/document.h"
+#include "rapidjson/schema.h"
+#include "rapidjson/reader.h"
 
 CProposalValidator::CProposalValidator(const std::string& strDataHexIn)
     : strDataHex(),
       objJSON(UniValue::VOBJ),
       fJSONValid(false),
+      fJSONSchemaValid(false),
       strErrorMessages()
 {
     if(!strDataHexIn.empty()) {
@@ -25,6 +31,7 @@ void CProposalValidator::Clear()
     strDataHex = std::string();
     objJSON = UniValue(UniValue::VOBJ);
     fJSONValid = false;
+    fJSONSchemaValid = false;
     strErrorMessages = std::string();
 }
 
@@ -33,6 +40,8 @@ void CProposalValidator::SetHexData(const std::string& strDataHexIn)
     std::vector<unsigned char> v = ParseHex(strDataHexIn);
     strDataHex = std::string(v.begin(), v.end());
     ParseJSONData();
+
+    // ValidateJSONDataAgainstSchema();
 }
 
 bool CProposalValidator::Validate()
@@ -41,6 +50,13 @@ bool CProposalValidator::Validate()
         strErrorMessages += "JSON parsing error;";
         return false;
     }
+
+    if(!ValidateJSONSchema()) {
+        strErrorMessages += "JSON parsing error;";
+        return false;
+    }
+
+    // TODO: possibly remove all these in lieu of JSONSchema errors
     if(!ValidateName()) {
         strErrorMessages += "Invalid name;";
         return false;
@@ -67,6 +83,11 @@ bool CProposalValidator::Validate()
 bool CProposalValidator::ValidateJSON()
 {
     return fJSONValid;
+}
+
+bool CProposalValidator::ValidateJSONSchema()
+{
+    return fJSONSchemaValid;
 }
 
 bool CProposalValidator::ValidateName()
@@ -194,6 +215,7 @@ bool CProposalValidator::ValidateURL()
 void CProposalValidator::ParseJSONData()
 {
     fJSONValid = false;
+    fJSONSchemaValid = false;
 
     if(strDataHex.empty()) {
         return;
@@ -213,6 +235,32 @@ void CProposalValidator::ParseJSONData()
     catch(...) {
         strErrorMessages += "Unknown exception;";
     }
+
+    // validate json here...
+    rapidjson::Document d;
+    d.Parse(PROPOSAL_SCHEMA_V1.c_str());
+
+    // convert this to a SchemaDocument type
+    rapidjson::SchemaDocument sd(d);
+
+    rapidjson::SchemaValidator validator(sd);
+
+    rapidjson::StringStream ss(strDataHex.c_str());
+    rapidjson::Reader reader;
+
+    reader.Parse(ss, validator);
+
+    // NGM
+
+    // try {
+    //     if valid() {
+    //         fJSONSchemaValid = true;
+    //     }
+    // }
+    // catch () {
+    //     // stuff
+    // }
+
 }
 
 bool CProposalValidator::GetDataValue(const std::string& strKey, std::string& strValue)
@@ -333,4 +381,22 @@ bool CProposalValidator::CheckURL(const std::string& strURLIn)
     }
 
     return true;
+}
+
+bool CProposalValidator::GetJSONSchemaForObjectType(const int nObjectType, std::string& strValue)
+{
+    bool bIsKnownObjectType = false;
+
+    switch (nObjectType) {
+        case GOVERNANCE_OBJECT_PROPOSAL:
+            bIsKnownObjectType = true;
+            strValue = PROPOSAL_SCHEMA_V1;
+            break;
+        case GOVERNANCE_OBJECT_TRIGGER:
+            bIsKnownObjectType = true;
+            strValue = TRIGGER_SCHEMA_V1;
+            break;
+    }
+
+    return bIsKnownObjectType;
 }
