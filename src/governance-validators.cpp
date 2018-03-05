@@ -10,6 +10,10 @@
 
 #include <algorithm>
 
+#include "rapidjson/document.h"
+#include "rapidjson/schema.h"
+#include "rapidjson/reader.h"
+
 const size_t MAX_NAME_SIZE  = 40;
 
 CProposalValidator::CProposalValidator(const std::string& strHexData) :
@@ -209,6 +213,20 @@ void CProposalValidator::ParseJSONData(const std::string& strJSONData)
     catch(...) {
         strErrorMessages += "Unknown exception;";
     }
+
+    // validate json here...
+    rapidjson::Document d;
+    d.Parse(PROPOSAL_SCHEMA_V1.c_str());
+
+    // convert this to a SchemaDocument type
+    rapidjson::SchemaDocument sd(d);
+
+    rapidjson::SchemaValidator validator(sd);
+
+    rapidjson::StringStream ss(strJSONData.c_str());
+    rapidjson::Reader reader;
+
+    reader.Parse(ss, validator);
 }
 
 bool CProposalValidator::GetDataValue(const std::string& strKey, std::string& strValueRet)
@@ -315,4 +333,22 @@ bool CProposalValidator::CheckURL(const std::string& strURLIn)
     }
 
     return true;
+}
+
+bool CProposalValidator::GetJSONSchemaForObjectType(const int nObjectType, std::string& strValue)
+{
+    bool bIsKnownObjectType = false;
+
+    switch (nObjectType) {
+        case GOVERNANCE_OBJECT_PROPOSAL:
+            bIsKnownObjectType = true;
+            strValue = PROPOSAL_SCHEMA_V1;
+            break;
+        case GOVERNANCE_OBJECT_TRIGGER:
+            bIsKnownObjectType = true;
+            strValue = TRIGGER_SCHEMA_V1;
+            break;
+    }
+
+    return bIsKnownObjectType;
 }

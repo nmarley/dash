@@ -39,6 +39,7 @@ UniValue gobject(const JSONRPCRequest& request)
 #endif // ENABLE_WALLET
          strCommand != "vote-many" && strCommand != "vote-conf" && strCommand != "vote-alias" && strCommand != "submit" && strCommand != "count" &&
          strCommand != "deserialize" && strCommand != "get" && strCommand != "getvotes" && strCommand != "getcurrentvotes" && strCommand != "list" && strCommand != "diff" &&
+         strCommand != "listschemas" &&
          strCommand != "check" ))
         throw std::runtime_error(
                 "gobject \"command\"...\n"
@@ -56,6 +57,7 @@ UniValue gobject(const JSONRPCRequest& request)
                 "  getcurrentvotes    - Get only current (tallying) votes for a governance object hash (does not include old votes)\n"
                 "  list               - List governance objects (can be filtered by signal and/or object type)\n"
                 "  diff               - List differences since last diff\n"
+                "  listschemas        - List JSON Schemas for governance object types\n"
                 "  vote-alias         - Vote on a governance object by masternode alias (using masternode.conf setup)\n"
                 "  vote-conf          - Vote on a governance object by masternode configured in dash.conf\n"
                 "  vote-many          - Vote on a governance object by all masternodes (using masternode.conf setup)\n"
@@ -694,6 +696,17 @@ UniValue gobject(const JSONRPCRequest& request)
 
             objResult.push_back(Pair(pGovObj->GetHash().ToString(), bObj));
         }
+
+        return objResult;
+    }
+
+    // LIST ALL JSON SCHEMAS USED FOR VALIDATION
+    if(strCommand == "listschemas")
+    {
+        UniValue objResult(UniValue::VOBJ);
+
+        objResult.push_back(Pair("trigger", TRIGGER_SCHEMA_V1));
+        objResult.push_back(Pair("proposal", PROPOSAL_SCHEMA_V1));
 
         return objResult;
     }
