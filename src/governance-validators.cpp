@@ -214,6 +214,10 @@ void CProposalValidator::ParseJSONData(const std::string& strJSONData)
         strErrorMessages += "Unknown exception;";
     }
 
+    if(!sporkManager.IsSporkActive(SPORK_15_STRICT_GOBJECT_VALIDATION)) {
+        return
+    }
+
     // validate json here...
     rapidjson::Document d;
     d.Parse(PROPOSAL_SCHEMA_V1.c_str());
