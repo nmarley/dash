@@ -339,7 +339,10 @@ bool CProposalValidator::CheckURL(const std::string& strURLIn)
     return true;
 }
 
-bool CProposalValidator::GetJSONSchemaForObjectType(const int nObjectType, std::string& strValue)
+
+
+// standalone
+bool GetJSONSchemaForObjectType(const int nObjectType, std::string& strValue)
 {
     bool bIsKnownObjectType = false;
 
@@ -355,4 +358,196 @@ bool CProposalValidator::GetJSONSchemaForObjectType(const int nObjectType, std::
     }
 
     return bIsKnownObjectType;
+}
+
+
+// trigger validator
+
+CTriggerValidator::CTriggerValidator(const std::string& strHexData) :
+    objJSON(UniValue::VOBJ),
+    fJSONValid(false),
+    strErrorMessages()
+{
+    if(!strHexData.empty()) {
+        ParseStrHexData(strHexData);
+    }
+}
+
+void CTriggerValidator::ParseStrHexData(const std::string& strHexData)
+{
+    std::vector<unsigned char> v = ParseHex(strHexData);
+    ParseJSONData(std::string(v.begin(), v.end()));
+}
+
+bool CTriggerValidator::ValidateJsonSchema(std::string& strErrorMessages)
+{
+  // rapidjson stuff here....
+
+  // validate json here...
+  rapidjson::Document d;
+  d.Parse(PROPOSAL_SCHEMA_V1.c_str());
+
+  // convert this to a SchemaDocument type
+  rapidjson::SchemaDocument sd(d);
+
+  rapidjson::SchemaValidator validator(sd);
+
+  rapidjson::StringStream ss(strJSONData.c_str());
+  rapidjson::Reader reader;
+
+  reader.Parse(ss, validator);
+
+  if (!validator.IsValid()) {
+    // augment strErrorMessages
+    
+    return false;
+  }
+
+  return true;
+}
+
+
+bool CTriggerValidator::Validate()
+{
+    if(!fJSONValid) {
+        strErrorMessages += "JSON parsing error;";
+        return false;
+    }
+
+    if(!sporkManager.IsSporkActive(SPORK_15_STRICT_GOBJECT_VALIDATION)) {
+        return
+    }
+
+    if(!ValidateJsonSchema(strErrorMessages)) {
+        return false;
+    }
+
+    return true;
+}
+
+
+
+bool CTriggerValidator::ValidatePaymentAddresses()
+{
+    // TODO: implement
+    //
+    // ensure payment addresses are valid
+    // std::string strPaymentAddress;
+    //
+    // if(!GetDataValue("payment_address", strPaymentAddress)) {
+    //     strErrorMessages += "payment_address field not found;";
+    //     return false;
+    // }
+    //
+    // if(std::find_if(strPaymentAddress.begin(), strPaymentAddress.end(), ::isspace) != strPaymentAddress.end()) {
+    //     strErrorMessages += "payment_address can't have whitespaces;";
+    //     return false;
+    // }
+    //
+    // CBitcoinAddress address(strPaymentAddress);
+    // if(!address.IsValid()) {
+    //     strErrorMessages += "payment_address is invalid;";
+    //     return false;
+    // }
+    //
+    // if(address.IsScript()) {
+    //     strErrorMessages += "script addresses are not supported;";
+    //     return false;
+    // }
+    //
+    // return true;
+}
+
+
+void CTriggerValidator::ParseJSONData(const std::string& strJSONData)
+{
+    fJSONValid = false;
+
+    if(strJSONData.empty()) {
+        return;
+    }
+
+    try {
+        UniValue obj(UniValue::VOBJ);
+
+        obj.read(strJSONData);
+
+        if (obj.isObject()) {
+            objJSON = obj;
+        } else {
+            std::vector<UniValue> arr1 = obj.getValues();
+            std::vector<UniValue> arr2 = arr1.at(0).getValues();
+            objJSON = arr2.at(1);
+        }
+
+        fJSONValid = true;
+    }
+    catch(std::exception& e) {
+        strErrorMessages += std::string(e.what()) + std::string(";");
+    }
+    catch(...) {
+        strErrorMessages += "Unknown exception;";
+    }
+}
+
+bool CTriggerValidator::GetDataValue(const std::string& strKey, std::string& strValueRet)
+{
+    bool fOK = false;
+    try  {
+        strValueRet = objJSON[strKey].get_str();
+        fOK = true;
+    }
+    catch(std::exception& e) {
+        strErrorMessages += std::string(e.what()) + std::string(";");
+    }
+    catch(...) {
+        strErrorMessages += "Unknown exception;";
+    }
+    return fOK;
+}
+
+bool CTriggerValidator::GetDataValue(const std::string& strKey, int64_t& nValueRet)
+{
+    bool fOK = false;
+    try  {
+        const UniValue uValue = objJSON[strKey];
+        switch(uValue.getType()) {
+        case UniValue::VNUM:
+            nValueRet = uValue.get_int64();
+            fOK = true;
+            break;
+        default:
+            break;
+        }
+    }
+    catch(std::exception& e) {
+        strErrorMessages += std::string(e.what()) + std::string(";");
+    }
+    catch(...) {
+        strErrorMessages += "Unknown exception;";
+    }
+    return fOK;
+}
+
+bool CTriggerValidator::GetDataValue(const std::string& strKey, double& dValueRet)
+{
+    bool fOK = false;
+    try  {
+        const UniValue uValue = objJSON[strKey];
+        switch(uValue.getType()) {
+        case UniValue::VNUM:
+            dValueRet = uValue.get_real();
+            fOK = true;
+            break;
+        default:
+            break;
+        }
+    }
+    catch(std::exception& e) {
+        strErrorMessages += std::string(e.what()) + std::string(";");
+    }
+    catch(...) {
+        strErrorMessages += "Unknown exception;";
+    }
+    return fOK;
 }

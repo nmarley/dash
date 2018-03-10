@@ -12,6 +12,8 @@
 // for governance object type constants
 #include "governance-object.h"
 
+bool GetJSONSchemaForObjectType(const int nObjectType, std::string& strValue);
+
 // or should these be pulled from files instead?
 static const std::string TRIGGER_SCHEMA_V1 = std::string(R"({
   "$schema": "http://json-schema.org/draft-04/schema#",
@@ -92,8 +94,6 @@ public:
         return strErrorMessages;
     }
 
-    bool GetJSONSchemaForObjectType(const int nObjectType, std::string& strValue);
-
 private:
     void ParseStrHexData(const std::string& strHexData);
     void ParseJSONData(const std::string& strJSONData);
@@ -109,6 +109,35 @@ private:
     bool ValidateURL();
 
     bool CheckURL(const std::string& strURLIn);
+};
+
+
+class CTriggerValidator
+{
+private:
+    UniValue               objJSON;
+    bool                   fJSONValid;
+    std::string            strErrorMessages;
+
+public:
+    CTriggerValidator(const std::string& strDataHexIn = std::string());
+
+    bool Validate();
+
+    const std::string& GetErrorMessages()
+    {
+        return strErrorMessages;
+    }
+
+private:
+    void ParseStrHexData(const std::string& strHexData);
+    void ParseJSONData(const std::string& strJSONData);
+
+    bool GetDataValue(const std::string& strKey, std::string& strValueRet);
+    bool GetDataValue(const std::string& strKey, int64_t& nValueRet);
+    bool GetDataValue(const std::string& strKey, double& dValueRet);
+
+    bool ValidateJsonSchema(std::string& strErrorMessages);
 };
 
 #endif
