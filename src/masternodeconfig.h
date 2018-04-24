@@ -1,10 +1,13 @@
-
-// Copyright (c) 2014-2017 The Dash Core developers
+// Copyright (c) 2014-2018 The Dash Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #ifndef SRC_MASTERNODECONFIG_H_
 #define SRC_MASTERNODECONFIG_H_
+
+#include <string>
+#include <vector>
+#include <map>
 
 class CMasternodeConfig;
 extern CMasternodeConfig masternodeConfig;
@@ -23,6 +26,8 @@ public:
         std::string txHash;
         std::string outputIndex;
     public:
+        CMasternodeEntry() {
+        }
 
         CMasternodeEntry(const std::string& alias, const std::string& ip, const std::string& privKey, const std::string& txHash, const std::string& outputIndex) {
             this->alias = alias;
@@ -75,6 +80,7 @@ public:
 
     CMasternodeConfig() {
         entries = std::vector<CMasternodeEntry>();
+        mapAliasEntries = std::map<std::string, CMasternodeEntry>();
     }
 
     void clear();
@@ -85,15 +91,21 @@ public:
         return entries;
     }
 
+    CMasternodeEntry findByAlias(const std::string& strAlias) {
+        const auto& it = mapAliasEntries.find(strAlias);
+        if (it == mapAliasEntries.end()) {
+            return CMasternodeEntry();
+        }
+        return it->second;
+    }
+
     int getCount() {
         return (int)entries.size();
     }
 
 private:
     std::vector<CMasternodeEntry> entries;
-
-
+    std::map<std::string, CMasternodeEntry> mapAliasEntries;
 };
-
 
 #endif /* SRC_MASTERNODECONFIG_H_ */

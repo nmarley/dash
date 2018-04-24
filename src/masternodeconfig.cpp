@@ -1,4 +1,3 @@
-
 #include "netbase.h"
 #include "masternodeconfig.h"
 #include "util.h"
@@ -12,6 +11,7 @@ CMasternodeConfig masternodeConfig;
 void CMasternodeConfig::add(const std::string& alias, const std::string& ip, const std::string& privKey, const std::string& txHash, const std::string& outputIndex) {
     CMasternodeEntry cme(alias, ip, privKey, txHash, outputIndex);
     entries.push_back(cme);
+    mapAliasEntries.emplace(alias, cme);
 }
 
 bool CMasternodeConfig::read(std::string& strErrRet) {
@@ -88,4 +88,10 @@ bool CMasternodeConfig::read(std::string& strErrRet) {
 
     streamConfig.close();
     return true;
+}
+
+void CMasternodeConfig::clear() {
+    entries.clear();
+    mapAliasEntries.clear();
+    return;
 }
