@@ -278,27 +278,25 @@ UniValue masternode(const JSONRPCRequest& request)
         UniValue statusObj(UniValue::VOBJ);
         statusObj.push_back(Pair("alias", strAlias));
 
-        for (const auto& mne : masternodeConfig.getEntries()) {
-            if(mne.getAlias() == strAlias) {
-                fFound = true;
-                std::string strError;
-                CMasternodeBroadcast mnb;
+        const auto& mne = masternodeConfig.findByAlias(strAlias);
+        if (mne != CMasternodeConfig::CMasternodeEntry()) {
+            fFound = true;
+            std::string strError;
+            CMasternodeBroadcast mnb;
 
-                bool fResult = CMasternodeBroadcast::Create(mne.getIp(), mne.getPrivKey(), mne.getTxHash(), mne.getOutputIndex(), strError, mnb);
+            bool fResult = CMasternodeBroadcast::Create(mne.getIp(), mne.getPrivKey(), mne.getTxHash(), mne.getOutputIndex(), strError, mnb);
 
-                int nDoS;
-                if (fResult && !mnodeman.CheckMnbAndUpdateMasternodeList(NULL, mnb, nDoS, *g_connman)) {
-                    strError = "Failed to verify MNB";
-                    fResult = false;
-                }
-
-                statusObj.push_back(Pair("result", fResult ? "successful" : "failed"));
-                if(!fResult) {
-                    statusObj.push_back(Pair("errorMessage", strError));
-                }
-                mnodeman.NotifyMasternodeUpdates(*g_connman);
-                break;
+            int nDoS;
+            if (fResult && !mnodeman.CheckMnbAndUpdateMasternodeList(NULL, mnb, nDoS, *g_connman)) {
+                strError = "Failed to verify MNB";
+                fResult = false;
             }
+
+            statusObj.push_back(Pair("result", fResult ? "successful" : "failed"));
+            if(!fResult) {
+                statusObj.push_back(Pair("errorMessage", strError));
+            }
+            mnodeman.NotifyMasternodeUpdates(*g_connman);
         }
 
         if(!fFound) {
@@ -726,24 +724,22 @@ UniValue masternodebroadcast(const JSONRPCRequest& request)
 
         statusObj.push_back(Pair("alias", strAlias));
 
-        for (const auto& mne : masternodeConfig.getEntries()) {
-            if(mne.getAlias() == strAlias) {
-                fFound = true;
-                std::string strError;
-                CMasternodeBroadcast mnb;
+        const auto& mne = masternodeConfig.findByAlias(strAlias);
+        if (mne != CMasternodeConfig::CMasternodeEntry()) {
+            fFound = true;
+            std::string strError;
+            CMasternodeBroadcast mnb;
 
-                bool fResult = CMasternodeBroadcast::Create(mne.getIp(), mne.getPrivKey(), mne.getTxHash(), mne.getOutputIndex(), strError, mnb, true);
+            bool fResult = CMasternodeBroadcast::Create(mne.getIp(), mne.getPrivKey(), mne.getTxHash(), mne.getOutputIndex(), strError, mnb, true);
 
-                statusObj.push_back(Pair("result", fResult ? "successful" : "failed"));
-                if(fResult) {
-                    vecMnb.push_back(mnb);
-                    CDataStream ssVecMnb(SER_NETWORK, PROTOCOL_VERSION);
-                    ssVecMnb << vecMnb;
-                    statusObj.push_back(Pair("hex", HexStr(ssVecMnb)));
-                } else {
-                    statusObj.push_back(Pair("errorMessage", strError));
-                }
-                break;
+            statusObj.push_back(Pair("result", fResult ? "successful" : "failed"));
+            if(fResult) {
+                vecMnb.push_back(mnb);
+                CDataStream ssVecMnb(SER_NETWORK, PROTOCOL_VERSION);
+                ssVecMnb << vecMnb;
+                statusObj.push_back(Pair("hex", HexStr(ssVecMnb)));
+            } else {
+                statusObj.push_back(Pair("errorMessage", strError));
             }
         }
 

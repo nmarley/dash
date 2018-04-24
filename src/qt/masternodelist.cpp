@@ -107,26 +107,24 @@ void MasternodeList::StartAlias(std::string strAlias)
     std::string strStatusHtml;
     strStatusHtml += "<center>Alias: " + strAlias;
 
-    for (const auto& mne : masternodeConfig.getEntries()) {
-        if(mne.getAlias() == strAlias) {
-            std::string strError;
-            CMasternodeBroadcast mnb;
+    const auto& mne = masternodeConfig.findByAlias(strAlias);
+    if (mne != CMasternodeConfig::CMasternodeEntry()) {
+        std::string strError;
+        CMasternodeBroadcast mnb;
 
-            bool fSuccess = CMasternodeBroadcast::Create(mne.getIp(), mne.getPrivKey(), mne.getTxHash(), mne.getOutputIndex(), strError, mnb);
+        bool fSuccess = CMasternodeBroadcast::Create(mne.getIp(), mne.getPrivKey(), mne.getTxHash(), mne.getOutputIndex(), strError, mnb);
 
-            int nDoS;
-            if (fSuccess && !mnodeman.CheckMnbAndUpdateMasternodeList(NULL, mnb, nDoS, *g_connman)) {
-                strError = "Failed to verify MNB";
-                fSuccess = false;
-            }
+        int nDoS;
+        if (fSuccess && !mnodeman.CheckMnbAndUpdateMasternodeList(NULL, mnb, nDoS, *g_connman)) {
+            strError = "Failed to verify MNB";
+            fSuccess = false;
+        }
 
-            if(fSuccess) {
-                strStatusHtml += "<br>Successfully started masternode.";
-                mnodeman.NotifyMasternodeUpdates(*g_connman);
-            } else {
-                strStatusHtml += "<br>Failed to start masternode.<br>Error: " + strError;
-            }
-            break;
+        if(fSuccess) {
+            strStatusHtml += "<br>Successfully started masternode.";
+            mnodeman.NotifyMasternodeUpdates(*g_connman);
+        } else {
+            strStatusHtml += "<br>Failed to start masternode.<br>Error: " + strError;
         }
     }
     strStatusHtml += "</center>";
@@ -469,17 +467,12 @@ void MasternodeList::ShowQRCode(std::string strAlias) {
     CMasternode mn;
     bool fFound = false;
 
-    for (const auto& mne : masternodeConfig.getEntries()) {
-        if (strAlias != mne.getAlias()) {
-            continue;
-        }
-        else {
-            strMNPrivKey = mne.getPrivKey();
-            strCollateral = mne.getTxHash() + "-" + mne.getOutputIndex();
-            strIP = mne.getIp();
-            fFound = mnodeman.Get(COutPoint(uint256S(mne.getTxHash()), atoi(mne.getOutputIndex())), mn);
-            break;
-        }
+    const auto& mne = masternodeConfig.findByAlias(strAlias);
+    if (mne != CMasternodeConfig::CMasternodeEntry()) {
+        strMNPrivKey = mne.getPrivKey();
+        strCollateral = mne.getTxHash() + "-" + mne.getOutputIndex();
+        strIP = mne.getIp();
+        fFound = mnodeman.Get(COutPoint(uint256S(mne.getTxHash()), atoi(mne.getOutputIndex())), mn);
     }
 
     // Title of popup window
