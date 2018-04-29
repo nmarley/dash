@@ -15,9 +15,11 @@ BOOST_AUTO_TEST_CASE(privatesend_test)
     CPrivateSend::InitStandardDenominations();
 
     int nCount;
-    nCount = CPrivateSend::vecStandardDenominations.size();
+    auto& denoms = CPrivateSend::GetStandardDenominations();
 
-    // privatesend.getEntries()
+    nCount = denoms.size();
+
+    // ensure 4 standard denominations defined
     BOOST_CHECK_EQUAL(nCount, 4);
 
     // break something so that I know tests are running
