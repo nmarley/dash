@@ -15,7 +15,7 @@ BOOST_AUTO_TEST_CASE(privatesend_test)
     CPrivateSend::InitStandardDenominations();
 
     int nCount;
-    auto& denoms = CPrivateSend::GetStandardDenominations();
+    auto&& denoms = CPrivateSend::GetStandardDenominations();
 
     nCount = denoms.size();
 
