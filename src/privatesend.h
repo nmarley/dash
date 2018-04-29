@@ -375,7 +375,7 @@ private:
     static const CAmount COLLATERAL = 0.001 * COIN;
 
     // static members
-    static std::vector<CAmount> vecStandardDenominations;
+    static std::array<CAmount> vecStandardDenominations;
     static std::map<uint256, CDarksendBroadcastTx> mapDSTX;
 
     static CCriticalSection cs_mapdstx;
@@ -384,7 +384,7 @@ private:
 
 public:
     static void InitStandardDenominations();
-    static std::vector<CAmount> GetStandardDenominations() { return vecStandardDenominations; }
+    static std::array<CAmount> GetStandardDenominations() { return vecStandardDenominations; }
     static CAmount GetSmallestDenomination() { return vecStandardDenominations.back(); }
 
     /// Get the denominations for a specific amount of dash.
