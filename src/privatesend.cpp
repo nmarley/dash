@@ -231,10 +231,10 @@ std::string CPrivateSendBase::GetStateString() const
 // note: double braces required in C++11 (not in C++14)
 std::array<CAmount, 4> CPrivateSend::vecStandardDenominations{
     {
-        (10       * COIN)+10000,
-        (1        * COIN)+1000,
-        (.1       * COIN)+100,
-        (.01      * COIN)+10
+        static_cast<int64>(10       * COIN)+10000,
+        static_cast<int64>(1        * COIN)+1000,
+        static_cast<int64>(.1       * COIN)+100,
+        static_cast<int64>(.01      * COIN)+10
     }
 };
 std::map<uint256, CDarksendBroadcastTx> CPrivateSend::mapDSTX;
