@@ -375,7 +375,7 @@ private:
     static const CAmount COLLATERAL = 0.001 * COIN;
 
     // static members
-    static std::array<CAmount> vecStandardDenominations;
+    static std::array<CAmount, 4> vecStandardDenominations;
     static std::map<uint256, CDarksendBroadcastTx> mapDSTX;
 
     static CCriticalSection cs_mapdstx;

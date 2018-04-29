@@ -228,7 +228,7 @@ std::string CPrivateSendBase::GetStateString() const
 }
 
 // Definitions for static data members
-std::array<CAmount> CPrivateSend::vecStandardDenominations{
+std::array<CAmount, 4> CPrivateSend::vecStandardDenominations{
     (10       * COIN)+10000,
     (1        * COIN)+1000,
     (.1       * COIN)+100,
