@@ -837,7 +837,7 @@ bool CPrivateSendClient::DoAutomaticDenominating(CConnman& connman, bool fDryRun
 
 bool CPrivateSendClient::JoinExistingQueue(CAmount nBalanceNeedsAnonymized, CConnman& connman)
 {
-    std::vector<CAmount> vecStandardDenoms = CPrivateSend::GetStandardDenominations();
+    auto vecStandardDenoms = CPrivateSend::GetStandardDenominations();
     // Look through the queues and see if anything matches
     for (auto& dsq : vecDarksendQueue) {
         // only try each queue once
@@ -1109,8 +1109,10 @@ bool CPrivateSendClient::PrepareDenominate(int nMinRounds, int nMaxRounds, std::
         strErrorRet = "Incorrect session denom";
         return false;
     }
-    std::vector<CAmount> vecStandardDenoms = CPrivateSend::GetStandardDenominations();
-    bool fSelected = pwalletMain->SelectCoinsByDenominations(nSessionDenom, vecStandardDenoms[vecBits.front()], vecStandardDenoms[vecBits.front()] * PRIVATESEND_ENTRY_MAX_SIZE, vecTxDSIn, vCoins, nValueIn, nMinRounds, nMaxRounds);
+
+    auto vecStandardDenoms = CPrivateSend::GetStandardDenominations();
+    bool fSelected = pwalletMain->SelectCoinsByDenominations(nSessionDenom, vecStandardDenoms[vecBits.front()], CPrivateSend::GetMaxPoolAmount(), vecTxDSIn, vCoins, nValueIn, nMinRounds, nMaxRounds);
+
     if (nMinRounds >= 0 && !fSelected) {
         strErrorRet = "Can't select current denominated inputs";
         return false;
@@ -1340,7 +1342,7 @@ bool CPrivateSendClient::CreateDenominated(const CompactTallyItem& tallyItem, bo
     int nOutputsTotal = 0;
     bool fSkip = true;
     do {
-        std::vector<CAmount> vecStandardDenoms = CPrivateSend::GetStandardDenominations();
+        auto vecStandardDenoms = CPrivateSend::GetStandardDenominations();
 
         BOOST_REVERSE_FOREACH(CAmount nDenomValue, vecStandardDenoms) {
 

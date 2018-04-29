@@ -2857,7 +2857,7 @@ bool CWallet::SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAm
 
     //if we're doing only denominated, we need to round up to the nearest smallest denomination
     if(nCoinType == ONLY_DENOMINATED) {
-        std::vector<CAmount> vecPrivateSendDenominations = CPrivateSend::GetStandardDenominations();
+        auto vecPrivateSendDenominations = CPrivateSend::GetStandardDenominations();
         CAmount nSmallestDenom = vecPrivateSendDenominations.back();
         // Make outputs by looping through denominations, from large to small
         for (const auto& nDenom : vecPrivateSendDenominations)
@@ -3018,7 +3018,7 @@ bool CWallet::SelectCoinsByDenominations(int nDenom, CAmount nValueMin, CAmount 
 
     int nDenomResult = 0;
 
-    std::vector<CAmount> vecPrivateSendDenominations = CPrivateSend::GetStandardDenominations();
+    auto vecPrivateSendDenominations = CPrivateSend::GetStandardDenominations();
     FastRandomContext insecure_rand;
     for (const auto& out : vCoins)
     {

@@ -229,13 +229,21 @@ std::string CPrivateSendBase::GetStateString() const
 }
 
 // Definitions for static data members
-std::vector<CAmount> CPrivateSend::vecStandardDenominations;
+// note: double braces required in C++11 (not in C++14)
+std::array<CAmount, 4> CPrivateSend::vecStandardDenominations{
+    {
+        static_cast<int64_t>(10       * COIN)+10000,
+        static_cast<int64_t>(1        * COIN)+1000,
+        static_cast<int64_t>(.1       * COIN)+100,
+        static_cast<int64_t>(.01      * COIN)+10
+    }
+};
 std::map<uint256, CDarksendBroadcastTx> CPrivateSend::mapDSTX;
 CCriticalSection CPrivateSend::cs_mapdstx;
 
 void CPrivateSend::InitStandardDenominations()
 {
-    vecStandardDenominations.clear();
+    // vecStandardDenominations.clear();
     /* Denominations
 
         A note about convertibility. Within mixing pools, each denomination
@@ -248,10 +256,10 @@ void CPrivateSend::InitStandardDenominations()
     /* Disabled
     vecStandardDenominations.push_back( (100      * COIN)+100000 );
     */
-    vecStandardDenominations.push_back( (10       * COIN)+10000 );
-    vecStandardDenominations.push_back( (1        * COIN)+1000 );
-    vecStandardDenominations.push_back( (.1       * COIN)+100 );
-    vecStandardDenominations.push_back( (.01      * COIN)+10 );
+    //vecStandardDenominations.push_back( (10       * COIN)+10000 );
+    //vecStandardDenominations.push_back( (1        * COIN)+1000 );
+    //vecStandardDenominations.push_back( (.1       * COIN)+100 );
+    //vecStandardDenominations.push_back( (.01      * COIN)+10 );
     /* Disabled till we need them
     vecStandardDenominations.push_back( (.001     * COIN)+1 );
     */
