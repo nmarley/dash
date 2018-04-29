@@ -384,7 +384,7 @@ private:
 
 public:
     static void InitStandardDenominations();
-    static std::array<CAmount> GetStandardDenominations() { return vecStandardDenominations; }
+    static std::array<CAmount, 4> GetStandardDenominations() { return vecStandardDenominations; }
     static CAmount GetSmallestDenomination() { return vecStandardDenominations.back(); }
 
     /// Get the denominations for a specific amount of dash.
