@@ -228,12 +228,13 @@ std::string CPrivateSendBase::GetStateString() const
 }
 
 // Definitions for static data members
-std::array<CAmount, 4> CPrivateSend::vecStandardDenominations{
+// note: double braces required in C++11 (not in C++14)
+std::array<CAmount, 4> CPrivateSend::vecStandardDenominations{{
     (10       * COIN)+10000,
     (1        * COIN)+1000,
     (.1       * COIN)+100,
     (.01      * COIN)+10
-};
+}};
 std::map<uint256, CDarksendBroadcastTx> CPrivateSend::mapDSTX;
 CCriticalSection CPrivateSend::cs_mapdstx;
 
