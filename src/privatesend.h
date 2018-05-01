@@ -13,6 +13,8 @@
 #include "tinyformat.h"
 #include "timedata.h"
 
+#include <climits>
+
 class CPrivateSend;
 class CConnman;
 
@@ -405,7 +407,7 @@ public:
     static void InitStandardDenominations();
     static std::array<CAmount, 4> GetStandardDenominations() { return vecStandardDenominations; }
     static CAmount GetSmallestDenomination() {
-        CAmount smallest = 99999999999;  // sentinel value
+        CAmount smallest = LLONG_MAX;  // sentinel value
         for (const auto& amt : vecStandardDenominations) {
             smallest = amt < smallest ? amt : smallest;
         }
