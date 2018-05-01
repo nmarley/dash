@@ -404,7 +404,13 @@ private:
 public:
     static void InitStandardDenominations();
     static std::array<CAmount, 4> GetStandardDenominations() { return vecStandardDenominations; }
-    static CAmount GetSmallestDenomination() { return vecStandardDenominations.back(); }
+    static CAmount GetSmallestDenomination() {
+        CAmount smallest = 99999999999;  // sentinel value
+        for (const auto& amt : vecStandardDenominations) {
+            smallest = amt < smallest ? amt : smallest;
+        }
+        return smallest;
+    }
 
     /// Get the denominations for a specific amount of dash.
     static int GetDenominationsByAmounts(const std::vector<CAmount>& vecAmount);
