@@ -222,6 +222,19 @@ bool CSporkManager::GetSporkByHash(const uint256& hash, CSporkMessage &sporkRet)
     return true;
 }
 
+CSporkMessage* CSporkManager::GetSporkMessageByID(int nSporkID)
+{
+    LOCK(cs);
+
+    auto it = mapSporksActive.find(nSporkID);
+
+    if (it == mapSporksActive.end()) {
+        return nullptr;
+    }
+
+    return &(it->second);
+}
+
 bool CSporkManager::SetSporkAddress(const std::string& strAddress) {
     LOCK(cs);
     CBitcoinAddress address(strAddress);
@@ -266,6 +279,11 @@ std::string CSporkManager::ToString() const
     return strprintf("Sporks: %llu", mapSporksActive.size());
 }
 
+std::string CSporkMessage::GetStrSig() const
+{
+    const std::string signatureAsString = HexStr(vchSig);
+    return signatureAsString;
+}
 
 uint256 CSporkMessage::GetHash() const
 {

@@ -76,6 +76,7 @@ public:
 
     uint256 GetHash() const;
     uint256 GetSignatureHash() const;
+    std::string GetStrSig() const;
 
     bool Sign(const CKey& key, bool fSporkSixActive);
     bool CheckSignature(const CKeyID& pubKeyId, bool fSporkSixActive) const;
@@ -119,6 +120,7 @@ public:
     int64_t GetSporkValue(int nSporkID);
     int GetSporkIDByName(const std::string& strName);
     std::string GetSporkNameByID(int nSporkID);
+    CSporkMessage* GetSporkMessageByID(int nSporkID);
 
     bool GetSporkByHash(const uint256& hash, CSporkMessage &sporkRet);
 

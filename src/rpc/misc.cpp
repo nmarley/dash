@@ -234,7 +234,8 @@ UniValue spork(const JSONRPCRequest& request)
                     ret.push_back(Pair(sporkManager.GetSporkNameByID(nSporkID), sporkManager.GetSporkValue(nSporkID)));
             }
             return ret;
-        } else if(strCommand == "active"){
+        }
+        if (strCommand == "active") {
             UniValue ret(UniValue::VOBJ);
             for(int nSporkID = SPORK_START; nSporkID <= SPORK_END; nSporkID++){
                 if(sporkManager.GetSporkNameByID(nSporkID) != "Unknown")
@@ -242,6 +243,26 @@ UniValue spork(const JSONRPCRequest& request)
             }
             return ret;
         }
+
+        if (strCommand == "debug") {
+            UniValue ret(UniValue::VOBJ);
+            for (int nSporkID = SPORK_START; nSporkID <= SPORK_END; nSporkID++) {
+                auto sporkMsg = sporkManager.GetSporkMessageByID(nSporkID);
+                if (sporkMsg) {
+                    // NGM
+                    UniValue sporkInfo(UniValue::VOBJ);
+                    sporkInfo.push_back(Pair("nSporkID", sporkMsg->nSporkID));
+                    sporkInfo.push_back(Pair("nValue", sporkMsg->nValue));
+                    sporkInfo.push_back(Pair("nTimeSigned", sporkMsg->nTimeSigned));
+                    sporkInfo.push_back(Pair("hash", sporkMsg->GetHash().ToString()));
+                    sporkInfo.push_back(Pair("signatureHash", sporkMsg->GetSignatureHash().ToString()));
+                    sporkInfo.push_back(Pair("sig", sporkMsg->GetStrSig()));
+                    ret.push_back(Pair(sporkManager.GetSporkNameByID(nSporkID), sporkInfo));
+                }
+            }
+            return ret;
+        }
+
     }
 
     if (request.fHelp || request.params.size() != 2) {
