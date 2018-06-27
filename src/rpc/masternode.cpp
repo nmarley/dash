@@ -522,7 +522,7 @@ UniValue masternodelist(const JSONRPCRequest& request)
                 "  sentinel       - Print sentinel version of a masternode (can be additionally filtered, exact match)\n"
                 "  status         - Print masternode status: PRE_ENABLED / ENABLED / EXPIRED / SENTINEL_PING_EXPIRED / NEW_START_REQUIRED /\n"
                 "                   UPDATE_REQUIRED / POSE_BAN / OUTPOINT_SPENT (can be additionally filtered, partial match)\n"
-                );
+        );
     }
 
     if (strMode == "full" || strMode == "json" || strMode == "lastpaidtime" || strMode == "lastpaidblock") {
@@ -535,6 +535,7 @@ UniValue masternodelist(const JSONRPCRequest& request)
     }
 
     UniValue obj(UniValue::VOBJ);
+    UniValue list(UniValue::VARR);
     if (strMode == "rank") {
         CMasternodeMan::rank_pair_vec_t vMasternodeRanks;
         mnodeman.GetMasternodeRanks(vMasternodeRanks);
@@ -612,7 +613,7 @@ UniValue masternodelist(const JSONRPCRequest& request)
                 std::string strInfo = streamInfo.str();
                 if (strFilter !="" && strInfo.find(strFilter) == std::string::npos &&
                     strOutpoint.find(strFilter) == std::string::npos) continue;
-                UniValue objMN(UniValue::VOBJ);
+
                 objMN.push_back(Pair("address", mn.addr.ToString()));
                 objMN.push_back(Pair("payee", CBitcoinAddress(mn.pubKeyCollateralAddress.GetID()).ToString()));
                 objMN.push_back(Pair("status", mn.GetStatus()));
@@ -625,6 +626,10 @@ UniValue masternodelist(const JSONRPCRequest& request)
                 objMN.push_back(Pair("lastpaidtime", mn.GetLastPaidTime()));
                 objMN.push_back(Pair("lastpaidblock", mn.GetLastPaidBlock()));
                 obj.push_back(Pair(strOutpoint, objMN));
+
+                // handle JSON list
+                objMN.push_back(Pair("outpoint", strOutpoint));
+                list.push_back(objMN);
             } else if (strMode == "lastpaidblock") {
                 if (strFilter !="" && strOutpoint.find(strFilter) == std::string::npos) continue;
                 obj.push_back(Pair(strOutpoint, mn.GetLastPaidBlock()));
@@ -655,6 +660,10 @@ UniValue masternodelist(const JSONRPCRequest& request)
             }
         }
     }
+
+    if (strMode == "json")
+        return list;
+
     return obj;
 }
 
