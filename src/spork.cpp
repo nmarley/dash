@@ -219,7 +219,8 @@ bool CSporkManager::GetSporkByHash(const uint256& hash, CSporkMessage &sporkRet)
     return true;
 }
 
-bool CSporkManager::SetSporkAddress(const std::string& strAddress) {
+bool CSporkManager::SetSporkAddress(const std::string& signerID, const std::string& strAddress)
+{
     LOCK(cs);
     CBitcoinAddress address(strAddress);
     if (!address.IsValid() || !address.GetKeyID(sporkPubKeyID)) {
