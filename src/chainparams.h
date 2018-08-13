@@ -117,6 +117,8 @@ protected:
     int nPoolMaxTransactions;
     int nFulfilledRequestExpireTime;
     std::string strSporkAddress;
+
+    std::map<std::string, std::string> mapSporkAddresses;
 };
 
 /**

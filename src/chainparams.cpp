@@ -231,6 +231,11 @@ public:
         nFulfilledRequestExpireTime = 60*60; // fulfilled requests expire in 1 hour
 
         strSporkAddress = "Xgtyuk76vhuFW2iT7UAiHgNdWXCf3J34wh";
+        mapSporkAddresses = {
+            {"tom", "Xgtyuk76vhuFW2iT7UAiHgNdWXCf3J34wh"},
+            {"dick", "Xgtyuk76vhuFW2iT7UAiHgNdWXCf3J34wh"},
+            {"harry", "Xgtyuk76vhuFW2iT7UAiHgNdWXCf3J34wh"},
+        };
 
         checkpointData = (CCheckpointData) {
             boost::assign::map_list_of
