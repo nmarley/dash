@@ -68,7 +68,14 @@ void CSporkManager::ProcessSpork(CNode* pfrom, const std::string& strCommand, CD
             }
         }
 
-        if(!spork.CheckSignature(sporkPubKeyID, IsSporkActive(SPORK_6_NEW_SIGS))) {
+        bool fFoundValidSignature = false;
+        for (const auto& keyIdPair : mapSporkKeyIDs) {
+            if (spork.CheckSignature(keyIdPair.second, IsSporkActive(SPORK_6_NEW_SIGS))) {
+                fFoundValidSignature = true;
+                break;
+            }
+        }
+        if(!fFoundValidSignature) {
             LOCK(cs_main);
             LogPrintf("CSporkManager::ProcessSpork -- ERROR: invalid signature\n");
             Misbehaving(pfrom->GetId(), 100);
@@ -223,10 +230,14 @@ bool CSporkManager::SetSporkAddress(const std::string& signerID, const std::stri
 {
     LOCK(cs);
     CBitcoinAddress address(strAddress);
-    if (!address.IsValid() || !address.GetKeyID(sporkPubKeyID)) {
+
+    CKeyID h160;
+    if (!address.IsValid() || !address.GetKeyID(h160)) {
         LogPrintf("CSporkManager::SetSporkAddress -- Failed to parse spork address\n");
         return false;
     }
+
+    mapSporkKeyIDs.emplace(signerID, h160);
     return true;
 }
 

@@ -91,8 +91,12 @@ private:
     std::map<uint256, CSporkMessage> mapSporksByHash;
     std::map<int, CSporkMessage> mapSporksActive;
 
-    CKeyID sporkPubKeyID;
-    CKey sporkPrivKey;
+    CKeyID legacySporkPubKeyID;
+
+    std::pair<std::string, CKey> sporkPrivKeyPair; // signerID, privkey
+    //std::string sporkSignerID;
+    //CKey sporkPrivKey;
+
     std::map<std::string, CKeyID> mapSporkKeyIDs;
 
 public:
