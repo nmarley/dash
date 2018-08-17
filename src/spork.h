@@ -35,6 +35,9 @@ extern std::map<int, int64_t> mapSporkDefaults;
 extern std::map<uint256, CSporkMessage> mapSporks;
 extern CSporkManager sporkManager;
 
+// CSporkAddr is a pair of string, hash160 where string is the signer ID.
+using CSporkAddr = std::pair<std::string, CKeyID>;
+
 //
 // Spork classes
 // Keep track of all of the network spork settings
@@ -93,7 +96,9 @@ private:
 
     CKeyID legacySporkPubKeyID;
 
+    // using CSporkAddr = std::pair<std::string, CKeyID>
     std::pair<std::string, CKey> sporkPrivKeyPair; // signerID, privkey
+
     //std::string sporkSignerID;
     //CKey sporkPrivKey;
 
