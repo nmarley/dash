@@ -146,7 +146,7 @@ public:
     bool SetPrivKey(const std::string& strPrivKey);
 
     std::string ToString() const;
-    bool CSporkManager::SetSignatureThreshold(const int&);
+    bool SetSignatureThreshold(const int&);
 };
 
 #endif
