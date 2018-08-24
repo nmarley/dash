@@ -89,13 +89,14 @@ public:
     int PoolMaxTransactions() const { return nPoolMaxTransactions; }
     int FulfilledRequestExpireTime() const { return nFulfilledRequestExpireTime; }
     const std::string& SporkAddress() const { return strLegacySporkAddress; }
-    const std::vector<const std::string&> SporkAddresses() const {
-        std::vector<const std::string&> vecSporkAddresses;
-        for (const auto& addr : mapSporkAddresses) {
-            vecSporkAddresses.push_back(addr.second);
-        }
-        return vecSporkAddresses;
-    }
+    const std::vector<const std::string&> SporkAddresses() const { return vecSporkAddresses; }
+//    const std::vector<const std::string&> SporkAddresses() const {
+//        std::vector<const std::string&> vecSporkAddresses;
+//        for (const auto& addr : mapSporkAddresses) {
+//            vecSporkAddresses.push_back(addr.second);
+//        }
+//        return vecSporkAddresses;
+//    }
 protected:
     CChainParams() {}
 
@@ -126,7 +127,8 @@ protected:
     std::string strLegacySporkAddress;
 
     // multisig sporks
-    std::map<std::string, std::string> mapSporkAddresses;
+    std::vector<std::string> vecSporkAddresses;
+    // std::map<std::string, std::string> mapSporkAddresses;
     int sporkThresholdSignatures;
 };
 

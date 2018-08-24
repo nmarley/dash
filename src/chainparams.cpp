@@ -237,10 +237,15 @@ public:
         // XG6bCDMXbMaqgoEoW3cwKdHfb67enr57a4uvTsGRoMHqjxQDq91o : XytsS7Qwioits3uyt1fboMRWdEPrwg3PCp
         // XCPdXgMEWXmrqDAcbYasG2AyFwaBDbjZFppFRdZP79GXFbJHKQYr : XkYD2KJowRt3KeeqgM3joX78576hHt6bj9
 
-        mapSporkAddresses = {
-            {"tom", "Xc944tvwkuEGeRX2yAEUSKytYCfDKNeM9k"},
-            {"dick", "XytsS7Qwioits3uyt1fboMRWdEPrwg3PCp"},
-            {"harry", "XkYD2KJowRt3KeeqgM3joX78576hHt6bj9"},
+//        mapSporkAddresses = {
+//            {"tom", "Xc944tvwkuEGeRX2yAEUSKytYCfDKNeM9k"},
+//            {"dick", "XytsS7Qwioits3uyt1fboMRWdEPrwg3PCp"},
+//            {"harry", "XkYD2KJowRt3KeeqgM3joX78576hHt6bj9"},
+//        };
+        vecSporkAddresses = {
+            {"Xc944tvwkuEGeRX2yAEUSKytYCfDKNeM9k"},
+            {"XytsS7Qwioits3uyt1fboMRWdEPrwg3PCp"},
+            {"XkYD2KJowRt3KeeqgM3joX78576hHt6bj9"},
         };
         sporkThresholdSignatures = 2;
 
