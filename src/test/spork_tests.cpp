@@ -15,10 +15,12 @@ BOOST_FIXTURE_TEST_SUITE(spork_tests, BasicTestingSetup)
 /* Test calculation of next difficulty target with DGW */
 BOOST_AUTO_TEST_CASE(get_next_work)
 {
-    SelectParams(CBaseChainParams::MAIN);
-    const Consensus::Params& params = Params().GetConsensus();
+    // SelectParams(CBaseChainParams::MAIN);
+    // const Consensus::Params& params = Params().GetConsensus();
 
-    BOOST_CHECK_EQUAL(GetNextWorkRequired(&blockIndexLast, &blockHeader, paramsdev), 0x207fffff); // Block #123457 has 0x207fffff
+    sporkManager.things();
+
+    // BOOST_CHECK_EQUAL(GetNextWorkRequired(&blockIndexLast, &blockHeader, paramsdev), 0x207fffff); // Block #123457 has 0x207fffff
 }
 
 BOOST_AUTO_TEST_SUITE_END()

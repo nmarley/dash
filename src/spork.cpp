@@ -69,8 +69,8 @@ void CSporkManager::ProcessSpork(CNode* pfrom, const std::string& strCommand, CD
         }
 
         bool fFoundValidSignature = false;
-        for (const auto& keyIdPair : mapSporkKeyIDs) {
-            if (spork.CheckSignature(keyIdPair.second, IsSporkActive(SPORK_6_NEW_SIGS))) {
+        for (const auto& keyId : vecSporkKeyIDs) {
+            if (spork.CheckSignature(keyId, IsSporkActive(SPORK_6_NEW_SIGS))) {
                 fFoundValidSignature = true;
                 break;
             }
@@ -83,6 +83,7 @@ void CSporkManager::ProcessSpork(CNode* pfrom, const std::string& strCommand, CD
         }
 
         {
+            // TODO: ensure threshold keys have signed first
             LOCK(cs); // make sure to not lock this together with cs_main
             mapSporksByHash[hash] = spork;
             mapSporksActive[spork.nSporkID] = spork;
@@ -90,6 +91,7 @@ void CSporkManager::ProcessSpork(CNode* pfrom, const std::string& strCommand, CD
         spork.Relay(connman);
 
         //does a task if needed
+        // TODO: ensure threshold keys have signed first
         ExecuteSpork(spork.nSporkID, spork.nValue);
 
     } else if (strCommand == NetMsgType::GETSPORKS) {
@@ -226,7 +228,7 @@ bool CSporkManager::GetSporkByHash(const uint256& hash, CSporkMessage &sporkRet)
     return true;
 }
 
-bool CSporkManager::SetSporkAddress(const std::string& signerID, const std::string& strAddress)
+bool CSporkManager::SetSporkAddress(const std::string& strAddress)
 {
     LOCK(cs);
     CBitcoinAddress address(strAddress);
@@ -237,7 +239,15 @@ bool CSporkManager::SetSporkAddress(const std::string& signerID, const std::stri
         return false;
     }
 
-    mapSporkKeyIDs.emplace(signerID, h160);
+    for (const auto& keyId : vecSporkKeyIDs) {
+        if (h160 == keyId) {
+            LogPrintf("CSporkManager::SetSporkAddress -- Spork Address %s already set\n", strAddress);
+            return true;
+        }
+    }
+
+    vecSporkKeyIDs.push_back(h160);
+
     return true;
 }
 
@@ -250,7 +260,14 @@ bool CSporkManager::SetPrivKey(const std::string& strPrivKey)
         return false;
     }
 
-    if (pubKey.GetID() != sporkPubKeyID) {
+    bool fFoundMatchingKey = false;
+    for (const auto& keyId : vecSporkKeyIDs) {
+        if (pubKey.GetID() == keyId) {
+            fFoundMatchingKey = true;
+            break;
+        }
+    }
+    if(!fFoundMatchingKey) {
         LogPrintf("CSporkManager::SetPrivKey -- New private key does not belong to spork address\n");
         return false;
     }

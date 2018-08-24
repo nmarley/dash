@@ -92,17 +92,21 @@ class CSporkManager
 private:
     mutable CCriticalSection cs;
     std::map<uint256, CSporkMessage> mapSporksByHash;
+
+    // Map of all active, signed & verified sporks.
+    // Spork ID (internal ID) : Wire spork message.
     std::map<int, CSporkMessage> mapSporksActive;
 
-    CKeyID legacySporkPubKeyID;
+    // CKeyID legacySporkPubKeyID;
 
     // using CSporkAddr = std::pair<std::string, CKeyID>
-    std::pair<std::string, CKey> sporkPrivKeyPair; // signerID, privkey
+    // std::pair<std::string, CKey> sporkPrivKeyPair; // signerID, privkey
 
-    //std::string sporkSignerID;
-    //CKey sporkPrivKey;
+    std::string sporkSignerID;
+    CKey sporkPrivKey;
 
-    std::map<std::string, CKeyID> mapSporkKeyIDs;
+//    std::map<CKeyID, int> mapSporkKeyIDs;
+    std::vector<CKeyID> vecSporkKeyIDs;
 
 public:
 
@@ -112,7 +116,8 @@ public:
 
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action) {
-        READWRITE(sporkPubKeyID);
+        // TODO: clear spork keys upon initialization, ignore these...
+        READWRITE(vecSporkKeyIDs);
         READWRITE(mapSporksByHash);
         READWRITE(mapSporksActive);
         // we don't serialize private key to prevent its leakage
