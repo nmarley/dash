@@ -13,6 +13,8 @@
 class CSporkMessage;
 class CSporkManager;
 
+static const int DEFAULT_SPORK_SIG_THRESHOLD = 2;  // for M of N sporks
+
 /*
     Don't ever reuse these IDs for other sporks
     - This would result in old clients getting confused about which spork is for what
