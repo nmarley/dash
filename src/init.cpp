@@ -1399,6 +1399,11 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         }
     }
 
+    // TODO: probably change something here...
+    if (!sporkManager.SetSignatureThreshold(nSporkSigThreshold)) {
+        return InitError(_("Unable to set spork signature threshold"));
+    }
+
     // if (!sporkManager.SetSporkAddress(GetArg("-sporkaddr", Params().SporkAddress())))
     //    return InitError(_("Invalid spork address specified with -sporkaddr"));
 
