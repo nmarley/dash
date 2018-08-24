@@ -85,6 +85,7 @@ void CSporkManager::ProcessSpork(CNode* pfrom, const std::string& strCommand, CD
 
         {
             // TODO: ensure threshold keys have signed first
+            // if GetSignatureThreshold()
             LOCK(cs); // make sure to not lock this together with cs_main
             mapSporksByHash[hash] = spork;
             mapSporksActive[spork.nSporkID] = spork;

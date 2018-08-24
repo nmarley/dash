@@ -33,8 +33,6 @@ static const int SPORK_START                                            = SPORK_
 static const int SPORK_END                                              = SPORK_14_REQUIRE_SENTINEL_FLAG;
 
 extern std::map<int, int64_t> mapSporkDefaults;
-// extern std::map<uint256, CSporkMessage> mapSporks;
-extern std::map<uint256, CSporkMessage> mapSporks;
 extern CSporkManager sporkManager;
 
 // CSporkAddr is a pair of string, hash160 where string is the signer ID.
