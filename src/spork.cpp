@@ -169,8 +169,8 @@ bool CSporkManager::IsSporkActive(int nSporkID)
 
     if(mapLegacySporksActive.count(nSporkID)){
         r = mapLegacySporksActive[nSporkID].nValue;
-    } else if (mapLegacySporkDefaults.count(nSporkID)) {
-        r = mapLegacySporkDefaults[nSporkID];
+    } else if (mapSporkDefaults.count(nSporkID)) {
+        r = mapSporkDefaults[nSporkID];
     } else {
         LogPrint("spork", "CSporkManager::IsSporkActive -- Unknown Spork ID %d\n", nSporkID);
         r = 4070908800ULL; // 2099-1-1 i.e. off by default
