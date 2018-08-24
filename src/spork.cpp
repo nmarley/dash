@@ -62,7 +62,7 @@ void CSporkManager::ProcessSpork(CNode* pfrom, const std::string& strCommand, CD
             // TODO: multisig spork logic here
 
             // Get signer CKeyID from spork message signature.
-            CKeyID signerId = spork.GetSignerKeyID();
+            // CKeyID signerId = spork.GetSignerKeyID();
             std::map<int, std::map<CKeyID, CSporkMessage> > mapSporksActive;
 
             if (mapLegacySporksActive.count(spork.nSporkID)) {
@@ -110,7 +110,7 @@ void CSporkManager::ProcessSpork(CNode* pfrom, const std::string& strCommand, CD
 
     } else if (strCommand == NetMsgType::GETSPORKS) {
         LOCK(cs); // make sure to not lock this together with cs_main
-        for (const auto& pair : mapSporksActive) {
+        for (const auto& pair : mapLegacySporksActive) {
             connman.PushMessage(pfrom, CNetMsgMaker(pfrom->GetSendVersion()).Make(NetMsgType::SPORK, pair.second));
         }
     }
