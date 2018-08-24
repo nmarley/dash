@@ -1387,12 +1387,12 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     }
 
     // TODO : accept a list of spork addresses & require a threshold as well...
-
     int nSporkSigThreshold = GetArg("-sporksigthreshold", DEFAULT_SPORK_SIG_THRESHOLD);
 
     // GetArg logic goes here....
 
-    for (const auto& addr : Params().SporkAddresses()) {
+    // std::vector<std::string>
+    for (auto& addr : Params().SporkAddresses()) {
         if (!sporkManager.SetSporkAddress(addr)) {
             // message is not accurate 'til we fix GetArg logic above ^
             return InitError(_("Invalid spork address specified with -sporkaddr"));

@@ -89,7 +89,7 @@ public:
     int PoolMaxTransactions() const { return nPoolMaxTransactions; }
     int FulfilledRequestExpireTime() const { return nFulfilledRequestExpireTime; }
     const std::string& SporkAddress() const { return strLegacySporkAddress; }
-    const std::vector<const std::string&> SporkAddresses() const { return vecSporkAddresses; }
+    const std::vector<std::string> SporkAddresses() const { return vecSporkAddresses; }
 //    const std::vector<const std::string&> SporkAddresses() const {
 //        std::vector<const std::string&> vecSporkAddresses;
 //        for (const auto& addr : mapSporkAddresses) {
