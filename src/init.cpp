@@ -1404,8 +1404,8 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         return InitError(_("Unable to set spork signature threshold"));
     }
 
-    // if (!sporkManager.SetSporkAddress(GetArg("-sporkaddr", Params().SporkAddress())))
-    //    return InitError(_("Invalid spork address specified with -sporkaddr"));
+    if (!sporkManager.SetLegacySporkAddress(GetArg("-legacysporkaddr", Params().LegacySporkAddress())))
+        return InitError(_("Invalid legacy spork address specified with -legacysporkaddr"));
 
     if (IsArgSet("-sporkkey")) // spork priv key
     {
