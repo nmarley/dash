@@ -1385,8 +1385,19 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
             threadGroup.create_thread(&ThreadScriptCheck);
     }
 
-    if (!sporkManager.SetSporkAddress(GetArg("-sporkaddr", Params().SporkAddress())))
-        return InitError(_("Invalid spork address specified with -sporkaddr"));
+    // TODO : accept a list of spork addresses & require a threshold as well...
+
+    // GetArg logic goes here....
+
+    for (const auto& addr : Params().SporkAddresses()) {
+        if (!sporkManager.SetSporkAddress(addr)) {
+            // message is not accurate 'til we fix GetArg logic above ^
+            return InitError(_("Invalid spork address specified with -sporkaddr"));
+        }
+    }
+
+    // if (!sporkManager.SetSporkAddress(GetArg("-sporkaddr", Params().SporkAddress())))
+    //    return InitError(_("Invalid spork address specified with -sporkaddr"));
 
     if (IsArgSet("-sporkkey")) // spork priv key
     {

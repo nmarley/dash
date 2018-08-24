@@ -231,10 +231,16 @@ public:
         nFulfilledRequestExpireTime = 60*60; // fulfilled requests expire in 1 hour
 
         strLegacySporkAddress = "Xgtyuk76vhuFW2iT7UAiHgNdWXCf3J34wh";
+
+        // for testing:
+        // XH9kfn956qYQnG9njDmMF8nG3WVMkpSxXerd87H5vtAwsTdFu8fL : Xc944tvwkuEGeRX2yAEUSKytYCfDKNeM9k
+        // XG6bCDMXbMaqgoEoW3cwKdHfb67enr57a4uvTsGRoMHqjxQDq91o : XytsS7Qwioits3uyt1fboMRWdEPrwg3PCp
+        // XCPdXgMEWXmrqDAcbYasG2AyFwaBDbjZFppFRdZP79GXFbJHKQYr : XkYD2KJowRt3KeeqgM3joX78576hHt6bj9
+
         mapSporkAddresses = {
-            {"tom", "Xgtyuk76vhuFW2iT7UAiHgNdWXCf3J34wh"},
-            {"dick", "Xgtyuk76vhuFW2iT7UAiHgNdWXCf3J34wh"},
-            {"harry", "Xgtyuk76vhuFW2iT7UAiHgNdWXCf3J34wh"},
+            {"tom", "Xc944tvwkuEGeRX2yAEUSKytYCfDKNeM9k"},
+            {"dick", "XytsS7Qwioits3uyt1fboMRWdEPrwg3PCp"},
+            {"harry", "XkYD2KJowRt3KeeqgM3joX78576hHt6bj9"},
         };
         sporkThresholdSignatures = 2;
 
