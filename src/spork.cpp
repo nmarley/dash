@@ -317,7 +317,8 @@ bool CSporkManager::SetPrivKey(const std::string& strPrivKey)
 std::string CSporkManager::ToString() const
 {
     LOCK(cs);
-    return strprintf("Sporks: %llu", mapSporksActive.size());
+    // TODO: this could probably give more info
+    return strprintf("Sporks: %llu", mapLegacySporksActive.size());
 }
 
 bool CSporkManager::SetSignatureThreshold(const int& threshold)
