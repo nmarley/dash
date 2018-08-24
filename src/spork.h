@@ -95,7 +95,7 @@ private:
     std::map<int, CSporkMessage> mapSporksActive;
     // TODO: how to handle this now? w/o signature....
 
-    std::map<std::map<CKeyID, id>, CSporkMessage> mapMostRecentPerSigner;
+    std::map<std::map<CKeyID, int>, CSporkMessage> mapMostRecentPerSigner;
     // most recent signed spork per signer : sporkId combination
     // e.g.:
     // 1.  we receive spork message from <user1 : 10005> w/value 99999
