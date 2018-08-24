@@ -122,6 +122,8 @@ private:
     std::vector<CKeyID> vecSporkKeyIDs;
     int nSporkSigThreshold;
 
+    CKeyID legacySporkPubKeyID;
+
 public:
 
     CSporkManager() {}
@@ -152,6 +154,7 @@ public:
 
     bool GetSporkByHash(const uint256& hash, CSporkMessage &sporkRet);
 
+    bool SetLegacySporkAddress(const std::string&);
     bool SetSporkAddress(const std::string& strAddress);
     bool SetPrivKey(const std::string& strPrivKey);
 

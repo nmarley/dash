@@ -268,6 +268,19 @@ bool CSporkManager::SetSporkAddress(const std::string& strAddress)
     return true;
 }
 
+bool CSporkManager::SetLegacySporkAddress(const std::string& strAddress)
+{
+    LOCK(cs);
+    CBitcoinAddress address(strAddress);
+
+    if (!address.IsValid() || !address.GetKeyID(legacySporkPubKeyID)) {
+        LogPrintf("CSporkManager::SetSporkAddress -- Failed to parse spork address\n");
+        return false;
+    }
+
+    return true;
+}
+
 bool CSporkManager::SetPrivKey(const std::string& strPrivKey)
 {
     CKey key;
