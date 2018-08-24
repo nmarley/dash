@@ -92,20 +92,33 @@ class CSporkManager
 private:
     mutable CCriticalSection cs;
     std::map<uint256, CSporkMessage> mapSporksByHash;
-
-    // Map of all active, signed & verified sporks.
-    // Spork ID (internal ID) : Wire spork message.
     std::map<int, CSporkMessage> mapSporksActive;
+    // TODO: how to handle this now? w/o signature....
 
-    // CKeyID legacySporkPubKeyID;
+    std::map<std::map<CKeyID, id>, CSporkMessage> mapMostRecentPerSigner;
+    // most recent signed spork per signer : sporkId combination
+    // e.g.:
+    // 1.  we receive spork message from <user1 : 10005> w/value 99999
+    // 2.  we receive spork message from <user1 : 10005> w/value 7  (same user/spork ID, new value)
+    //
+    // result ==> only the most recent signed spork exists in map
+    //
+    // problem: spork messages might not be received in order
+    // solution: add sporks to blockchain as DIP2 special TX'es (blockchain is
+    //           a "timestamp server" according to Satoshi whitepaper)
 
     // using CSporkAddr = std::pair<std::string, CKeyID>
     // std::pair<std::string, CKey> sporkPrivKeyPair; // signerID, privkey
 
+    // (de)activate some spork only when at least M similar message with the
+    // same id/value signed by different signers were received (i.e. code
+    // changes of that nature: map<id,spork> --> map<id, map<signer, spork>> or
+    // smth like that).
+
     std::string sporkSignerID;
     CKey sporkPrivKey;
 
-//    std::map<CKeyID, int> mapSporkKeyIDs;
+    // std::map<CKeyID, int> mapSporkKeyIDs;
     std::vector<CKeyID> vecSporkKeyIDs;
 
     int nSporkSigThreshold;
