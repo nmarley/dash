@@ -66,8 +66,6 @@ void CSporkManager::ProcessSpork(CNode* pfrom, const std::string& strCommand, CD
             std::map<int, std::map<CKeyID, CSporkMessage> > mapSporksActive;
 
             if (mapLegacySporksActive.count(spork.nSporkID)) {
-                if (mapLegacySporksActive[spork.nSporkID][signerId].nTimeSigned >= spork.nTimeSigned) {
-
                 if (mapLegacySporksActive[spork.nSporkID].nTimeSigned >= spork.nTimeSigned) {
                     LogPrint("spork", "%s seen\n", strLogMsg);
                     return;
@@ -420,7 +418,9 @@ void CSporkMessage::Relay(CConnman& connman)
 
 
 CKeyID CSporkMessage::GetSignerKeyID() {
-    CKeyID sporkSignerID;
-    // TODO extract hash160 from vchSig and return it
+    CKeyID sporkSignerID = CKeyID();
+
+    // TODO: extract hash160 from vchSig and return it
+
     return sporkSignerID;
 }
