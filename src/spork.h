@@ -110,6 +110,8 @@ private:
 //    std::map<CKeyID, int> mapSporkKeyIDs;
     std::vector<CKeyID> vecSporkKeyIDs;
 
+    int sporkSigThreshold;
+
 public:
 
     CSporkManager() {}
@@ -118,7 +120,7 @@ public:
 
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action) {
-        // TODO: clear spork keys upon initialization, ignore these...
+        // TODO: clear spork keys upon initialization, ignore these ? ... or lock when re-initializing
         READWRITE(vecSporkKeyIDs);
         READWRITE(mapSporksByHash);
         READWRITE(mapSporksActive);
@@ -144,6 +146,7 @@ public:
     bool SetPrivKey(const std::string& strPrivKey);
 
     std::string ToString() const;
+    bool CSporkManager::SetSignatureThreshold(const int&);
 };
 
 #endif

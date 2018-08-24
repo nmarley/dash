@@ -32,7 +32,8 @@ void CSporkManager::Clear()
     LOCK(cs);
     mapSporksActive.clear();
     mapSporksByHash.clear();
-    sporkPubKeyID.SetNull();
+    vecSporkKeyIDs.clear();
+    // sporkPubKeyID.SetNull();
     sporkPrivKey = CKey();
 }
 
@@ -291,6 +292,15 @@ std::string CSporkManager::ToString() const
     LOCK(cs);
     return strprintf("Sporks: %llu", mapSporksActive.size());
 }
+
+bool CSporkManager::SetSignatureThreshold(const int& threshold)
+{
+    LOCK(cs);
+    sporkSigThreshold = threshold;
+
+    return true;
+}
+
 
 
 uint256 CSporkMessage::GetHash() const
