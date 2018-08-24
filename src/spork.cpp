@@ -30,10 +30,11 @@ std::map<int, int64_t> mapSporkDefaults = {
 void CSporkManager::Clear()
 {
     LOCK(cs);
-    mapSporksActive.clear();
-    mapSporksByHash.clear();
+    mapLegacySporksActive.clear();
+    mapLegacySporksByHash.clear();
     vecSporkKeyIDs.clear();
-    // sporkPubKeyID.SetNull();
+    // TODO:
+    // legacySporkPubKeyID.SetNull();
     sporkPrivKey = CKey();
 }
 
@@ -57,8 +58,17 @@ void CSporkManager::ProcessSpork(CNode* pfrom, const std::string& strCommand, CD
         }
         {
             LOCK(cs); // make sure to not lock this together with cs_main
-            if (mapSporksActive.count(spork.nSporkID)) {
-                if (mapSporksActive[spork.nSporkID].nTimeSigned >= spork.nTimeSigned) {
+
+            // TODO: multisig spork logic here
+
+            // Get signer CKeyID from spork message signature.
+            CKeyID signerId = spork.GetSignerKeyID();
+            std::map<int, std::map<CKeyID, CSporkMessage> > mapSporksActive;
+
+            if (mapLegacySporksActive.count(spork.nSporkID)) {
+                if (mapLegacySporksActive[spork.nSporkID][signerId].nTimeSigned >= spork.nTimeSigned) {
+
+                if (mapLegacySporksActive[spork.nSporkID].nTimeSigned >= spork.nTimeSigned) {
                     LogPrint("spork", "%s seen\n", strLogMsg);
                     return;
                 } else {
@@ -85,10 +95,14 @@ void CSporkManager::ProcessSpork(CNode* pfrom, const std::string& strCommand, CD
 
         {
             // TODO: ensure threshold keys have signed first
-            // if GetSignatureThreshold()
+
+            // std::map<int, CSporkMessage> mapSporksActive;
+            // std::map<> mapKeys = mapSporksActive[spork.nSporkID];
+
+
             LOCK(cs); // make sure to not lock this together with cs_main
-            mapSporksByHash[hash] = spork;
-            mapSporksActive[spork.nSporkID] = spork;
+            mapLegacySporksByHash[hash] = spork;
+            mapLegacySporksActive[spork.nSporkID] = spork;
         }
         spork.Relay(connman);
 
@@ -141,8 +155,8 @@ bool CSporkManager::UpdateSpork(int nSporkID, int64_t nValue, CConnman& connman)
     if(spork.Sign(sporkPrivKey, IsSporkActive(SPORK_6_NEW_SIGS))) {
         spork.Relay(connman);
         LOCK(cs);
-        mapSporksByHash[spork.GetHash()] = spork;
-        mapSporksActive[nSporkID] = spork;
+        mapLegacySporksByHash[spork.GetHash()] = spork;
+        mapLegacySporksActive[nSporkID] = spork;
         return true;
     }
 
@@ -155,10 +169,10 @@ bool CSporkManager::IsSporkActive(int nSporkID)
     LOCK(cs);
     int64_t r = -1;
 
-    if(mapSporksActive.count(nSporkID)){
-        r = mapSporksActive[nSporkID].nValue;
-    } else if (mapSporkDefaults.count(nSporkID)) {
-        r = mapSporkDefaults[nSporkID];
+    if(mapLegacySporksActive.count(nSporkID)){
+        r = mapLegacySporksActive[nSporkID].nValue;
+    } else if (mapLegacySporkDefaults.count(nSporkID)) {
+        r = mapLegacySporkDefaults[nSporkID];
     } else {
         LogPrint("spork", "CSporkManager::IsSporkActive -- Unknown Spork ID %d\n", nSporkID);
         r = 4070908800ULL; // 2099-1-1 i.e. off by default
@@ -171,8 +185,9 @@ bool CSporkManager::IsSporkActive(int nSporkID)
 int64_t CSporkManager::GetSporkValue(int nSporkID)
 {
     LOCK(cs);
-    if (mapSporksActive.count(nSporkID))
-        return mapSporksActive[nSporkID].nValue;
+    // TODO: update to pull value with threshold sigs
+    if (mapLegacySporksActive.count(nSporkID))
+        return mapLegacySporksActive[nSporkID].nValue;
 
     if (mapSporkDefaults.count(nSporkID)) {
         return mapSporkDefaults[nSporkID];
@@ -220,9 +235,9 @@ bool CSporkManager::GetSporkByHash(const uint256& hash, CSporkMessage &sporkRet)
 {
     LOCK(cs);
 
-    const auto it = mapSporksByHash.find(hash);
+    const auto it = mapLegacySporksByHash.find(hash);
 
-    if (it == mapSporksByHash.end())
+    if (it == mapLegacySporksByHash.end())
         return false;
 
     sporkRet = it->second;
@@ -388,4 +403,11 @@ void CSporkMessage::Relay(CConnman& connman)
 {
     CInv inv(MSG_SPORK, GetHash());
     connman.RelayInv(inv);
+}
+
+
+CKeyID CSporkMessage::GetSignerKeyID() {
+    CKeyID sporkSignerID;
+    // TODO extract hash160 from vchSig and return it
+    return sporkSignerID;
 }

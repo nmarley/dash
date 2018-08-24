@@ -36,7 +36,8 @@ extern std::map<int, int64_t> mapSporkDefaults;
 extern CSporkManager sporkManager;
 
 // CSporkAddr is a pair of string, hash160 where string is the signer ID.
-using CSporkAddr = std::pair<std::string, CKeyID>;
+// using CSporkAddr = std::pair<std::string, CKeyID>;
+//using x = std::map< int, int >;
 
 //
 // Spork classes
@@ -84,6 +85,7 @@ public:
     bool Sign(const CKey& key, bool fSporkSixActive);
     bool CheckSignature(const CKeyID& pubKeyId, bool fSporkSixActive) const;
     void Relay(CConnman& connman);
+    CKeyID GetSignerKeyID();
 };
 
 
@@ -91,11 +93,16 @@ class CSporkManager
 {
 private:
     mutable CCriticalSection cs;
-    std::map<uint256, CSporkMessage> mapSporksByHash;
-    std::map<int, CSporkMessage> mapSporksActive;
+    std::map<uint256, CSporkMessage> mapLegacySporksByHash;
+    std::map<int, CSporkMessage> mapLegacySporksActive;
+
+    CKey sporkPrivKey;
+
+    // std::map<int, std::map<CKeyID, CSporkMessage> > mapSporksActive;
     // TODO: how to handle this now? w/o signature....
 
-    std::map<std::map<CKeyID, int>, CSporkMessage> mapMostRecentPerSigner;
+    // std::map<std::map<CKeyID, int>, CSporkMessage> mapMulti
+
     // most recent signed spork per signer : sporkId combination
     // e.g.:
     // 1.  we receive spork message from <user1 : 10005> w/value 99999
@@ -107,20 +114,12 @@ private:
     // solution: add sporks to blockchain as DIP2 special TX'es (blockchain is
     //           a "timestamp server" according to Satoshi whitepaper)
 
-    // using CSporkAddr = std::pair<std::string, CKeyID>
-    // std::pair<std::string, CKey> sporkPrivKeyPair; // signerID, privkey
-
     // (de)activate some spork only when at least M similar message with the
     // same id/value signed by different signers were received (i.e. code
     // changes of that nature: map<id,spork> --> map<id, map<signer, spork>> or
     // smth like that).
 
-    std::string sporkSignerID;
-    CKey sporkPrivKey;
-
-    // std::map<CKeyID, int> mapSporkKeyIDs;
     std::vector<CKeyID> vecSporkKeyIDs;
-
     int nSporkSigThreshold;
 
 public:
@@ -133,8 +132,8 @@ public:
     inline void SerializationOp(Stream& s, Operation ser_action) {
         // TODO: clear spork keys upon initialization, ignore these ? ... or lock when re-initializing
         READWRITE(vecSporkKeyIDs);
-        READWRITE(mapSporksByHash);
-        READWRITE(mapSporksActive);
+        READWRITE(mapLegacySporksByHash);
+        READWRITE(mapLegacySporksActive);
         // we don't serialize private key to prevent its leakage
     }
 
