@@ -110,7 +110,7 @@ private:
 //    std::map<CKeyID, int> mapSporkKeyIDs;
     std::vector<CKeyID> vecSporkKeyIDs;
 
-    int sporkSigThreshold;
+    int nSporkSigThreshold;
 
 public:
 
@@ -147,6 +147,7 @@ public:
 
     std::string ToString() const;
     bool SetSignatureThreshold(const int&);
+    int GetSignatureThreshold() { return nSporkSigThreshold; }
 };
 
 #endif

@@ -296,7 +296,7 @@ std::string CSporkManager::ToString() const
 bool CSporkManager::SetSignatureThreshold(const int& threshold)
 {
     LOCK(cs);
-    sporkSigThreshold = threshold;
+    nSporkSigThreshold = threshold;
 
     return true;
 }
