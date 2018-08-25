@@ -110,9 +110,8 @@ private:
     //
     // result ==> only the most recent signed spork exists in map
     //
-    // problem: spork messages might not be received in order
-    // solution: add sporks to blockchain as DIP2 special TX'es (blockchain is
-    //           a "timestamp server" according to Satoshi whitepaper)
+    // timestamp check logic exists in ProcessSpork for out-of-order network
+    // messages
 
     // (de)activate some spork only when at least M similar message with the
     // same id/value signed by different signers were received (i.e. code
