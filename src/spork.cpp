@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2017 The Dash Core developers
+// Copyright (c) 2014-2018 The Dash Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -60,7 +60,7 @@ void CSporkManager::ProcessSpork(CNode* pfrom, const std::string& strCommand, CD
             // Get signer CKeyID from spork message signature.
             // CKeyID signerId = spork.GetSignerKeyID();
 
-            CKeyID signerId& = CKeyID();
+            CKeyID signerId = CKeyID();
             if (!spork.GetSignerKeyID(signerId)) {
                 LogPrintf("CSporkManager::ProcessSpork -- ERROR: unable to recover key from signature\n");
                 return;
