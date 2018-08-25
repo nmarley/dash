@@ -60,7 +60,7 @@ void CSporkManager::ProcessSpork(CNode* pfrom, const std::string& strCommand, CD
             // Get signer CKeyID from spork message signature.
             // CKeyID signerId = spork.GetSignerKeyID();
 
-            CKeyID signerId = CKeyID();
+            CKeyID signerId& = CKeyID();
             if (!spork.GetSignerKeyID(signerId)) {
                 LogPrintf("CSporkManager::ProcessSpork -- ERROR: unable to recover key from signature\n");
                 return;
