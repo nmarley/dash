@@ -96,6 +96,8 @@ private:
     std::map<uint256, CSporkMessage> mapLegacySporksByHash;
     std::map<int, CSporkMessage> mapLegacySporksActive;
 
+    std::map<int, std::map<CKeyID, CSporkMessage> > mapSporksActive;
+
     CKey sporkPrivKey;
 
     // std::map<int, std::map<CKeyID, CSporkMessage> > mapSporksActive;
