@@ -242,6 +242,7 @@ public:
 //            {"dick", "XytsS7Qwioits3uyt1fboMRWdEPrwg3PCp"},
 //            {"harry", "XkYD2KJowRt3KeeqgM3joX78576hHt6bj9"},
 //        };
+
         vecSporkAddresses = {
             {"Xc944tvwkuEGeRX2yAEUSKytYCfDKNeM9k"},
             {"XytsS7Qwioits3uyt1fboMRWdEPrwg3PCp"},
@@ -395,6 +396,11 @@ public:
         nFulfilledRequestExpireTime = 5*60; // fulfilled requests expire in 5 minutes
 
         strLegacySporkAddress = "yjPtiKh2uwk3bDutTEA2q9mCtXyiZRWn55";
+        vecSporkAddresses = {
+            {"yjPtiKh2uwk3bDutTEA2q9mCtXyiZRWn55"},
+        };
+        sporkThresholdSignatures = 1;
+
 
         checkpointData = (CCheckpointData) {
             boost::assign::map_list_of
@@ -525,6 +531,11 @@ public:
         nFulfilledRequestExpireTime = 5*60; // fulfilled requests expire in 5 minutes
 
         strLegacySporkAddress = "yjPtiKh2uwk3bDutTEA2q9mCtXyiZRWn55";
+        vecSporkAddresses = {
+            {"yjPtiKh2uwk3bDutTEA2q9mCtXyiZRWn55"},
+        };
+        sporkThresholdSignatures = 1;
+
 
         checkpointData = (CCheckpointData) {
             boost::assign::map_list_of
@@ -624,6 +635,11 @@ public:
 
         // privKey: cP4EKFyJsHT39LDqgdcB43Y3YXjNyjb5Fuas1GQSeAtjnZWmZEQK
         strLegacySporkAddress = "yj949n1UH6fDhw6HtVE5VMj2iSTaSWBMcW";
+        vecSporkAddresses = {
+            {"yj949n1UH6fDhw6HtVE5VMj2iSTaSWBMcW"},
+        };
+        sporkThresholdSignatures = 1;
+
 
         checkpointData = (CCheckpointData){
             boost::assign::map_list_of
