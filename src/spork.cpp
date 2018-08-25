@@ -430,7 +430,6 @@ bool CSporkMessage::GetSignerKeyID(CKeyID& sporkSignerID) {
 
     CPubKey pubkeyFromSig;
     if(!pubkeyFromSig.RecoverCompact(GetHash(), vchSig)) {
-        strErrorRet = "Error recovering public key.";
         return false;
     }
 
