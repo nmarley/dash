@@ -32,9 +32,8 @@ void CSporkManager::Clear()
     LOCK(cs);
     mapLegacySporksActive.clear();
     mapLegacySporksByHash.clear();
+    legacySporkPubKeyID.SetNull();
     vecSporkKeyIDs.clear();
-    // TODO:
-    // legacySporkPubKeyID.SetNull();
     sporkPrivKey = CKey();
 }
 
@@ -286,6 +285,7 @@ bool CSporkManager::SetLegacySporkAddress(const std::string& strAddress)
         return false;
     }
 
+    LogPrintf("CSporkManager::SetSporkAddress -- Set signer id = %s\n", legacySporkPubKeyID.ToString());
     return true;
 }
 
