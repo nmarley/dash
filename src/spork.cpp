@@ -49,33 +49,43 @@ void CSporkManager::ProcessSpork(CNode* pfrom, const std::string& strCommand, CD
 
         uint256 hash = spork.GetHash();
 
-        std::string strLogMsg;
         {
             LOCK(cs_main);
             pfrom->setAskFor.erase(hash);
             if(!chainActive.Tip()) return;
-            strLogMsg = strprintf("SPORK -- hash: %s id: %d value: %10d bestHeight: %d peer=%d", hash.ToString(), spork.nSporkID, spork.nValue, chainActive.Height(), pfrom->id);
         }
         {
             LOCK(cs); // make sure to not lock this together with cs_main
 
-            // TODO: multisig spork logic here
-
             // Get signer CKeyID from spork message signature.
             // CKeyID signerId = spork.GetSignerKeyID();
-            std::map<int, std::map<CKeyID, CSporkMessage> > mapSporksActive;
 
-            if (mapLegacySporksActive.count(spork.nSporkID)) {
-                if (mapLegacySporksActive[spork.nSporkID].nTimeSigned >= spork.nTimeSigned) {
-                    LogPrint("spork", "%s seen\n", strLogMsg);
-                    return;
-                } else {
-                    LogPrintf("%s updated\n", strLogMsg);
-                }
-            } else {
-                LogPrintf("%s new\n", strLogMsg);
+            CKeyID signerId = CKeyID();
+            if (!spork.GetSignerKeyID(signerId)) {
+                LogPrintf("CSporkManager::ProcessSpork -- ERROR: unable to recover key from signature\n");
+                return;
+            }
+
+            bool fLegacySporkKey = (signerId == legacySporkPubKeyID);
+
+            // If a newer spork already exists in map, skip the incoming.
+            // if signed by legacy spork key
+            if (fLegacySporkKey &&
+                mapLegacySporksActive.count(spork.nSporkID) &&
+                mapLegacySporksActive[spork.nSporkID].nTimeSigned >= spork.nTimeSigned) {
+                return;
+            }
+            // else
+            else if (!fLegacySporkKey &&
+                mapSporksActive.count(spork.nSporkID) &&
+                mapSporksActive[spork.nSporkID].count(signerId) &&
+                mapSporksActive[spork.nSporkID][signerId].nTimeSigned >= spork.nTimeSigned) {
+                return;
             }
         }
+
+        // TODO: multisig spork logic here
+        // std::map<int, std::map<CKeyID, CSporkMessage> > mapSporksActive;
 
         bool fFoundValidSignature = false;
         for (const auto& keyId : vecSporkKeyIDs) {
@@ -93,11 +103,8 @@ void CSporkManager::ProcessSpork(CNode* pfrom, const std::string& strCommand, CD
 
         {
             // TODO: ensure threshold keys have signed first
-
             // std::map<int, CSporkMessage> mapSporksActive;
             // std::map<> mapKeys = mapSporksActive[spork.nSporkID];
-
-
             LOCK(cs); // make sure to not lock this together with cs_main
             mapLegacySporksByHash[hash] = spork;
             mapLegacySporksActive[spork.nSporkID] = spork;
@@ -302,7 +309,7 @@ bool CSporkManager::SetPrivKey(const std::string& strPrivKey)
 
     CSporkMessage spork;
     if (spork.Sign(key, IsSporkActive(SPORK_6_NEW_SIGS))) {
-	    LOCK(cs);
+        LOCK(cs);
         // Test signing successful, proceed
         LogPrintf("CSporkManager::SetPrivKey -- Successfully initialized as spork signer\n");
 
@@ -418,10 +425,15 @@ void CSporkMessage::Relay(CConnman& connman)
 }
 
 
-CKeyID CSporkMessage::GetSignerKeyID() {
-    CKeyID sporkSignerID = CKeyID();
-
+bool CSporkMessage::GetSignerKeyID(CKeyID& sporkSignerID) {
     // TODO: extract hash160 from vchSig and return it
 
-    return sporkSignerID;
+    CPubKey pubkeyFromSig;
+    if(!pubkeyFromSig.RecoverCompact(GetHash(), vchSig)) {
+        strErrorRet = "Error recovering public key.";
+        return false;
+    }
+
+    sporkSignerID = pubkeyFromSig.GetID();
+    return true;
 }
