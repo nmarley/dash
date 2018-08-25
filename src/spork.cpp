@@ -65,8 +65,11 @@ void CSporkManager::ProcessSpork(CNode* pfrom, const std::string& strCommand, CD
                 LogPrintf("CSporkManager::ProcessSpork -- ERROR: unable to recover key from signature\n");
                 return;
             }
+            LogPrintf("CSporkManager::ProcessSpork -- signer ID = %s\n", signerId.ToString());
+            // EncodeBase58Check(const std::vector<unsigned char>& vchIn)
 
             bool fLegacySporkKey = (signerId == legacySporkPubKeyID);
+            LogPrintf("CSporkManager::ProcessSpork -- fLegacySporkKey = %d\n", fLegacySporkKey);
 
             // If a newer spork already exists in map, skip the incoming.
             // if signed by legacy spork key
