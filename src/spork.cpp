@@ -102,7 +102,13 @@ void CSporkManager::ProcessSpork(CNode* pfrom, const std::string& strCommand, CD
             }
         }
 
-        if(!spork.CheckSignature(sporkPubKeyID, IsSporkActive(SPORK_6_NEW_SIGS))) {
+        bool found = false;
+        for(const auto& keyid: sporkPubKeyIDs) {
+            if(spork.CheckSignature(keyid, IsSporkActive(SPORK_6_NEW_SIGS))) {
+               found = true;
+            }
+        }
+        if(!found) {
             LOCK(cs_main);
             LogPrintf("CSporkManager::ProcessSpork -- ERROR: invalid signature\n");
             Misbehaving(pfrom->GetId(), 100);
@@ -260,10 +266,12 @@ bool CSporkManager::GetSporkByHash(const uint256& hash, CSporkMessage &sporkRet)
 bool CSporkManager::SetSporkAddress(const std::string& strAddress) {
     LOCK(cs);
     CBitcoinAddress address(strAddress);
-    if (!address.IsValid() || !address.GetKeyID(sporkPubKeyID)) {
+    CKeyID keyid;
+    if (!address.IsValid() || !address.GetKeyID(keyid)) {
         LogPrintf("CSporkManager::SetSporkAddress -- Failed to parse spork address\n");
         return false;
     }
+    sporkPubKeyIDs.insert(keyid);
     return true;
 }
 
@@ -276,8 +284,8 @@ bool CSporkManager::SetPrivKey(const std::string& strPrivKey)
         return false;
     }
 
-    if (pubKey.GetID() != sporkPubKeyID) {
-        LogPrintf("CSporkManager::SetPrivKey -- New private key does not belong to spork address\n");
+    if (sporkPubKeyIDs.find(pubKey.GetID()) == sporkPubKeyIDs.end()) {
+        LogPrintf("CSporkManager::SetPrivKey -- New private key does not belong to spork addresses\n");
         return false;
     }
 

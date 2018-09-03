@@ -93,7 +93,7 @@ private:
     std::map<uint256, CSporkMessage> mapSporksByHash;
     std::map<int, CSporkMessage> mapSporksActive;
 
-    CKeyID sporkPubKeyID;
+    std::set<CKeyID> sporkPubKeyIDs;
     CKey sporkPrivKey;
 
 public:
@@ -114,7 +114,7 @@ public:
             strVersion = SERIALIZATION_VERSION_STRING;
             READWRITE(strVersion);
         }
-        READWRITE(sporkPubKeyID);
+        READWRITE(sporkPubKeyIDs);
         READWRITE(mapSporksByHash);
         READWRITE(mapSporksActive);
         // we don't serialize private key to prevent its leakage
