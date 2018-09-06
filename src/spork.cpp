@@ -275,6 +275,16 @@ bool CSporkManager::SetSporkAddress(const std::string& strAddress) {
     return true;
 }
 
+bool CSporkManager::SetMinSporkKeys(int minSporkKeys)
+{
+    if ((minSporkKeys < 1) || (minSporkKeys > sporkPubKeyIDs.size())) {
+        LogPrintf("CSporkManager::SetSporkAddress -- Invalid min spork signers number: %d\n", minSporkKeys);
+        return false;
+    }
+    nMinSporkKeys = minSporkKeys;
+    return true;
+}
+
 bool CSporkManager::SetPrivKey(const std::string& strPrivKey)
 {
     CKey key;

@@ -94,6 +94,7 @@ private:
     std::map<int, CSporkMessage> mapSporksActive;
 
     std::set<CKeyID> sporkPubKeyIDs;
+    int nMinSporkKeys;
     CKey sporkPrivKey;
 
 public:
@@ -135,6 +136,7 @@ public:
     bool GetSporkByHash(const uint256& hash, CSporkMessage &sporkRet);
 
     bool SetSporkAddress(const std::string& strAddress);
+    bool SetMinSporkKeys(int minSporkKeys);
     bool SetPrivKey(const std::string& strPrivKey);
 
     std::string ToString() const;
