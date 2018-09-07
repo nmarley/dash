@@ -31,6 +31,31 @@ std::map<int, int64_t> mapSporkDefaults = {
     {SPORK_16_INSTANTSEND_AUTOLOCKS,         4070908800ULL}, // OFF
 };
 
+bool CSporkManager::SporkValueIsActive(int sporkID, int64_t &activeValue) const
+{
+    LOCK(cs);
+    if (!mapSporksActive.count(sporkID))
+        return false;
+
+    // calc how many values we have and how many signers vote for every value
+    std::map<int64_t, int> value_counts;
+    for (const auto& pair: mapSporksActive.at(sporkID)) {
+        value_counts[pair.second.nValue]++;
+    }
+
+    // check if any value has enough signer votes
+    bool found = false;
+    for (const auto& value_data: value_counts) {
+        if(value_data.second >= nMinSporkKeys) {
+            if (found) return false; // several active values, no consensus among signers
+            found = true;
+            activeValue = value_data.first;
+        }
+    }
+
+    return found;
+}
+
 void CSporkManager::Clear()
 {
     LOCK(cs);
@@ -88,24 +113,13 @@ void CSporkManager::ProcessSpork(CNode* pfrom, const std::string& strCommand, CD
             if(!chainActive.Tip()) return;
             strLogMsg = strprintf("SPORK -- hash: %s id: %d value: %10d bestHeight: %d peer=%d", hash.ToString(), spork.nSporkID, spork.nValue, chainActive.Height(), pfrom->id);
         }
-        {
-            LOCK(cs); // make sure to not lock this together with cs_main
-            if (mapSporksActive.count(spork.nSporkID)) {
-                if (mapSporksActive[spork.nSporkID].nTimeSigned >= spork.nTimeSigned) {
-                    LogPrint("spork", "%s seen\n", strLogMsg);
-                    return;
-                } else {
-                    LogPrintf("%s updated\n", strLogMsg);
-                }
-            } else {
-                LogPrintf("%s new\n", strLogMsg);
-            }
-        }
 
         bool found = false;
+        CKeyID signer;
         for(const auto& keyid: sporkPubKeyIDs) {
             if(spork.CheckSignature(keyid, IsSporkActive(SPORK_6_NEW_SIGS))) {
                found = true;
+               signer = keyid;
             }
         }
         if(!found) {
@@ -117,18 +131,42 @@ void CSporkManager::ProcessSpork(CNode* pfrom, const std::string& strCommand, CD
 
         {
             LOCK(cs); // make sure to not lock this together with cs_main
+            if (mapSporksActive.count(spork.nSporkID)) {
+                if (mapSporksActive[spork.nSporkID].count(signer)) {
+                    if (mapSporksActive[spork.nSporkID][signer].nTimeSigned >= spork.nTimeSigned) {
+                        LogPrint("spork", "%s seen\n", strLogMsg);
+                        return;
+                    } else {
+                        LogPrintf("%s updated\n", strLogMsg);
+                    }
+                } else {
+                    LogPrintf("%s new signer\n", strLogMsg);
+                }
+            } else {
+                LogPrintf("%s new\n", strLogMsg);
+            }
+        }
+
+
+        {
+            LOCK(cs); // make sure to not lock this together with cs_main
             mapSporksByHash[hash] = spork;
-            mapSporksActive[spork.nSporkID] = spork;
+            mapSporksActive[spork.nSporkID][signer] = spork;
         }
         spork.Relay(connman);
 
         //does a task if needed
-        ExecuteSpork(spork.nSporkID, spork.nValue);
+        int64_t activeValue = 0;
+        if (SporkValueIsActive(spork.nSporkID, activeValue)) {
+            ExecuteSpork(spork.nSporkID, activeValue);
+        }
 
     } else if (strCommand == NetMsgType::GETSPORKS) {
         LOCK(cs); // make sure to not lock this together with cs_main
         for (const auto& pair : mapSporksActive) {
-            connman.PushMessage(pfrom, CNetMsgMaker(pfrom->GetSendVersion()).Make(NetMsgType::SPORK, pair.second));
+            for (const auto& signer_spork: pair.second) {
+                connman.PushMessage(pfrom, CNetMsgMaker(pfrom->GetSendVersion()).Make(NetMsgType::SPORK, signer_spork.second));
+            }
         }
     }
 
@@ -168,10 +206,22 @@ bool CSporkManager::UpdateSpork(int nSporkID, int64_t nValue, CConnman& connman)
     CSporkMessage spork = CSporkMessage(nSporkID, nValue, GetAdjustedTime());
 
     if(spork.Sign(sporkPrivKey, IsSporkActive(SPORK_6_NEW_SIGS))) {
+        bool found = false;
+        CKeyID signer;
+        for(const auto& keyid: sporkPubKeyIDs) {
+            if(spork.CheckSignature(keyid, IsSporkActive(SPORK_6_NEW_SIGS))) {
+               found = true;
+               signer = keyid;
+            }
+        }
+        if (!found) {
+            LogPrintf("CSporkManager::UpdateSpork: failed to find keyid for private key\n");
+            return false;
+        }
         spork.Relay(connman);
         LOCK(cs);
         mapSporksByHash[spork.GetHash()] = spork;
-        mapSporksActive[nSporkID] = spork;
+        mapSporksActive[nSporkID][signer] = spork;
         return true;
     }
 
@@ -184,15 +234,16 @@ bool CSporkManager::IsSporkActive(int nSporkID)
     LOCK(cs);
     int64_t r = -1;
 
-    if(mapSporksActive.count(nSporkID)){
-        r = mapSporksActive[nSporkID].nValue;
-    } else if (mapSporkDefaults.count(nSporkID)) {
-        r = mapSporkDefaults[nSporkID];
-    } else {
-        LogPrint("spork", "CSporkManager::IsSporkActive -- Unknown Spork ID %d\n", nSporkID);
-        r = 4070908800ULL; // 2099-1-1 i.e. off by default
+    if(SporkValueIsActive(nSporkID, r)){
+        return r < GetAdjustedTime();
     }
 
+    if (mapSporkDefaults.count(nSporkID)) {
+        return  mapSporkDefaults[nSporkID] < GetAdjustedTime();
+    }
+
+    LogPrint("spork", "CSporkManager::IsSporkActive -- Unknown Spork ID %d\n", nSporkID);
+    r = 4070908800ULL; // 2099-1-1 i.e. off by default
     return r < GetAdjustedTime();
 }
 
@@ -200,8 +251,10 @@ bool CSporkManager::IsSporkActive(int nSporkID)
 int64_t CSporkManager::GetSporkValue(int nSporkID)
 {
     LOCK(cs);
-    if (mapSporksActive.count(nSporkID))
-        return mapSporksActive[nSporkID].nValue;
+    int64_t r = -1;
+    if(SporkValueIsActive(nSporkID, r)){
+        return r;
+    }
 
     if (mapSporkDefaults.count(nSporkID)) {
         return mapSporkDefaults[nSporkID];

@@ -91,12 +91,13 @@ private:
 
     mutable CCriticalSection cs;
     std::map<uint256, CSporkMessage> mapSporksByHash;
-    std::map<int, CSporkMessage> mapSporksActive;
+    std::map<int, std::map<CKeyID, CSporkMessage> > mapSporksActive;
 
     std::set<CKeyID> sporkPubKeyIDs;
     int nMinSporkKeys;
     CKey sporkPrivKey;
 
+    bool SporkValueIsActive(int sporkID, int64_t& activeValue) const;
 public:
 
     CSporkManager() {}
