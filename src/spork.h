@@ -80,6 +80,7 @@ public:
 
     bool Sign(const CKey& key, bool fSporkSixActive);
     bool CheckSignature(const CKeyID& pubKeyId, bool fSporkSixActive) const;
+    std::string NGMDebug();
     void Relay(CConnman& connman);
 };
 
