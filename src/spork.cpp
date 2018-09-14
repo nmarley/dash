@@ -330,7 +330,8 @@ bool CSporkManager::SetSporkAddress(const std::string& strAddress) {
 
 bool CSporkManager::SetMinSporkKeys(int minSporkKeys)
 {
-    if ((minSporkKeys < 1) || (minSporkKeys > sporkPubKeyIDs.size())) {
+    int maxKeysNumber = sporkPubKeyIDs.size();
+    if ((minSporkKeys <= maxKeysNumber / 2) || (minSporkKeys > maxKeysNumber)) {
         LogPrintf("CSporkManager::SetSporkAddress -- Invalid min spork signers number: %d\n", minSporkKeys);
         return false;
     }

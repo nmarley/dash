@@ -53,23 +53,23 @@ class MultiKeySporkTest(BitcoinTestFramework):
         self.nodes.append(start_node(0, self.options.tmpdir,
                                      ["-debug", "-sporkkey=931wyuRNVYvhg18Uu9bky5Qg1z4QbxaJ7fefNBzjBPiLRqcd33F",
                                       "-sporkaddr=ygcG5S2pQz2U1UAaHvU6EznKZW7yapKMA7:yfLSXFfipnkgYioD6L8aUNyfRgEBuJv48h:yNsMZhEhYqv14TgdYb1NS2UmNZjE8FSJxa:ycbRQWbovrhQMTuxg9p4LAuW5SCMAKqPrn:yc5TGfcHYoLCrcbVy4umsiDjsYUn39vLui",
-                                      "-minsporkkeys=2"]))
+                                      "-minsporkkeys=3"]))
         self.nodes.append(start_node(1, self.options.tmpdir,
                                      ["-debug", "-sporkkey=91vbXGMSWKGHom62986XtL1q2mQDA12ngcuUNNe5NfMSj44j7g3",
                                       "-sporkaddr=ygcG5S2pQz2U1UAaHvU6EznKZW7yapKMA7:yfLSXFfipnkgYioD6L8aUNyfRgEBuJv48h:yNsMZhEhYqv14TgdYb1NS2UmNZjE8FSJxa:ycbRQWbovrhQMTuxg9p4LAuW5SCMAKqPrn:yc5TGfcHYoLCrcbVy4umsiDjsYUn39vLui",
-                                      "-minsporkkeys=2"]))
+                                      "-minsporkkeys=3"]))
         self.nodes.append(start_node(2, self.options.tmpdir,
                                      ["-debug", "-sporkkey=92bxUjPT5AhgXuXJwfGGXqhomY2SdQ55MYjXyx9DZNxCABCSsRH",
                                       "-sporkaddr=ygcG5S2pQz2U1UAaHvU6EznKZW7yapKMA7:yfLSXFfipnkgYioD6L8aUNyfRgEBuJv48h:yNsMZhEhYqv14TgdYb1NS2UmNZjE8FSJxa:ycbRQWbovrhQMTuxg9p4LAuW5SCMAKqPrn:yc5TGfcHYoLCrcbVy4umsiDjsYUn39vLui",
-                                      "-minsporkkeys=2"]))
+                                      "-minsporkkeys=3"]))
         self.nodes.append(start_node(3, self.options.tmpdir,
                                      ["-debug", "-sporkkey=934yPXiVGf4RCY2qTs2Bt5k3TEtAiAg12sMxCt8yVWbSU7p3fuD",
                                       "-sporkaddr=ygcG5S2pQz2U1UAaHvU6EznKZW7yapKMA7:yfLSXFfipnkgYioD6L8aUNyfRgEBuJv48h:yNsMZhEhYqv14TgdYb1NS2UmNZjE8FSJxa:ycbRQWbovrhQMTuxg9p4LAuW5SCMAKqPrn:yc5TGfcHYoLCrcbVy4umsiDjsYUn39vLui",
-                                      "-minsporkkeys=2"]))
+                                      "-minsporkkeys=3"]))
         self.nodes.append(start_node(4, self.options.tmpdir,
                                      ["-debug", "-sporkkey=92Cxwia363Wg2qGF1fE5z4GKi8u7r1nrWQXdtsj2ACZqaDPSihD",
                                       "-sporkaddr=ygcG5S2pQz2U1UAaHvU6EznKZW7yapKMA7:yfLSXFfipnkgYioD6L8aUNyfRgEBuJv48h:yNsMZhEhYqv14TgdYb1NS2UmNZjE8FSJxa:ycbRQWbovrhQMTuxg9p4LAuW5SCMAKqPrn:yc5TGfcHYoLCrcbVy4umsiDjsYUn39vLui",
-                                      "-minsporkkeys=2"]))
+                                      "-minsporkkeys=3"]))
         # connect nodes at start
         for i in range(0, 5):
             for j in range(i, 5):
@@ -101,20 +101,22 @@ class MultiKeySporkTest(BitcoinTestFramework):
         for node in self.nodes:
             assert(self.get_test_spork_state(node) == 0)
 
-        # first signer set spork value
+        # first and second signers set spork value
         self.set_test_spork_state(self.nodes[0], 1)
+        self.set_test_spork_state(self.nodes[1], 1)
         # spork change requires at least 2 signers
         for node in self.nodes:
             assert(not self.wait_for_test_spork_state(node, 1))
 
-        # second signer set spork value
-        self.set_test_spork_state(self.nodes[1], 1)
+        # third signer set spork value
+        self.set_test_spork_state(self.nodes[2], 1)
         # now spork state is changed
         for node in self.nodes:
             assert(self.wait_for_test_spork_state(node, 1))
 
         # now set the spork again with other signers to test
         # old and new spork messages interaction
+        self.set_test_spork_state(self.nodes[2], 2)
         self.set_test_spork_state(self.nodes[3], 2)
         self.set_test_spork_state(self.nodes[4], 2)
         for node in self.nodes:
