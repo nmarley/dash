@@ -44,16 +44,17 @@ bool CSporkManager::SporkValueIsActive(int sporkID, int64_t &activeValue) const
     }
 
     // check if any value has enough signer votes
-    bool found = false;
+    int max_count = 0;
     for (const auto& value_data: value_counts) {
         if(value_data.second >= nMinSporkKeys) {
-            if (found) return false; // several active values, no consensus among signers
-            found = true;
-            activeValue = value_data.first;
+            if (value_data.second > max_count) {
+                activeValue = value_data.first;
+                max_count = value_data.second;
+            }
         }
     }
 
-    return found;
+    return (max_count > 0);
 }
 
 void CSporkManager::Clear()
