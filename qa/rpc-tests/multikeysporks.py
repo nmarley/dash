@@ -101,6 +101,8 @@ class MultiKeySporkTest(BitcoinTestFramework):
         for node in self.nodes:
             assert(self.get_test_spork_state(node) == 0)
 
+        set_mocktime(get_mocktime() + 1)
+        set_node_times(self.nodes, get_mocktime())
         # first and second signers set spork value
         self.set_test_spork_state(self.nodes[0], 1)
         self.set_test_spork_state(self.nodes[1], 1)
@@ -114,6 +116,8 @@ class MultiKeySporkTest(BitcoinTestFramework):
         for node in self.nodes:
             assert(self.wait_for_test_spork_state(node, 1))
 
+        set_mocktime(get_mocktime() + 1)
+        set_node_times(self.nodes, get_mocktime())
         # now set the spork again with other signers to test
         # old and new spork messages interaction
         self.set_test_spork_state(self.nodes[2], 2)
