@@ -1400,25 +1400,27 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     }
 
     std::vector<std::string> vSporkAddresses;
-    if(mapMultiArgs.count("-sporkaddr")) {
+    if (mapMultiArgs.count("-sporkaddr")) {
         vSporkAddresses = mapMultiArgs.at("-sporkaddr");
     } else {
         vSporkAddresses = Params().SporkAddresses();
     }
-    for(const auto& address: vSporkAddresses) {
-        if (!sporkManager.SetSporkAddress(address))
+    for (const auto& address: vSporkAddresses) {
+        if (!sporkManager.SetSporkAddress(address)) {
             return InitError(_("Invalid spork address specified with -sporkaddr"));
+        }
     }
 
     int minsporkkeys = GetArg("-minsporkkeys", Params().MinSporkKeys());
-    if(!sporkManager.SetMinSporkKeys(minsporkkeys))
+    if (!sporkManager.SetMinSporkKeys(minsporkkeys)) {
         return InitError(_("Invalid minimum number of spork signers specified with -minsporkkeys"));
+    }
 
 
-    if (IsArgSet("-sporkkey")) // spork priv key
-    {
-        if (!sporkManager.SetPrivKey(GetArg("-sporkkey", "")))
+    if (IsArgSet("-sporkkey")) { // spork priv key
+        if (!sporkManager.SetPrivKey(GetArg("-sporkkey", ""))) {
             return InitError(_("Unable to sign spork message, wrong key?"));
+        }
     }
 
     // Start the lightweight task scheduler thread

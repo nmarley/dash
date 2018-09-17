@@ -34,8 +34,8 @@ std::map<int, int64_t> mapSporkDefaults = {
 bool CSporkManager::SporkValueIsActive(int sporkID, int64_t &activeValue) const
 {
     LOCK(cs);
-    if (!mapSporksActive.count(sporkID))
-        return false;
+
+    if (!mapSporksActive.count(sporkID)) return false;
 
     // calc how many values we have and how many signers vote for every value
     std::map<int64_t, int> value_counts;
@@ -46,7 +46,7 @@ bool CSporkManager::SporkValueIsActive(int sporkID, int64_t &activeValue) const
     // check if any value has enough signer votes
     int max_count = 0;
     for (const auto& value_data: value_counts) {
-        if(value_data.second >= nMinSporkKeys) {
+        if (value_data.second >= nMinSporkKeys) {
             if (value_data.second > max_count) {
                 activeValue = value_data.first;
                 max_count = value_data.second;
@@ -116,7 +116,7 @@ void CSporkManager::ProcessSpork(CNode* pfrom, const std::string& strCommand, CD
         }
 
         CKeyID signer;
-        if(!(spork.GetSignerKeyID(signer, IsSporkActive(SPORK_6_NEW_SIGS))
+        if (!(spork.GetSignerKeyID(signer, IsSporkActive(SPORK_6_NEW_SIGS))
                                  && sporkPubKeyIDs.count(signer))) {
             LOCK(cs_main);
             LogPrintf("CSporkManager::ProcessSpork -- ERROR: invalid signature\n");
@@ -222,7 +222,7 @@ bool CSporkManager::IsSporkActive(int nSporkID)
     LOCK(cs);
     int64_t r = -1;
 
-    if(SporkValueIsActive(nSporkID, r)){
+    if (SporkValueIsActive(nSporkID, r)){
         return r < GetAdjustedTime();
     }
 
@@ -239,9 +239,10 @@ bool CSporkManager::IsSporkActive(int nSporkID)
 int64_t CSporkManager::GetSporkValue(int nSporkID)
 {
     LOCK(cs);
-    int64_t r = -1;
-    if(SporkValueIsActive(nSporkID, r)){
-        return r;
+
+    int64_t sporkValue = -1;
+    if (SporkValueIsActive(nSporkID, sporkValue)) {
+        return sporkValue;
     }
 
     if (mapSporkDefaults.count(nSporkID)) {
