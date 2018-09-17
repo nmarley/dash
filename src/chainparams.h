@@ -88,7 +88,7 @@ public:
     const ChainTxData& TxData() const { return chainTxData; }
     int PoolMaxTransactions() const { return nPoolMaxTransactions; }
     int FulfilledRequestExpireTime() const { return nFulfilledRequestExpireTime; }
-    const std::string& SporkAddresses() const { return strSporkAddresses; }
+    const std::vector<std::string>& SporkAddresses() const { return vSporkAddresses; }
     int MinSporkKeys() const { return nMinSporkKeys; }
 protected:
     CChainParams() {}
@@ -117,7 +117,7 @@ protected:
     ChainTxData chainTxData;
     int nPoolMaxTransactions;
     int nFulfilledRequestExpireTime;
-    std::string strSporkAddresses;
+    std::vector<std::string> vSporkAddresses;
     int nMinSporkKeys;
 };
 

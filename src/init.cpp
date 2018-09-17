@@ -1399,9 +1399,12 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
             threadGroup.create_thread(&ThreadScriptCheck);
     }
 
-    std::string strSporkAddresses = GetArg("-sporkaddr", Params().SporkAddresses());
     std::vector<std::string> vSporkAddresses;
-    boost::split(vSporkAddresses, strSporkAddresses, boost::is_any_of(":"));
+    if(mapMultiArgs.count("-sporkaddr")) {
+        vSporkAddresses = mapMultiArgs.at("-sporkaddr");
+    } else {
+        vSporkAddresses = Params().SporkAddresses();
+    }
     for(const auto& address: vSporkAddresses) {
         if (!sporkManager.SetSporkAddress(address))
             return InitError(_("Invalid spork address specified with -sporkaddr"));
