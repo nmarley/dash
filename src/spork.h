@@ -78,6 +78,7 @@ public:
 
     bool Sign(const CKey& key, bool fSporkSixActive);
     bool CheckSignature(const CKeyID& pubKeyId, bool fSporkSixActive) const;
+    bool GetSignerKeyID(CKeyID& sporkSignerID, bool fSporkSixActive);
     void Relay(CConnman& connman);
 };
 
