@@ -37,9 +37,9 @@ class CMasternodeSync
 {
 private:
     // Keep track of current asset
-    int nRequestedMasternodeAssets;
+    int nCurrentAsset;
     // Count peers we've requested the asset from
-    int nRequestedMasternodeAttempt;
+    int nPeerCount;
 
     // keep a connection manager reference instead of passing it around to various methods
     CConnman* connman;
@@ -58,14 +58,14 @@ public:
 
     void SendGovernanceSyncRequest(CNode* pnode);
 
-    bool IsFailed() { return nRequestedMasternodeAssets == MASTERNODE_SYNC_FAILED; }
-    bool IsBlockchainSynced() { return nRequestedMasternodeAssets > MASTERNODE_SYNC_WAITING; }
-    bool IsMasternodeListSynced() { return nRequestedMasternodeAssets > MASTERNODE_SYNC_LIST; }
-    bool IsWinnersListSynced() { return nRequestedMasternodeAssets > MASTERNODE_SYNC_MNW; }
-    bool IsSynced() { return nRequestedMasternodeAssets == MASTERNODE_SYNC_FINISHED; }
+    bool IsFailed() { return nCurrentAsset == MASTERNODE_SYNC_FAILED; }
+    bool IsBlockchainSynced() { return nCurrentAsset > MASTERNODE_SYNC_WAITING; }
+    bool IsMasternodeListSynced() { return nCurrentAsset > MASTERNODE_SYNC_LIST; }
+    bool IsWinnersListSynced() { return nCurrentAsset > MASTERNODE_SYNC_MNW; }
+    bool IsSynced() { return nCurrentAsset == MASTERNODE_SYNC_FINISHED; }
 
-    int GetAssetID() { return nRequestedMasternodeAssets; }
-    int GetAttempt() { return nRequestedMasternodeAttempt; }
+    int GetAssetID() { return nCurrentAsset; }
+    int GetAttempt() { return nPeerCount; }
     void BumpAssetLastTime(const std::string& strFuncName);
     int64_t GetAssetStartTime() { return nTimeAssetSyncStarted; }
     std::string GetAssetName();
