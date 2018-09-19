@@ -24,10 +24,15 @@ static const int MASTERNODE_SYNC_TIMEOUT_SECONDS = 30; // our blocks are 2.5 min
 
 extern CMasternodeSync masternodeSync;
 
-//
-// CMasternodeSync : Sync masternode assets in stages
-//
-
+/**
+ * MasternodeSync is a sync manager used to manage synchronization of Dash
+ * resources in a specific order (i.e. in stages).
+ *
+ * The sync manager runs in its own thread and is scheduled in the init.cpp
+ * file via the scheduler using the DoMaintenance method (see step "11c"). The
+ * main method is ProcessTick, which runs in a loop until all assets are
+ * finished syncing, or the sync process fails.
+ */
 class CMasternodeSync
 {
 private:
