@@ -258,6 +258,7 @@ UniValue spork(const JSONRPCRequest& request)
                     sporkInfo.push_back(Pair("signatureHash", sporkMsg->GetSignatureHash().ToString()));
                     sporkInfo.push_back(Pair("sig", sporkMsg->GetStrSig()));
                     sporkInfo.push_back(Pair("strMessage", sporkMsg->NGMDebug()));
+                    sporkInfo.push_back(Pair("strMessageWithSig", sporkMsg->NGMDebug2()));
                     ret.push_back(Pair(sporkManager.GetSporkNameByID(nSporkID), sporkInfo));
                 }
             }

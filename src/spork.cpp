@@ -339,6 +339,11 @@ std::string CSporkMessage::NGMDebug() {
     return strMessage;
 }
 
+std::string CSporkMessage::NGMDebug2() {
+    std::string strMessage = std::to_string(nSporkID) + std::to_string(nValue) + std::to_string(nTimeSigned) + std::to_string(vchSig);
+    return strMessage;
+}
+
 bool CSporkMessage::CheckSignature(const CKeyID& pubKeyId, bool fSporkSixActive) const
 {
     std::string strError = "";
