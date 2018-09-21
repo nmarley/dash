@@ -9,6 +9,7 @@
 #include "net.h"
 #include "utilstrencodings.h"
 #include "key.h"
+#include "serialize.h"
 
 class CSporkMessage;
 class CSporkManager;

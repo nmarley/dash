@@ -287,7 +287,7 @@ std::string CSporkMessage::GetStrSig() const
 
 uint256 CSporkMessage::GetHash() const
 {
-    return SerializeHash(*this, -1);
+    return SerializeHash(*this, SER_NETWORK);
 }
 
 uint256 CSporkMessage::GetSignatureHash() const
