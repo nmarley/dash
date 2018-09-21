@@ -269,12 +269,12 @@ std::string CSporkManager::ToString() const
 
 uint256 CSporkMessage::GetHash() const
 {
-    return SerializeHash(*this);
+    return SerializeHash(*this, -1);
 }
 
 uint256 CSporkMessage::GetSignatureHash() const
 {
-    return GetHash();
+    return SerializeHash(*this);
 }
 
 bool CSporkMessage::Sign(const CKey& key, bool fSporkSixActive)
