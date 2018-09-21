@@ -226,8 +226,6 @@ private:
     static const int MAX_TIME_FUTURE_DEVIATION;
     static const int RELIABLE_PROPAGATION_TIME;
 
-    int64_t nTimeLastDiff;
-
     // keep track of current block height
     int nCachedBlockHeight;
 
@@ -355,8 +353,6 @@ public:
     }
 
     void UpdatedBlockTip(const CBlockIndex *pindex, CConnman& connman);
-    int64_t GetLastDiffTime() const { return nTimeLastDiff; }
-    void UpdateLastDiffTime(int64_t nTimeIn) { nTimeLastDiff = nTimeIn; }
 
     int GetCachedBlockHeight() const { return nCachedBlockHeight; }
 

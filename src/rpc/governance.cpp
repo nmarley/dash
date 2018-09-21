@@ -657,7 +657,6 @@ UniValue ListObjects(const std::string& strCachedSignal, const std::string& strT
     LOCK2(cs_main, governance.cs);
 
     std::vector<const CGovernanceObject*> objs = governance.GetAllNewerThan(nStartTime);
-    governance.UpdateLastDiffTime(GetTime());
 
     // CREATE RESULTS FOR USER
 
@@ -732,35 +731,6 @@ UniValue gobject_list(const JSONRPCRequest& request)
     return ListObjects(strCachedSignal, strType, 0);
 }
 
-void gobject_diff_help()
-{
-    throw std::runtime_error(
-                "gobject diff ( <signal> <type> )\n"
-                "List differences since last diff or list\n"
-                "\nArguments:\n"
-                "1. signal   (string, optional, default=valid) cached signal, possible values: [valid|funding|delete|endorsed|all]\n"
-                "2. type     (string, optional, default=all) object type, possible values: [proposals|triggers|all]\n"
-                );
-}
-
-UniValue gobject_diff(const JSONRPCRequest& request)
-{
-    if (request.fHelp || request.params.size() > 3)
-        gobject_diff_help();
-
-    std::string strCachedSignal = "valid";
-    if (request.params.size() >= 2) strCachedSignal = request.params[1].get_str();
-    if (strCachedSignal != "valid" && strCachedSignal != "funding" && strCachedSignal != "delete" && strCachedSignal != "endorsed" && strCachedSignal != "all")
-        return "Invalid signal, should be 'valid', 'funding', 'delete', 'endorsed' or 'all'";
-
-    std::string strType = "all";
-    if (request.params.size() == 3) strType = request.params[2].get_str();
-    if (strType != "proposals" && strType != "triggers" && strType != "all")
-        return "Invalid type, should be 'proposals', 'triggers' or 'all'";
-
-    return ListObjects(strCachedSignal, strType, governance.GetLastDiffTime());
-}
-
 void gobject_get_help()
 {
     throw std::runtime_error(
@@ -802,7 +772,7 @@ UniValue gobject_get(const JSONRPCRequest& request)
         objResult.push_back(Pair("SigningMasternode", masternodeOutpoint.ToStringShort()));
     }
 
-    // SHOW (MUCH MORE) INFORMATION ABOUT VOTES FOR GOVERNANCE OBJECT (THAN LIST/DIFF ABOVE)
+    // SHOW (MUCH MORE) INFORMATION ABOUT VOTES FOR GOVERNANCE OBJECT (THAN LIST ABOVE)
     // -- FUNDING VOTING RESULTS
 
     UniValue objFundingResult(UniValue::VOBJ);
@@ -959,7 +929,6 @@ void gobject_help()
             "  getvotes           - Get all votes for a governance object hash (including old votes)\n"
             "  getcurrentvotes    - Get only current (tallying) votes for a governance object hash (does not include old votes)\n"
             "  list               - List governance objects (can be filtered by signal and/or object type)\n"
-            "  diff               - List differences since last diff\n"
             "  vote-alias         - Vote on a governance object by masternode alias (using masternode.conf setup)\n"
             "  vote-conf          - Vote on a governance object by masternode configured in dash.conf\n"
             "  vote-many          - Vote on a governance object by all masternodes (using masternode.conf setup)\n"
@@ -978,7 +947,7 @@ UniValue gobject(const JSONRPCRequest& request)
          strCommand != "prepare" &&
 #endif // ENABLE_WALLET
          strCommand != "vote-many" && strCommand != "vote-conf" && strCommand != "vote-alias" && strCommand != "submit" && strCommand != "count" &&
-         strCommand != "deserialize" && strCommand != "get" && strCommand != "getvotes" && strCommand != "getcurrentvotes" && strCommand != "list" && strCommand != "diff" &&
+         strCommand != "deserialize" && strCommand != "get" && strCommand != "getvotes" && strCommand != "getcurrentvotes" && strCommand != "list" &&
          strCommand != "check" ))
             gobject_help();
 
@@ -1012,8 +981,6 @@ UniValue gobject(const JSONRPCRequest& request)
     } else if (strCommand == "list") {
         // USERS CAN QUERY THE SYSTEM FOR A LIST OF VARIOUS GOVERNANCE ITEMS
         return gobject_list(request);
-    } else if (strCommand == "diff") {
-        return gobject_diff(request);
     } else if (strCommand == "get") {
         // GET SPECIFIC GOVERNANCE ENTRY
         return gobject_get(request);
