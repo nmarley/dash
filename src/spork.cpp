@@ -46,7 +46,7 @@ void CSporkManager::ProcessSpork(CNode* pfrom, const std::string& strCommand, CD
         CSporkMessage spork;
         vRecv >> spork;
 
-        uint256 hash = spork.GetHash();
+        uint256 hash = spork.GetSignatureHash();
 
         std::string strLogMsg;
         {
@@ -131,7 +131,7 @@ bool CSporkManager::UpdateSpork(int nSporkID, int64_t nValue, CConnman& connman)
     if(spork.Sign(sporkPrivKey, IsSporkActive(SPORK_6_NEW_SIGS))) {
         spork.Relay(connman);
         LOCK(cs);
-        mapSporksByHash[spork.GetHash()] = spork;
+        mapSporksByHash[spork.GetSignatureHash()] = spork;
         mapSporksActive[nSporkID] = spork;
         return true;
     }
@@ -349,6 +349,6 @@ bool CSporkMessage::CheckSignature(const CKeyID& pubKeyId, bool fSporkSixActive)
 
 void CSporkMessage::Relay(CConnman& connman)
 {
-    CInv inv(MSG_SPORK, GetHash());
+    CInv inv(MSG_SPORK, GetSignatureHash());
     connman.RelayInv(inv);
 }
