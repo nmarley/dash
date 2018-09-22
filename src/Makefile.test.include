@@ -123,6 +123,7 @@ BITCOIN_TESTS =\
   test/sighash_tests.cpp \
   test/sigopcount_tests.cpp \
   test/skiplist_tests.cpp \
+  test/spork_tests.cpp \
   test/streams_tests.cpp \
   test/subsidy_tests.cpp \
   test/test_dash.cpp \
