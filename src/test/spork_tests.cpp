@@ -30,13 +30,9 @@ std::string sporkAddr = "yMtMWAjPhUquwKtdG4wzj9Cpn4asQkLV8F";
 //    return sporkMgr;
 //}
 
-BOOST_AUTO_TEST_CASE(spork_manager__GetSporkIDByName)
+BOOST_AUTO_TEST_CASE(SporkManager__GetSporkIDByName)
 {
-    SelectParams(CBaseChainParams::TESTNET);
-
     CSporkManager sporkMgr;
-    sporkMgr.SetSporkAddress(sporkAddr);
-    sporkMgr.SetPrivKey(sporkKey);
 
     std::map<std::string, int> tests = {
         {"SPORK_2_INSTANTSEND_ENABLED", 10001},
@@ -59,7 +55,7 @@ BOOST_AUTO_TEST_CASE(spork_manager__GetSporkIDByName)
     }
 }
 
-BOOST_AUTO_TEST_CASE(spork_manager__SetPrivKey)
+BOOST_AUTO_TEST_CASE(SporkManager__SetPrivKey)
 {
     SelectParams(CBaseChainParams::TESTNET);
 
@@ -71,7 +67,7 @@ BOOST_AUTO_TEST_CASE(spork_manager__SetPrivKey)
     BOOST_CHECK_EQUAL(sporkMgr.SetPrivKey(wrongSporkKey), false);
 }
 
-//BOOST_AUTO_TEST_CASE(spork_message_test)
+//BOOST_AUTO_TEST_CASE(SporkMessage_test)
 //{
 //    // Example assertion
 //    BOOST_CHECK_MESSAGE(tests.size(), "Empty `tests`");
