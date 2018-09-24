@@ -64,7 +64,7 @@ BOOST_AUTO_TEST_CASE(spork_manager__SetPrivKey)
     SelectParams(CBaseChainParams::TESTNET);
 
     CSporkManager sporkMgr;
-    sporkMgr.SetSporkAddress(sporkAddr);
+    assert(sporkMgr.SetSporkAddress(sporkAddr));
     BOOST_CHECK_EQUAL(sporkMgr.SetPrivKey(sporkKey), true);
 
     std::string wrongSporkKey = "cTsdXxTC346tsb7HaddDzC5dTqAT8XCsdJsacS4N3ak2mCGGZcN5";
