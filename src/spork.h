@@ -96,7 +96,7 @@ private:
     int nMinSporkKeys;
     CKey sporkPrivKey;
 
-    bool SporkValueIsActive(int sporkID, int64_t& activeValue) const;
+    bool SporkValueIsActive(int nSporkID, int64_t& nActiveValueRet) const;
 public:
 
     CSporkManager() {}
