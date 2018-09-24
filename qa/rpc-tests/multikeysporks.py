@@ -14,8 +14,8 @@ multikeysporks.py
 Test logic for several signer keys usage for spork broadcast.
 
 We set 5 possible keys for sporks signing and set minimum 
-required signers to 2. We check 1 siger can't set the spork 
-value, any 2 signers can change spork value and other 2 signers
+required signers to 3. We check 1 and 2 signers can't set the spork 
+value, any 3 signers can change spork value and other 3 signers
 can change it again.
 '''
 
@@ -126,7 +126,7 @@ class MultiKeySporkTest(BitcoinTestFramework):
         # first and second signers set spork value
         self.set_test_spork_state(self.nodes[0], 1)
         self.set_test_spork_state(self.nodes[1], 1)
-        # spork change requires at least 2 signers
+        # spork change requires at least 3 signers
         for node in self.nodes:
             assert(not self.wait_for_test_spork_state(node, 1))
 
