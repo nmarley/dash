@@ -676,8 +676,6 @@ bool CMasternodeBroadcast::Sign(const CKey& keyCollateralAddress)
 {
     std::string strError;
 
-    sigTime = GetAdjustedTime();
-
     if (sporkManager.IsSporkActive(SPORK_6_NEW_SIGS)) {
         uint256 hash = GetSignatureHash();
 
@@ -705,6 +703,8 @@ bool CMasternodeBroadcast::Sign(const CKey& keyCollateralAddress)
             return false;
         }
     }
+
+    sigTime = GetAdjustedTime();
 
     return true;
 }
@@ -797,8 +797,6 @@ bool CMasternodePing::Sign(const CKey& keyMasternode, const CKeyID& keyIDOperato
 {
     std::string strError;
 
-    sigTime = GetAdjustedTime();
-
     if (sporkManager.IsSporkActive(SPORK_6_NEW_SIGS)) {
         uint256 hash = GetSignatureHash();
 
@@ -825,6 +823,8 @@ bool CMasternodePing::Sign(const CKey& keyMasternode, const CKeyID& keyIDOperato
             return false;
         }
     }
+
+    sigTime = GetAdjustedTime();
 
     return true;
 }
