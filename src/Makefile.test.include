@@ -66,25 +66,15 @@ RAW_TEST_FILES = test/data/alertTests.raw
 
 GENERATED_TEST_FILES = $(JSON_TEST_FILES:.json=.json.h) $(RAW_TEST_FILES:.raw=.raw.h)
 
-  # test/crypto_tests.cpp
-
 BITCOIN_TESTS =\
   test/scriptnum10.h \
   test/mnp_tests.cpp \
+  test/crypto_tests.cpp \
   test/test_dash.cpp \
   test/test_dash.h \
   test/test_random.h \
   test/testutil.cpp \
   test/testutil.h
-
-if ENABLE_WALLET
-BITCOIN_TESTS += \
-  wallet/test/wallet_test_fixture.cpp \
-  wallet/test/wallet_test_fixture.h \
-  wallet/test/accounting_tests.cpp \
-  wallet/test/wallet_tests.cpp \
-  wallet/test/crypto_tests.cpp
-endif
 
 test_test_dash_SOURCES = $(BITCOIN_TESTS) $(JSON_TEST_FILES) $(RAW_TEST_FILES)
 test_test_dash_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) -I$(builddir)/test/ $(TESTDEFS) $(EVENT_CFLAGS)
