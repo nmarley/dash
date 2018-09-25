@@ -26,6 +26,7 @@
 #include "crypto/sph_simd.h"
 #include "crypto/sph_echo.h"
 
+#include <iostream>
 #include <vector>
 
 typedef uint256 ChainCode;
@@ -210,6 +211,7 @@ public:
     int GetVersion() const { return nVersion; }
 
     void write(const char *pch, size_t size) {
+        std::cout << (const unsigned char*)pch;
         ctx.Write((const unsigned char*)pch, size);
     }
 
