@@ -364,7 +364,11 @@ uint256 CSporkMessage::GetHash() const
 
 uint256 CSporkMessage::GetSignatureHash() const
 {
-    return GetHash();
+    CHashWriter s(SER_GETHASH, 0);
+    s << nSporkID;
+    s << nValue;
+    s << nTimeSigned;
+    return s.GetHash();
 }
 
 bool CSporkMessage::Sign(const CKey& key, bool fSporkSixActive)
@@ -441,7 +445,7 @@ bool CSporkMessage::GetSignerKeyID(CKeyID &sporkSignerID, bool fSporkSixActive)
 {
     CPubKey pubkeyFromSig;
     if (fSporkSixActive) {
-        if (!pubkeyFromSig.RecoverCompact(GetHash(), vchSig)) {
+        if (!pubkeyFromSig.RecoverCompact(GetSignatureHash(), vchSig)) {
             return false;
         }
     } else {
