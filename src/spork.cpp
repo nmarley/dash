@@ -64,28 +64,46 @@ void CSporkManager::Clear()
 void CSporkManager::CheckAndRemove()
 {
     LOCK(cs);
-    bool fSporkAddressIsSet = !sporkPubKeyID.IsNull();
+    bool fSporkAddressIsSet = !setSporkPubKeyIDs.empty();
     assert(fSporkAddressIsSet);
 
     auto itActive = mapSporksActive.begin();
     while (itActive != mapSporksActive.end()) {
-        if (!itActive->second.CheckSignature(sporkPubKeyID, false)) {
-            if (!itActive->second.CheckSignature(sporkPubKeyID, true)) {
-                mapSporksByHash.erase(itActive->second.GetHash());
-                mapSporksActive.erase(itActive++);
+        auto signer_msg_pair = itActive->second.begin();
+        while (signer_msg_pair != itActive->second.end()) {
+            if (setSporkPubKeyIDs.find(signer_msg_pair->first) == setSporkPubKeyIDs.end()) {
+                mapSporksByHash.erase(signer_msg_pair->second.GetHash());
                 continue;
             }
+            if (!signer_msg_pair->second.CheckSignature(signer_msg_pair->first, false)) {
+                if (!signer_msg_pair->second.CheckSignature(signer_msg_pair->first, true)) {
+                    mapSporksByHash.erase(signer_msg_pair->second.GetHash());
+                    itActive->second.erase(signer_msg_pair++);
+                    continue;
+                }
+            }
+            signer_msg_pair++;
+        }
+        if (itActive->second.empty()) {
+            mapSporksActive.erase(itActive++);
+            continue;
         }
         ++itActive;
     }
+
     auto itByHash = mapSporksByHash.begin();
     while (itByHash != mapSporksByHash.end()) {
-        if (!itByHash->second.CheckSignature(sporkPubKeyID, false)) {
-            if (!itByHash->second.CheckSignature(sporkPubKeyID, true)) {
-                mapSporksActive.erase(itByHash->second.nSporkID);
-                mapSporksByHash.erase(itByHash++);
-                continue;
+        bool found = false;
+        for (const auto& signer: setSporkPubKeyIDs) {
+            if (itByHash->second.CheckSignature(signer, false) ||
+                itByHash->second.CheckSignature(signer, true)) {
+                found = true;
+                break;
             }
+        }
+        if (!found) {
+            mapSporksByHash.erase(itByHash++);
+            continue;
         }
         ++itByHash;
     }
