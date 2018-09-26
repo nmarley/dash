@@ -113,10 +113,16 @@ void CSporkManager::ProcessSpork(CNode* pfrom, const std::string& strCommand, CD
         CKeyID keyIDSigner;
         if (!(spork.GetSignerKeyID(keyIDSigner, IsSporkActive(SPORK_6_NEW_SIGS))
                                  && sporkPubKeyIDs.count(keyIDSigner))) {
-            LOCK(cs_main);
-            LogPrintf("CSporkManager::ProcessSpork -- ERROR: invalid signature\n");
-            Misbehaving(pfrom->GetId(), 100);
-            return;
+            // Note: unlike for other messages we have to check for new format even with SPORK_6_NEW_SIGS
+            // inactive because SPORK_6_NEW_SIGS default is OFF and it is not the first spork to sync
+            // (and even if it would, spork order can't be guaranteed anyway).
+            if (!(spork.GetSignerKeyID(keyIDSigner, !IsSporkActive(SPORK_6_NEW_SIGS))
+                                     && sporkPubKeyIDs.count(keyIDSigner))) {
+                LOCK(cs_main);
+                LogPrintf("CSporkManager::ProcessSpork -- ERROR: invalid signature\n");
+                Misbehaving(pfrom->GetId(), 100);
+                return;
+            }
         }
 
         {
