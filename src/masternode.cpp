@@ -829,7 +829,7 @@ bool CMasternodePing::Sign(const CKey& keyMasternode, const CKeyID& keyIDOperato
     return true;
 }
 
-std::string GetMessageToSign() const {
+std::string CMasternodePing::GetMessageToSign() const {
     return CTxIn(masternodeOutpoint).ToString() + blockHash.ToString() + std::to_string(sigTime);
 }
 
