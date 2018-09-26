@@ -46,6 +46,9 @@ BOOST_AUTO_TEST_CASE(MNP_GetHash)
     // std::cout << "NGM DEBUGGING: mnp.sigTime: " << mnp.sigTime << std::endl;
     // std::cout << "NGM DEBUGGING: mnp.GetHash(): " << mnp.GetHash().ToString() << std::endl;
 
+    std::string strMessage = mnp.GetMessageToSign();
+    std::cout << "NGM DEBUGGING: mnp.GetMessageToSign(): " << mnp.GetMessageToSign() << std::endl;
+
     uint256 expected = uint256S("0x12a5ec4710ab632b7f56cc8c563b05017a4ad6f68f282da541330759a1ef24fc");
     BOOST_CHECK(mnp.GetHash() == expected);
 }

@@ -77,6 +77,7 @@ public:
 
     std::string GetSentinelString() const;
     std::string GetDaemonString() const;
+    std::string GetMessageToSign() const;
 
     explicit operator bool() const;
 };
