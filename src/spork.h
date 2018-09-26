@@ -115,7 +115,9 @@ public:
             strVersion = SERIALIZATION_VERSION_STRING;
             READWRITE(strVersion);
         }
-        READWRITE(sporkPubKeyIDs);
+        // we don't serialize pubkey ids because pubkeys should be
+        // hardcoded or be setted with cmdline or options, should
+        // not reuse pubkeys from previous dashd run
         READWRITE(mapSporksByHash);
         READWRITE(mapSporksActive);
         // we don't serialize private key to prevent its leakage
