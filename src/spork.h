@@ -78,7 +78,7 @@ public:
 
     bool Sign(const CKey& key, bool fSporkSixActive);
     bool CheckSignature(const CKeyID& pubKeyId, bool fSporkSixActive) const;
-    bool GetSignerKeyID(CKeyID& sporkSignerID, bool fSporkSixActive);
+    bool GetSignerKeyID(CKeyID& retKeyidSporkSigner, bool fSporkSixActive);
     void Relay(CConnman& connman);
 };
 
@@ -92,7 +92,7 @@ private:
     std::map<uint256, CSporkMessage> mapSporksByHash;
     std::map<int, std::map<CKeyID, CSporkMessage> > mapSporksActive;
 
-    std::set<CKeyID> sporkPubKeyIDs;
+    std::set<CKeyID> setSporkPubKeyIDs;
     int nMinSporkKeys;
     CKey sporkPrivKey;
 

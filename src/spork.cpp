@@ -112,12 +112,12 @@ void CSporkManager::ProcessSpork(CNode* pfrom, const std::string& strCommand, CD
 
         CKeyID keyIDSigner;
         if (!(spork.GetSignerKeyID(keyIDSigner, IsSporkActive(SPORK_6_NEW_SIGS))
-                                 && sporkPubKeyIDs.count(keyIDSigner))) {
+                                 && setSporkPubKeyIDs.count(keyIDSigner))) {
             // Note: unlike for other messages we have to check for new format even with SPORK_6_NEW_SIGS
             // inactive because SPORK_6_NEW_SIGS default is OFF and it is not the first spork to sync
             // (and even if it would, spork order can't be guaranteed anyway).
             if (!(spork.GetSignerKeyID(keyIDSigner, !IsSporkActive(SPORK_6_NEW_SIGS))
-                                     && sporkPubKeyIDs.count(keyIDSigner))) {
+                                     && setSporkPubKeyIDs.count(keyIDSigner))) {
                 LOCK(cs_main);
                 LogPrintf("CSporkManager::ProcessSpork -- ERROR: invalid signature\n");
                 Misbehaving(pfrom->GetId(), 100);
@@ -203,7 +203,7 @@ bool CSporkManager::UpdateSpork(int nSporkID, int64_t nValue, CConnman& connman)
 
     if(spork.Sign(sporkPrivKey, IsSporkActive(SPORK_6_NEW_SIGS))) {
         CKeyID keyIDSigner;
-        if (!(spork.GetSignerKeyID(keyIDSigner, IsSporkActive(SPORK_6_NEW_SIGS) && sporkPubKeyIDs.count(keyIDSigner)))) {
+        if (!(spork.GetSignerKeyID(keyIDSigner, IsSporkActive(SPORK_6_NEW_SIGS) && setSporkPubKeyIDs.count(keyIDSigner)))) {
             LogPrintf("CSporkManager::UpdateSpork: failed to find keyid for private key\n");
             return false;
         }
@@ -221,10 +221,10 @@ bool CSporkManager::UpdateSpork(int nSporkID, int64_t nValue, CConnman& connman)
 bool CSporkManager::IsSporkActive(int nSporkID)
 {
     LOCK(cs);
-    int64_t r = -1;
+    int64_t nSporkValue = -1;
 
-    if (SporkValueIsActive(nSporkID, r)){
-        return r < GetAdjustedTime();
+    if (SporkValueIsActive(nSporkID, nSporkValue)) {
+        return nSporkValue < GetAdjustedTime();
     }
 
     if (mapSporkDefaults.count(nSporkID)) {
@@ -240,9 +240,9 @@ int64_t CSporkManager::GetSporkValue(int nSporkID)
 {
     LOCK(cs);
 
-    int64_t sporkValue = -1;
-    if (SporkValueIsActive(nSporkID, sporkValue)) {
-        return sporkValue;
+    int64_t nSporkValue = -1;
+    if (SporkValueIsActive(nSporkID, nSporkValue)) {
+        return nSporkValue;
     }
 
     if (mapSporkDefaults.count(nSporkID)) {
@@ -313,13 +313,13 @@ bool CSporkManager::SetSporkAddress(const std::string& strAddress) {
         LogPrintf("CSporkManager::SetSporkAddress -- Failed to parse spork address\n");
         return false;
     }
-    sporkPubKeyIDs.insert(keyid);
+    setSporkPubKeyIDs.insert(keyid);
     return true;
 }
 
 bool CSporkManager::SetMinSporkKeys(int minSporkKeys)
 {
-    int maxKeysNumber = sporkPubKeyIDs.size();
+    int maxKeysNumber = setSporkPubKeyIDs.size();
     if ((minSporkKeys <= maxKeysNumber / 2) || (minSporkKeys > maxKeysNumber)) {
         LogPrintf("CSporkManager::SetSporkAddress -- Invalid min spork signers number: %d\n", minSporkKeys);
         return false;
@@ -337,7 +337,7 @@ bool CSporkManager::SetPrivKey(const std::string& strPrivKey)
         return false;
     }
 
-    if (sporkPubKeyIDs.find(pubKey.GetID()) == sporkPubKeyIDs.end()) {
+    if (setSporkPubKeyIDs.find(pubKey.GetID()) == setSporkPubKeyIDs.end()) {
         LogPrintf("CSporkManager::SetPrivKey -- New private key does not belong to spork addresses\n");
         return false;
     }
@@ -447,7 +447,7 @@ bool CSporkMessage::CheckSignature(const CKeyID& pubKeyId, bool fSporkSixActive)
     return true;
 }
 
-bool CSporkMessage::GetSignerKeyID(CKeyID &sporkSignerID, bool fSporkSixActive)
+bool CSporkMessage::GetSignerKeyID(CKeyID &retKeyidSporkSigner, bool fSporkSixActive)
 {
     CPubKey pubkeyFromSig;
     if (fSporkSixActive) {
@@ -463,11 +463,11 @@ bool CSporkMessage::GetSignerKeyID(CKeyID &sporkSignerID, bool fSporkSixActive)
             // Note: unlike for other messages we have to check for new format even with SPORK_6_NEW_SIGS
             // inactive because SPORK_6_NEW_SIGS default is OFF and it is not the first spork to sync
             // (and even if it would, spork order can't be guaranteed anyway).
-            return GetSignerKeyID(sporkSignerID, true);
+            return GetSignerKeyID(retKeyidSporkSigner, true);
         }
     }
 
-    sporkSignerID = pubkeyFromSig.GetID();
+    retKeyidSporkSigner = pubkeyFromSig.GetID();
     return true;
 }
 
