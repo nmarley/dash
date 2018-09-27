@@ -69,20 +69,20 @@ void CSporkManager::CheckAndRemove()
 
     auto itActive = mapSporksActive.begin();
     while (itActive != mapSporksActive.end()) {
-        auto signer_msg_pair = itActive->second.begin();
-        while (signer_msg_pair != itActive->second.end()) {
-            if (setSporkPubKeyIDs.find(signer_msg_pair->first) == setSporkPubKeyIDs.end()) {
-                mapSporksByHash.erase(signer_msg_pair->second.GetHash());
+        auto itSignerPair = itActive->second.begin();
+        while (itSignerPair != itActive->second.end()) {
+            if (setSporkPubKeyIDs.find(itSignerPair->first) == setSporkPubKeyIDs.end()) {
+                mapSporksByHash.erase(itSignerPair->second.GetHash());
                 continue;
             }
-            if (!signer_msg_pair->second.CheckSignature(signer_msg_pair->first, false)) {
-                if (!signer_msg_pair->second.CheckSignature(signer_msg_pair->first, true)) {
-                    mapSporksByHash.erase(signer_msg_pair->second.GetHash());
-                    itActive->second.erase(signer_msg_pair++);
+            if (!itSignerPair->second.CheckSignature(itSignerPair->first, false)) {
+                if (!itSignerPair->second.CheckSignature(itSignerPair->first, true)) {
+                    mapSporksByHash.erase(itSignerPair->second.GetHash());
+                    itActive->second.erase(itSignerPair++);
                     continue;
                 }
             }
-            signer_msg_pair++;
+            ++itSignerPair;
         }
         if (itActive->second.empty()) {
             mapSporksActive.erase(itActive++);
@@ -129,13 +129,13 @@ void CSporkManager::ProcessSpork(CNode* pfrom, const std::string& strCommand, CD
         }
 
         CKeyID keyIDSigner;
-        if (!(spork.GetSignerKeyID(keyIDSigner, IsSporkActive(SPORK_6_NEW_SIGS))
-                                 && setSporkPubKeyIDs.count(keyIDSigner))) {
+        if (!spork.GetSignerKeyID(keyIDSigner, IsSporkActive(SPORK_6_NEW_SIGS))
+                                 || !setSporkPubKeyIDs.count(keyIDSigner)) {
             // Note: unlike for other messages we have to check for new format even with SPORK_6_NEW_SIGS
             // inactive because SPORK_6_NEW_SIGS default is OFF and it is not the first spork to sync
             // (and even if it would, spork order can't be guaranteed anyway).
-            if (!(spork.GetSignerKeyID(keyIDSigner, !IsSporkActive(SPORK_6_NEW_SIGS))
-                                     && setSporkPubKeyIDs.count(keyIDSigner))) {
+            if (!spork.GetSignerKeyID(keyIDSigner, !IsSporkActive(SPORK_6_NEW_SIGS))
+                                     || !setSporkPubKeyIDs.count(keyIDSigner)) {
                 LOCK(cs_main);
                 LogPrintf("CSporkManager::ProcessSpork -- ERROR: invalid signature\n");
                 Misbehaving(pfrom->GetId(), 100);
@@ -178,8 +178,8 @@ void CSporkManager::ProcessSpork(CNode* pfrom, const std::string& strCommand, CD
     } else if (strCommand == NetMsgType::GETSPORKS) {
         LOCK(cs); // make sure to not lock this together with cs_main
         for (const auto& pair : mapSporksActive) {
-            for (const auto& signer_spork: pair.second) {
-                connman.PushMessage(pfrom, CNetMsgMaker(pfrom->GetSendVersion()).Make(NetMsgType::SPORK, signer_spork.second));
+            for (const auto& signerSporkPair: pair.second) {
+                connman.PushMessage(pfrom, CNetMsgMaker(pfrom->GetSendVersion()).Make(NetMsgType::SPORK, signerSporkPair.second));
             }
         }
     }
@@ -221,7 +221,7 @@ bool CSporkManager::UpdateSpork(int nSporkID, int64_t nValue, CConnman& connman)
 
     if(spork.Sign(sporkPrivKey, IsSporkActive(SPORK_6_NEW_SIGS))) {
         CKeyID keyIDSigner;
-        if (!(spork.GetSignerKeyID(keyIDSigner, IsSporkActive(SPORK_6_NEW_SIGS) && setSporkPubKeyIDs.count(keyIDSigner)))) {
+        if (!spork.GetSignerKeyID(keyIDSigner, IsSporkActive(SPORK_6_NEW_SIGS)) || !setSporkPubKeyIDs.count(keyIDSigner)) {
             LogPrintf("CSporkManager::UpdateSpork: failed to find keyid for private key\n");
             return false;
         }
@@ -339,7 +339,7 @@ bool CSporkManager::SetMinSporkKeys(int minSporkKeys)
 {
     int maxKeysNumber = setSporkPubKeyIDs.size();
     if ((minSporkKeys <= maxKeysNumber / 2) || (minSporkKeys > maxKeysNumber)) {
-        LogPrintf("CSporkManager::SetSporkAddress -- Invalid min spork signers number: %d\n", minSporkKeys);
+        LogPrintf("CSporkManager::SetMinSporkKeys -- Invalid min spork signers number: %d\n", minSporkKeys);
         return false;
     }
     nMinSporkKeys = minSporkKeys;
