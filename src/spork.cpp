@@ -129,12 +129,13 @@ void CSporkManager::ProcessSpork(CNode* pfrom, const std::string& strCommand, CD
         }
 
         CKeyID keyIDSigner;
-        if (!spork.GetSignerKeyID(keyIDSigner, IsSporkActive(SPORK_6_NEW_SIGS))
+        bool fSpork6IsActive = IsSporkActive(SPORK_6_NEW_SIGS);
+        if (!spork.GetSignerKeyID(keyIDSigner, fSpork6IsActive)
                                  || !setSporkPubKeyIDs.count(keyIDSigner)) {
             // Note: unlike for other messages we have to check for new format even with SPORK_6_NEW_SIGS
             // inactive because SPORK_6_NEW_SIGS default is OFF and it is not the first spork to sync
             // (and even if it would, spork order can't be guaranteed anyway).
-            if (!spork.GetSignerKeyID(keyIDSigner, !IsSporkActive(SPORK_6_NEW_SIGS))
+            if (!spork.GetSignerKeyID(keyIDSigner, !fSpork6IsActive)
                                      || !setSporkPubKeyIDs.count(keyIDSigner)) {
                 LOCK(cs_main);
                 LogPrintf("CSporkManager::ProcessSpork -- ERROR: invalid signature\n");
@@ -219,9 +220,10 @@ bool CSporkManager::UpdateSpork(int nSporkID, int64_t nValue, CConnman& connman)
 {
     CSporkMessage spork = CSporkMessage(nSporkID, nValue, GetAdjustedTime());
 
-    if(spork.Sign(sporkPrivKey, IsSporkActive(SPORK_6_NEW_SIGS))) {
+    bool fSpork6IsActive = IsSporkActive(SPORK_6_NEW_SIGS);
+    if(spork.Sign(sporkPrivKey, fSpork6IsActive)) {
         CKeyID keyIDSigner;
-        if (!spork.GetSignerKeyID(keyIDSigner, IsSporkActive(SPORK_6_NEW_SIGS)) || !setSporkPubKeyIDs.count(keyIDSigner)) {
+        if (!spork.GetSignerKeyID(keyIDSigner, fSpork6IsActive) || !setSporkPubKeyIDs.count(keyIDSigner)) {
             LogPrintf("CSporkManager::UpdateSpork: failed to find keyid for private key\n");
             return false;
         }
@@ -478,10 +480,7 @@ bool CSporkMessage::GetSignerKeyID(CKeyID &retKeyidSporkSigner, bool fSporkSixAc
         ss << strMessageMagic;
         ss << strMessage;
         if (!pubkeyFromSig.RecoverCompact(ss.GetHash(), vchSig)) {
-            // Note: unlike for other messages we have to check for new format even with SPORK_6_NEW_SIGS
-            // inactive because SPORK_6_NEW_SIGS default is OFF and it is not the first spork to sync
-            // (and even if it would, spork order can't be guaranteed anyway).
-            return GetSignerKeyID(retKeyidSporkSigner, true);
+            return false;
         }
     }
 
