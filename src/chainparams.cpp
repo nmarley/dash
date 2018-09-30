@@ -240,6 +240,9 @@ public:
         vSporkAddresses = {"Xgtyuk76vhuFW2iT7UAiHgNdWXCf3J34wh"};
         nMinSporkKeys = 1;
 
+        // TODO: remove later
+        legacySporkAddress = "Xgtyuk76vhuFW2iT7UAiHgNdWXCf3J34wh";
+
         checkpointData = (CCheckpointData) {
             boost::assign::map_list_of
             (  1500, uint256S("0x000000aaf0300f59f49bc3e970bad15c11f961fe2347accffff19d96ec9778e3"))
@@ -397,6 +400,9 @@ public:
         vSporkAddresses = {"yjPtiKh2uwk3bDutTEA2q9mCtXyiZRWn55"};
         nMinSporkKeys = 1;
 
+        // TODO: remove later
+        legacySporkAddress = "yjPtiKh2uwk3bDutTEA2q9mCtXyiZRWn55";
+
         checkpointData = (CCheckpointData) {
             boost::assign::map_list_of
             (    261, uint256S("0x00000c26026d0815a7e2ce4fa270775f61403c040647ff2c3091f99e894a4618"))
@@ -542,6 +548,9 @@ public:
         vSporkAddresses = {"yjPtiKh2uwk3bDutTEA2q9mCtXyiZRWn55"};
         nMinSporkKeys = 1;
 
+        // TODO: remove later
+        legacySporkAddress = "yjPtiKh2uwk3bDutTEA2q9mCtXyiZRWn55";
+
         checkpointData = (CCheckpointData) {
             boost::assign::map_list_of
             (      0, uint256S("0x000008ca1832a4baf228eb1553c03d3a2c8e02399550dd6ea8d65cec3ef23d2e"))
@@ -648,6 +657,9 @@ public:
         // privKey: cP4EKFyJsHT39LDqgdcB43Y3YXjNyjb5Fuas1GQSeAtjnZWmZEQK
         vSporkAddresses = {"yj949n1UH6fDhw6HtVE5VMj2iSTaSWBMcW"};
         nMinSporkKeys = 1;
+
+        // TODO: remove later
+        legacySporkAddress = "yj949n1UH6fDhw6HtVE5VMj2iSTaSWBMcW";
 
         checkpointData = (CCheckpointData){
             boost::assign::map_list_of

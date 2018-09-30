@@ -92,6 +92,9 @@ private:
     std::map<uint256, CSporkMessage> mapSporksByHash;
     std::map<int, std::map<CKeyID, CSporkMessage> > mapSporksActive;
 
+    // TODO: remove this once all sporks signed with threshold multiple signers
+    CKeyID legacySporkPubKeyID;
+
     std::set<CKeyID> setSporkPubKeyIDs;
     int nMinSporkKeys;
     CKey sporkPrivKey;
@@ -142,6 +145,9 @@ public:
     bool SetPrivKey(const std::string& strPrivKey);
 
     std::string ToString() const;
+
+    // TODO: remove this once all sporks signed with threshold multiple signers
+    bool SetLegacySporkAddress(const std::string& strAddress);
 };
 
 #endif

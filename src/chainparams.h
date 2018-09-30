@@ -89,6 +89,7 @@ public:
     int PoolMaxTransactions() const { return nPoolMaxTransactions; }
     int FulfilledRequestExpireTime() const { return nFulfilledRequestExpireTime; }
     const std::vector<std::string>& SporkAddresses() const { return vSporkAddresses; }
+    const std::string& LegacySporkAddress() const { return legacySporkAddress; }
     int MinSporkKeys() const { return nMinSporkKeys; }
 protected:
     CChainParams() {}
@@ -118,6 +119,7 @@ protected:
     int nPoolMaxTransactions;
     int nFulfilledRequestExpireTime;
     std::vector<std::string> vSporkAddresses;
+    std::string legacySporkAddress;
     int nMinSporkKeys;
 };
 

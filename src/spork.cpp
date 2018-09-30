@@ -38,18 +38,32 @@ bool CSporkManager::SporkValueIsActive(int nSporkID, int64_t &nActiveValueRet) c
     if (!mapSporksActive.count(nSporkID)) return false;
 
     // calc how many values we have and how many signers vote for every value
+    bool fMultiSigners, fLegacySporkSigned = false;
     std::map<int64_t, int> mapValueCounts;
     for (const auto& pair: mapSporksActive.at(nSporkID)) {
+
+        // TODO: This logic can be removed when all sporks signed with
+        // threshold multiple signers.
+        //
+        // If legacy key has signed this spork, mark that in case multi signers
+        // threshold not reached.
+        if (pair.first == legacySporkPubKeyID) {
+            fLegacySporkSigned = true;
+            // note: Intentionally don't break here b/c we want multi signers
+            // logic to have precedence over legacy key.
+        }
+
         mapValueCounts[pair.second.nValue]++;
         if (mapValueCounts.at(pair.second.nValue) >= nMinSporkKeys) {
             // nMinSporkKeys is always more than the half of the max spork keys number,
             // so there is only one such value and we can stop here
             nActiveValueRet = pair.second.nValue;
-            return true;
+            fMultiSigners = true;
+            break;
         }
     }
 
-    return false;
+    return fMultiSigners || fLegacySporkSigned;
 }
 
 void CSporkManager::Clear()
@@ -322,6 +336,16 @@ bool CSporkManager::GetSporkByHash(const uint256& hash, CSporkMessage &sporkRet)
 
     sporkRet = it->second;
 
+    return true;
+}
+
+bool CSporkManager::SetLegacySporkAddress(const std::string& strAddress) {
+    LOCK(cs);
+    CBitcoinAddress address(strAddress);
+    if (!address.IsValid() || !address.GetKeyID(legacySporkPubKeyID)) {
+        LogPrintf("CSporkManager::SetLegacySporkAddress -- Failed to parse spork address\n");
+        return false;
+    }
     return true;
 }
 
