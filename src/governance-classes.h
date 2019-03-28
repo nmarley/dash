@@ -32,10 +32,7 @@ class CGovernanceTriggerManager
     friend class CGovernanceManager;
 
 private:
-    typedef std::map<uint256, CSuperblock_sptr> trigger_m_t;
-    typedef trigger_m_t::iterator trigger_m_it;
-
-    trigger_m_t mapTrigger;
+    std::map<uint256, CSuperblock_sptr> mapTrigger;
 
     std::vector<CSuperblock_sptr> GetActiveTriggers();
     bool AddNewTrigger(uint256 nHash);
@@ -173,6 +170,125 @@ public:
 
     bool IsValid(const CTransaction& txNew, int nBlockHeight, CAmount blockReward);
     bool IsExpired();
+};
+
+class CProposalDetail {
+private:
+    // Payload data members
+    std::string strName;
+    std::string strURL;
+    int nStartEpoch;
+    int nEndEpoch;
+    CAmount nPaymentAmount;
+    CBitcoinAddress payeeAddr;
+
+    // Parsing related
+    std::vector<std::string> vecStrErrMessages;
+    bool fParsedOK;
+    void ParseStrDataHex(const std::string& strDataHex);
+
+public:
+    explicit CProposalDetail(const std::string& strDataHex);
+
+    // Parsing
+    std::string ErrorMessages() const;
+    bool DidParse() const { return fParsedOK; }
+
+    // Only implemented these b/c this is all that's necessary... we can
+    // implement the other accessors later if needed.
+    std::string Name() const { return strName; }
+    CAmount Amount() const { return nPaymentAmount; }
+    CBitcoinAddress Address() const { return payeeAddr; }
+
+    uint256 GetHash() const;
+};
+
+// CPayment represents a Dash superblock payment for a single proposal.
+struct CPayment {
+//    CPayment();
+
+    CPayment(const uint256& nProposalHash, CBitcoinAddress address, CAmount nAmount);
+
+//    CPayment(const CPayment& other);
+
+//    CPayment& operator=(const CPayment& ref) = default;
+//
+//    CPayment(CPayment&& ref)
+//    {
+//        std::swap(nProposalHash, ref.nProposalHash);
+//        std::swap(address, ref.address);
+//        std::swap(nAmount, ref.nAmount);
+//    }
+//    CPayment& operator=(CPayment&& ref)
+//    {
+//        std::swap(nProposalHash, ref.nProposalHash);
+//        std::swap(address, ref.address);
+//        std::swap(nAmount, ref.nAmount);
+//        return *this;
+//    }
+
+    uint256 nProposalHash;
+    CBitcoinAddress address;
+    CAmount nAmount;
+
+    bool operator<(const CPayment& other) const
+    {
+        return (UintToArith256(nProposalHash) < UintToArith256(other.nProposalHash));
+    }
+
+    bool operator==(const CPayment& other) const
+    {
+        return (
+            (nProposalHash == other.nProposalHash) &&
+            (address == other.address) &&
+            (nAmount == other.nAmount)
+        );
+    }
+
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action)
+    {
+        READWRITE(nProposalHash);
+        READWRITE(address.ToString());
+        READWRITE(nAmount);
+    }
+
+//    friend std::ostream& operator<<(std::ostream& os, const CPayment& p)
+//    {
+//        os << p.proposalHash.ToString();
+//        os << p.addr.ToString();
+//        os << p.amt;
+//
+//        return os;
+//    }
+};
+
+class CTriggerDetail {
+private:
+    // Payload data members
+    int nHeight;
+    std::vector<CPayment> vecPayments;
+
+    // Parsing related
+    std::vector<std::string> vecStrErrMessages;
+    bool fParsedOK;
+    void ParseStrDataHex(const std::string& strDataHex);
+
+public:
+    CTriggerDetail();
+
+    explicit CTriggerDetail(const std::string& strDataHex);
+
+    CTriggerDetail(int nHeight, const std::vector<const CGovernanceObject *>& vecProposals);
+
+    std::string GetDataHexStr() const;
+    uint256 GetHash();
+
+    // Parsing
+    std::string ErrorMessages() const;
+    bool DidParse() const { return fParsedOK; }
 };
 
 #endif
