@@ -8,6 +8,7 @@
 #include <string>
 
 #include <univalue.h>
+#include "base58.h"
 
 class CProposalValidator
 {
@@ -20,6 +21,7 @@ private:
 public:
     CProposalValidator(const std::string& strDataHexIn = std::string(), bool fAllowLegacyFormat = true);
 
+    // CProposalDetail GetProposalDetail();
     bool Validate(bool fCheckExpiration = true);
 
     const std::string& GetErrorMessages()

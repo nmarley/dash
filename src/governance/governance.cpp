@@ -2,6 +2,7 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include "activemasternode.h"
 #include "governance.h"
 #include "consensus/validation.h"
 #include "governance-classes.h"
@@ -54,7 +55,7 @@ bool CGovernanceManager::HaveObjectForHash(const uint256& nHash) const
 bool CGovernanceManager::SerializeObjectForHash(const uint256& nHash, CDataStream& ss) const
 {
     LOCK(cs);
-    object_m_cit it = mapObjects.find(nHash);
+    auto it = mapObjects.find(nHash);
     if (it == mapObjects.end()) {
         it = mapPostponedObjects.find(nHash);
         if (it == mapPostponedObjects.end())
@@ -367,7 +368,7 @@ void CGovernanceManager::UpdateCachesAndClean()
     LOCK2(cs_main, cs);
 
     for (const uint256& nHash : vecDirtyHashes) {
-        object_m_it it = mapObjects.find(nHash);
+        auto it = mapObjects.find(nHash);
         if (it == mapObjects.end()) {
             continue;
         }
@@ -380,7 +381,7 @@ void CGovernanceManager::UpdateCachesAndClean()
     // Clean up any expired or invalid triggers
     triggerman.CleanAndRemove();
 
-    object_m_it it = mapObjects.begin();
+    auto it = mapObjects.begin();
     int64_t nNow = GetAdjustedTime();
 
     while (it != mapObjects.end()) {
@@ -457,7 +458,7 @@ void CGovernanceManager::UpdateCachesAndClean()
     }
 
     // forget about expired deleted objects
-    hash_time_m_it s_it = mapErasedGovernanceObjects.begin();
+    auto s_it = mapErasedGovernanceObjects.begin();
     while (s_it != mapErasedGovernanceObjects.end()) {
         if (s_it->second < nNow) {
             mapErasedGovernanceObjects.erase(s_it++);
@@ -484,7 +485,7 @@ std::vector<CGovernanceVote> CGovernanceManager::GetCurrentVotes(const uint256& 
     std::vector<CGovernanceVote> vecResult;
 
     // Find the governance object or short-circuit.
-    object_m_cit it = mapObjects.find(nParentHash);
+    auto it = mapObjects.find(nParentHash);
     if (it == mapObjects.end()) return vecResult;
     const CGovernanceObject& govobj = it->second;
 
@@ -542,20 +543,19 @@ std::vector<const CGovernanceObject*> CGovernanceManager::GetAllNewerThan(int64_
     return vGovObjs;
 }
 
-//
-// Sort by votes, if there's a tie sort by their feeHash TX
-//
-struct sortProposalsByVotes {
-    bool operator()(const std::pair<CGovernanceObject*, int>& left, const std::pair<CGovernanceObject*, int>& right)
-    {
-        if (left.second != right.second) return (left.second > right.second);
-        return (UintToArith256(left.first->GetCollateralHash()) > UintToArith256(right.first->GetCollateralHash()));
-    }
-};
-
 void CGovernanceManager::DoMaintenance(CConnman& connman)
 {
+    LogPrintf("NGM CGovernanceManager::%s\n", __func__);
     if (fLiteMode || !masternodeSync.IsSynced() || ShutdownRequested()) return;
+
+    // NGM BEGIN
+
+//    if (fMasternodeMode) {
+        // If this is a masternode, try and create a SB trigger
+        CreateSBTrigger();
+//    }
+
+    // NGM END
 
     // CHECK OBJECTS WE'VE ASKED FOR, REMOVE OLD ENTRIES
 
@@ -566,6 +566,275 @@ void CGovernanceManager::DoMaintenance(CConnman& connman)
     // CHECK AND REMOVE - REPROCESS GOVERNANCE OBJECTS
 
     UpdateCachesAndClean();
+}
+
+bool CGovernanceManager::CreateSBTrigger() {
+    // do not request objects until it's time to sync
+    // if (!masternodeSync.IsBlockchainSynced()) return false;
+
+    int64_t nNow = GetAdjustedTime();
+    int nCurrentHeight = pindexBestHeader->nHeight;
+    // or should chainActive be used?
+
+    LogPrint("gobject", "NGM CGovernanceManager::%s nNow = %lld, nCurrentHeight = %d\n", __func__, nNow, nCurrentHeight);
+
+    // auto dmn = deterministicMNManager->GetListAtChainTip().GetValidMNByCollateral(activeMasternodeInfo.outpoint);
+    auto dmn = activeMasternodeManager->GetDMN();
+    if (!dmn) {
+        LogPrint("gobject", "NGM Can't find masternode by collateral output, thanks for playing! Bye.\n");
+        return false;
+    }
+
+    LOCK2(cs_main, cs);
+    // LOCK(cs_main);
+
+    int nLastSB = 0, nNextSB = 0;
+    CSuperblock::GetNearestSuperblocksHeights(nCurrentHeight, nLastSB, nNextSB);
+    CAmount nBudget = CSuperblock::GetPaymentsLimit(nNextSB);
+
+    LogPrint("gobject", "NGM nLastSB = %d, nNextSB = %d, nBudget = %lld\n", nLastSB, nNextSB, nBudget);
+    LogPrint("gobject", "NGM nSuperblockMaturityWindow = %d\n", Params().GetConsensus().nSuperblockMaturityWindow);
+
+    int nSuperblockMaturityWindow = Params().GetConsensus().nSuperblockMaturityWindow;
+
+    // If not yet within maturity window... bail out
+    int nMaturityStartBlock = nNextSB - nSuperblockMaturityWindow;
+    if (nCurrentHeight < nMaturityStartBlock) {
+        LogPrint("gobject", "NGM Not within SB maturity window... will not attempt to create SB trigger.");
+        return false;
+    }
+
+    // What is this for? Oh, to see if the payment falls within the "window"...
+    // TODO: Switch over to using block heights instead of timestamps...
+    int nTriggerEpochTime = EstimateFutureBlockTime(nNextSB, nCurrentHeight);
+    LogPrint("gobject", "NGM nTriggerEpochTime = %d\n", nTriggerEpochTime);
+
+    // max of this...
+    int nValidMNCount = (int)deterministicMNManager->GetListAtChainTip().GetValidMNsCount();
+    LogPrint("gobject", "NGM nValidMNCount = %d\n", nValidMNCount);
+
+    // ... or this
+    int nMinQuorum = Params().GetConsensus().nGovernanceMinQuorum;
+    LogPrint("gobject", "NGM nMinQuorum = %d\n", nMinQuorum);
+
+    int nGovQuorum = std::max(nMinQuorum, (nValidMNCount / 10));
+    LogPrint("gobject", "NGM nGovQuorum = %d\n", nGovQuorum);
+
+    // Get all governance objects in memory
+    // std::vector<const CGovernanceObject*>
+    auto objs = GetAllNewerThan(0);
+    LogPrint("gobject", "NGM got %d govObjs\n", objs.size());
+
+    // Construct a list of proposals to consider for SuperBlock trigger
+    // Keep triggers also for voting later
+    std::vector<const CGovernanceObject*> vProposals;
+    std::map<uint256, const CGovernanceObject*> mapTriggerFingerprints;
+    for (const auto& pGovObj : objs) {
+        LogPrint("gobject", "NGM pass 1: analyzing gobject %s, funding votes: %d\n", pGovObj->GetHash().ToString(), pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING));
+
+        // Get trigger payload hashes for voting later
+        if (pGovObj->GetObjectType() == GOVERNANCE_OBJECT_TRIGGER) {
+            // TODO: Should we only consider Triggers for this voting cycle (SB Height)?
+            mapTriggerFingerprints.emplace(pGovObj->GetPayloadDataHash(), pGovObj);
+        }
+
+        // Skip non-proposals TODO: fix this comment and logic...
+        if (pGovObj->GetObjectType() != GOVERNANCE_OBJECT_PROPOSAL) {
+            LogPrint("gobject", "NGM obj not proposal, moving on\n");
+            continue;
+        }
+
+        // Skip proposals which are not set to be funded
+        if (!pGovObj->IsSetCachedFunding()) continue;
+
+        // TODO?
+        // pGovObj->IsValidLocally(std::string& strError, bool fCheckCollateral)
+
+        // Skip it if the funding votes are less than nGovQuorum (10% of valid MNs)
+        // This might not be necessary due to the isSetCachedFunding check above...
+        if (pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING) < nGovQuorum) continue;
+
+        // Add pGovObj to the list to be sorted by votes.
+        vProposals.push_back(pGovObj);
+    }
+
+    // Sort by Absolute Yes Count (using lambda expression)
+    std::sort(vProposals.begin(), vProposals.end(), [](const CGovernanceObject* a, const CGovernanceObject* b) {
+        return a->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING) > b->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
+    });
+
+    // Do a final pass post-vote-sort to ensure we don't exceed the budget
+    // CAmount nBudgetUsed = 0;
+    // 6000000000
+
+    CAmount nBudgetUsed(0);
+
+    std::string strPaymentAddresses;
+    std::string strPaymentAmounts;
+    std::string strProposalHashes;
+
+    std::vector<const CGovernanceObject*> vFinalProposals;
+    for (auto pGovObj : vProposals) {
+        LogPrint("gobject", "NGM pass 2: analyzing proposal %s, funding votes: %d\n", pGovObj->GetHash().ToString(), pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING));
+        auto deets = CProposalDetail(pGovObj->GetDataAsHexString());
+        if (!deets.DidParse()) {
+            // TODO: vote to delete here?
+            LogPrint("gobject", "NGM did NOT get deets, parse error. Moving on.\n");
+            LogPrint("gobject", "NGM Parse errors: %s\n", deets.ErrorMessages());
+            continue;
+        }
+
+        // Note: this should be in pass1 TBH...
+        if (deets.Amount() > nBudget) {
+            LogPrint("gobject", "NGM Proposal %s ALONE breaks budget, moving on.\n", deets.Name());
+            continue;
+        }
+
+        if ((nBudgetUsed + deets.Amount()) > nBudget) {
+            LogPrint("gobject", "NGM Proposal %s pushes total over budget, moving on.\n", deets.Name());
+            continue;
+        }
+
+        // Add.
+        LogPrint("gobject", "NGM Proposal %s is ok, adding to candidate SB.\n", deets.Name());
+        nBudgetUsed += deets.Amount();
+        LogPrint("gobject", "NGM nBudgetUsed = %lld, total = %lld\n", nBudgetUsed, nBudget);
+
+        vFinalProposals.push_back(pGovObj);
+
+        // HERE
+
+        if (!strPaymentAddresses.empty()) strPaymentAddresses += "|";
+        strPaymentAddresses += deets.Address().ToString();
+
+        if (!strPaymentAmounts.empty()) strPaymentAmounts += "|";
+        char buffer[50];
+        sprintf(buffer, "%.8f", (double(deets.Amount()) / COIN));
+        strPaymentAmounts += buffer;
+
+        if (!strProposalHashes.empty()) strProposalHashes += "|";
+        strProposalHashes += pGovObj->GetHash().ToString();
+    }
+
+    auto triggerDetail = CTriggerDetail(nNextSB, vFinalProposals);
+    std::string strHexValue = triggerDetail.GetDataHexStr();
+    LogPrint("gobject", "NGM Hex Trigger = '%s'\n", strHexValue);
+
+    // Create trigger govobj
+    CGovernanceObject trigger(uint256(), 1, GetAdjustedTime(), uint256(), strHexValue);
+    uint256 payloadHash = trigger.GetPayloadDataHash();
+    LogPrint("gobject", "NGM trigger payloadHash = '%s'\n", payloadHash.ToString());
+
+    // Hash the payload, see if any other triggers which match this exist... if so,
+    // vote on that... if not, try and submit this one (if we're the winner?)
+    //
+    // START HERE
+    // TODO: Loop thru each trigger govobj, hash the payload for each, see if it matches ours
+    // If yes, we vote on it unless we already have
+    // If no, "submit" it (sign & relay it)
+
+    // Note: We can't just hash the serialization hex b/c the UniValue library
+    // does not order keys in JSON objects. The most proper way would be to
+    // hash the object contents at any rate, disregarding the serialization
+    // implementation.
+
+    LogPrint("gobject", "NGM activeMasternodeInfo.outpoint = %s\n", activeMasternodeInfo.outpoint.ToStringShort());
+    LogPrint("gobject", "NGM dmn->collateralOutpoint = %s\n", dmn->collateralOutpoint.ToStringShort());
+
+    auto it = mapTriggerFingerprints.find(payloadHash);
+    if (it == mapTriggerFingerprints.end()) {
+        LogPrint("gobject", "NGM Did NOT find GovObj w/payloadHash - sign and relay\n");
+        // Not found, so let's sign and relay our own...
+        trigger.SetMasternodeOutpoint(dmn->collateralOutpoint);
+        bool fSignedTrigger = trigger.Sign(*activeMasternodeInfo.blsKeyOperator);
+        LogPrint("gobject", "fSignedTrigger : %s\n", (fSignedTrigger ? "true" : "false"));
+        LogPrint("gobject", "NGM signed trigger hash : %s\n", trigger.GetHash().ToString());
+
+        std::string strError;
+        bool fMissingMasternode, fMissingConfirmations;
+        if (!trigger.IsValidLocally(strError, fMissingMasternode, fMissingConfirmations, true) && !fMissingConfirmations) {
+            LogPrint("gobject", "NGM -- Trigger submission rejected because object is not valid - hash = %s, strError = %s\n", trigger.GetHash().ToString(), strError);
+        }
+
+        // RELAY THIS OBJECT
+        //  Reject if rate check fails but don't update buffer
+        if (!governance.MasternodeRateCheck(trigger)) {
+            LogPrint("gobject", "NGM -- Trigger submission rejected because of rate check failture - hash = %s\n", trigger.GetHash().ToString());
+            return false;
+        }
+
+        LogPrint("gobject", "NGM -- Adding locally created Trigger object - %s\n", trigger.GetHash().ToString());
+
+        // Now relay this Trigger
+        if (fMissingConfirmations) {
+            LogPrint("gobject", "NGM Missing confirmations, postpone / relay\n");
+            governance.AddPostponedObject(trigger);
+            trigger.Relay(*g_connman);
+        } else {
+            LogPrint("gobject", "NGM not missing confs, Add Governance Object\n");
+            governance.AddGovernanceObject(trigger, *g_connman);
+        }
+
+    }
+    // TODO: Could possibly make everything after here use the loop below and remove the 'else' branch... since all triggers should be voted for anyway.
+    else {
+        LogPrint("gobject", "NGM Did find GovObj w/payloadHash - check vote\n");
+        // This is the correct govobj.
+        // Vote on it (if not already voted for), and vote down the others
+        // (also if not already voted for)
+        vote_rec_t voteRecord;
+        if (it->second->GetCurrentMNVotes(activeMasternodeInfo.outpoint, voteRecord)) {
+            // We DID vote for this...
+            LogPrint("gobject", "NGM We did already vote for it\n");
+        } else {
+            // We didn't vote for this yet, so vote for it
+            LogPrint("gobject", "NGM Still need to vote for it\n");
+            CGovernanceVote vote(dmn->collateralOutpoint, it->second->GetHash(), VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_YES);
+            LogPrint("gobject", "NGM created vote object: %s\n", vote.GetHash().ToString());
+            bool fSignSuccess = false;
+            if (activeMasternodeInfo.blsKeyOperator) {
+                LogPrint("gobject", "NGM attempting to sign vote object...\n");
+                fSignSuccess = vote.Sign(*activeMasternodeInfo.blsKeyOperator);
+                LogPrint("gobject", "fSignSuccess : %s\n", (fSignSuccess ? "true" : "false"));
+            }
+            LogPrint("gobject", "NGM vote object hash post-sig: %s\n", vote.GetHash().ToString());
+
+            CGovernanceException exception;
+            if (governance.ProcessVoteAndRelay(vote, exception, *g_connman)) {
+                LogPrint("gobject", "NGM vote object hash post-sig: %s\n", vote.GetHash().ToString());
+                return true;
+            } else {
+                LogPrint("gobject", "NGM vote object hash post-sig: %s\n", exception.GetMessage());
+                return false;
+            }
+
+        }
+        // LogPrint("gobject", "NGM Found GovObj w/payloadHash - vote for this one and all others down");
+    }
+
+//    for (const auto& pairFpGovobj : mapTriggerFingerprints) {
+//        if (payloadHash == pairFpGovobj.first) {
+//            // Vote for this one...
+//        } else {
+//            // Downvote all these...
+//        }
+//    };
+
+
+    return false;
+}
+
+int CGovernanceManager::EstimateFutureBlockTime(int nFutureBlockHeight, int nCurrentBlockHeight) {
+    double dFutureSeconds = (nFutureBlockHeight - nCurrentBlockHeight) * 2.62 * 60;
+    LogPrint("gobject", "NGM func = %s\n", __func__);
+    LogPrint("gobject", "NGM nCurrentBlockHeight = %d\n", nCurrentBlockHeight);
+    LogPrint("gobject", "NGM nFutureBlockHeight = %d\n", nFutureBlockHeight);
+    LogPrint("gobject", "NGM dFutureSeconds = %.2f\n", dFutureSeconds);
+
+    int result = int(GetAdjustedTime() + dFutureSeconds);
+    LogPrint("gobject", "NGM result: %d\n", result);
+
+    return result;
 }
 
 bool CGovernanceManager::ConfirmInventoryRequest(const CInv& inv)
@@ -585,14 +854,14 @@ bool CGovernanceManager::ConfirmInventoryRequest(const CInv& inv)
             return false;
         }
         break;
-    } 
+    }
     case MSG_GOVERNANCE_OBJECT_VOTE: {
         if (cmapVoteToObject.HasKey(inv.hash)) {
             LogPrint(BCLog::GOBJECT, "CGovernanceManager::ConfirmInventoryRequest already have governance vote, returning false\n");
             return false;
         }
         break;
-    } 
+    }
     default:
         LogPrint(BCLog::GOBJECT, "CGovernanceManager::ConfirmInventoryRequest unknown type, returning false\n");
         return false;
@@ -611,7 +880,7 @@ bool CGovernanceManager::ConfirmInventoryRequest(const CInv& inv)
         return false;
     }
 
-    hash_s_cit it = setHash->find(inv.hash);
+    auto it = setHash->find(inv.hash);
     if (it == setHash->end()) {
         setHash->insert(inv.hash);
         LogPrint(BCLog::GOBJECT, "CGovernanceManager::ConfirmInventoryRequest added inv to requested set\n");
@@ -635,7 +904,7 @@ void CGovernanceManager::SyncSingleObjVotes(CNode* pnode, const uint256& nProp, 
     LOCK2(cs_main, cs);
 
     // single valid object and its valid votes
-    object_m_it it = mapObjects.find(nProp);
+    auto it = mapObjects.find(nProp);
     if (it == mapObjects.end()) {
         LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s -- no matching object for hash %s, peer=%d\n", __func__, nProp.ToString(), pnode->id);
         return;
@@ -651,7 +920,7 @@ void CGovernanceManager::SyncSingleObjVotes(CNode* pnode, const uint256& nProp, 
         return;
     }
 
-    auto fileVotes = govobj.GetVoteFile();
+    const auto& fileVotes = govobj.GetVoteFile();
 
     for (const auto& vote : fileVotes.GetVotes()) {
         uint256 nVoteHash = vote.GetHash();
@@ -722,7 +991,7 @@ void CGovernanceManager::MasternodeRateUpdate(const CGovernanceObject& govobj)
     if (govobj.GetObjectType() != GOVERNANCE_OBJECT_TRIGGER) return;
 
     const COutPoint& masternodeOutpoint = govobj.GetMasternodeOutpoint();
-    txout_m_it it = mapLastMasternodeObject.find(masternodeOutpoint);
+    auto it = mapLastMasternodeObject.find(masternodeOutpoint);
 
     if (it == mapLastMasternodeObject.end()) {
         it = mapLastMasternodeObject.insert(txout_m_t::value_type(masternodeOutpoint, last_object_rec(true))).first;
@@ -778,7 +1047,7 @@ bool CGovernanceManager::MasternodeRateCheck(const CGovernanceObject& govobj, bo
         return false;
     }
 
-    txout_m_it it = mapLastMasternodeObject.find(masternodeOutpoint);
+    auto it = mapLastMasternodeObject.find(masternodeOutpoint);
     if (it == mapLastMasternodeObject.end()) return true;
 
     if (it->second.fStatusOK && !fForce) {
@@ -832,7 +1101,7 @@ bool CGovernanceManager::ProcessVote(CNode* pfrom, const CGovernanceVote& vote, 
         return false;
     }
 
-    object_m_it it = mapObjects.find(nHashGovobj);
+    auto it = mapObjects.find(nHashGovobj);
     if (it == mapObjects.end()) {
         std::ostringstream ostr;
         ostr << "CGovernanceManager::ProcessVote -- Unknown parent object " << nHashGovobj.ToString()
@@ -879,7 +1148,7 @@ void CGovernanceManager::CheckMasternodeOrphanObjects(CConnman& connman)
     LOCK2(cs_main, cs);
     int64_t nNow = GetAdjustedTime();
     ScopedLockBool guard(cs, fRateChecksEnabled, false);
-    object_info_m_it it = mapMasternodeOrphanObjects.begin();
+    auto it = mapMasternodeOrphanObjects.begin();
     while (it != mapMasternodeOrphanObjects.end()) {
         object_info_pair_t& pair = it->second;
         CGovernanceObject& govobj = pair.first;
@@ -916,7 +1185,7 @@ void CGovernanceManager::CheckPostponedObjects(CConnman& connman)
     LOCK2(cs_main, cs);
 
     // Check postponed proposals
-    for (object_m_it it = mapPostponedObjects.begin(); it != mapPostponedObjects.end();) {
+    for (auto it = mapPostponedObjects.begin(); it != mapPostponedObjects.end();) {
         const uint256& nHash = it->first;
         CGovernanceObject& govobj = it->second;
 
@@ -946,8 +1215,8 @@ void CGovernanceManager::CheckPostponedObjects(CConnman& connman)
     int64_t nNow = GetAdjustedTime();
     int64_t nSuperblockCycleSeconds = Params().GetConsensus().nSuperblockCycle * Params().GetConsensus().nPowTargetSpacing;
 
-    for (hash_s_it it = setAdditionalRelayObjects.begin(); it != setAdditionalRelayObjects.end();) {
-        object_m_it itObject = mapObjects.find(*it);
+    for (auto it = setAdditionalRelayObjects.begin(); it != setAdditionalRelayObjects.end();) {
+        auto itObject = mapObjects.find(*it);
         if (itObject != mapObjects.end()) {
             CGovernanceObject& govobj = itObject->second;
 
@@ -1139,7 +1408,7 @@ bool CGovernanceManager::AcceptVoteMessage(const uint256& nHash)
 
 bool CGovernanceManager::AcceptMessage(const uint256& nHash, hash_s_t& setHash)
 {
-    hash_s_it it = setHash.find(nHash);
+    auto it = setHash.find(nHash);
     if (it == setHash.end()) {
         // We never requested this
         return false;
@@ -1313,9 +1582,9 @@ void CGovernanceManager::CleanOrphanObjects()
 
     int64_t nNow = GetAdjustedTime();
 
-    vote_cmm_t::list_cit it = items.begin();
+    auto it = items.begin();
     while (it != items.end()) {
-        vote_cmm_t::list_cit prevIt = it;
+        auto prevIt = it;
         ++it;
         const vote_time_pair_t& pairVote = prevIt->value;
         if (pairVote.second < nNow) {
