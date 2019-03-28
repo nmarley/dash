@@ -346,6 +346,10 @@ static UniValue gobject_submit(const JSONRPCRequest& request)
     } else {
         hashParent = ParseHashV(request.params[1], "parent-hash");
     }
+    // cmd = ['gobject', 'submit', '0', '1', str(int(time.time())), obj_data]
+    // 0 1 GetAdjustedTime() HexData
+    // CGovernanceObject govobj(hashParent, nRevision, nTime, txidFee, strDataHex);
+    // uint256()
 
     // GET THE PARAMETERS FROM USER
 
@@ -1162,6 +1166,7 @@ static UniValue getgovernanceinfo(const JSONRPCRequest& request)
             "  \"governanceminquorum\" : xxxxx,           (numeric) the absolute minimum number of votes needed to trigger a governance action\n"
             "  \"proposalfee\" : xxx.xx,                  (numeric) the collateral transaction fee which must be paid to create a proposal in " + CURRENCY_UNIT + "\n"
             "  \"superblockcycle\" : xxxxx,               (numeric) the number of blocks between superblocks\n"
+            "  \"superblockmaturitywindow\" : xxxxx,      (numeric) the superblock trigger creation window\n"
             "  \"lastsuperblock\" : xxxxx,                (numeric) the block number of the last superblock\n"
             "  \"nextsuperblock\" : xxxxx,                (numeric) the block number of the next superblock\n"
             "}\n"
@@ -1184,6 +1189,7 @@ static UniValue getgovernanceinfo(const JSONRPCRequest& request)
     bool fork_active = VersionBitsState(pindex, Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0024, versionbitscache) == ThresholdState::ACTIVE;
     obj.pushKV("proposalfee", ValueFromAmount(fork_active ? GOVERNANCE_PROPOSAL_FEE_TX : GOVERNANCE_PROPOSAL_FEE_TX_OLD));
     obj.pushKV("superblockcycle", Params().GetConsensus().nSuperblockCycle);
+    obj.pushKV("superblockmaturitywindow", Params().GetConsensus().nSuperblockMaturityWindow);
     obj.pushKV("lastsuperblock", nLastSuperblock);
     obj.pushKV("nextsuperblock", nNextSuperblock);
 
