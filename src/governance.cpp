@@ -574,6 +574,16 @@ void CGovernanceManager::DoMaintenance(CConnman& connman)
         RemoveInvalidProposalVotes();
     }
 
+    // NGM BEGIN
+
+    if (fMasternodeMode) {
+        // If this is a masternode, try and create a SB trigger
+        CreateSBTrigger();
+    }
+
+    // NGM END
+
+
     // CHECK OBJECTS WE'VE ASKED FOR, REMOVE OLD ENTRIES
 
     CleanOrphanObjects();
@@ -583,6 +593,12 @@ void CGovernanceManager::DoMaintenance(CConnman& connman)
     // CHECK AND REMOVE - REPROCESS GOVERNANCE OBJECTS
 
     UpdateCachesAndClean();
+}
+
+bool CGovernanceManager::CreateSBTrigger() {
+    int64_t nNow = GetAdjustedTime();
+
+    return false;
 }
 
 bool CGovernanceManager::ConfirmInventoryRequest(const CInv& inv)

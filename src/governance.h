@@ -279,6 +279,7 @@ public:
     void ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman);
 
     void DoMaintenance(CConnman& connman);
+    bool CreateSBTrigger();
 
     CGovernanceObject* FindGovernanceObject(const uint256& nHash);
 
