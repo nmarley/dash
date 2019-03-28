@@ -56,4 +56,8 @@ static const int GOVSCRIPT_PROTO_VERSION = 70221;
 
 // Make sure that none of the values above collide with `ADDRV2_FORMAT`.
 
+//! Superblock triggers created by DashCore
+static const int CORE_SUPERBLOCKS_PROTO_VERSION = 70221;
+
+
 #endif // BITCOIN_VERSION_H
