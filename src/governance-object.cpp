@@ -135,7 +135,7 @@ bool CGovernanceObject::ProcessVote(CNode* pfrom,
         return false;
     }
 
-    vote_m_it it = mapCurrentMNVotes.emplace(vote_m_t::value_type(vote.GetMasternodeOutpoint(), vote_rec_t())).first;
+    auto it = mapCurrentMNVotes.emplace(vote_m_t::value_type(vote.GetMasternodeOutpoint(), vote_rec_t())).first;
     vote_rec_t& voteRecordRef = it->second;
     vote_signal_enum_t eSignal = vote.GetSignal();
     if (eSignal == VOTE_SIGNAL_NONE) {
@@ -218,7 +218,7 @@ void CGovernanceObject::ClearMasternodeVotes()
 
     auto mnList = deterministicMNManager->GetListAtChainTip();
 
-    vote_m_it it = mapCurrentMNVotes.begin();
+    auto it = mapCurrentMNVotes.begin();
     while (it != mapCurrentMNVotes.end()) {
         if (!mnList.HasValidMNByCollateral(it->first)) {
             fileVotes.RemoveVotesFromMasternode(it->first);
@@ -593,7 +593,7 @@ bool CGovernanceObject::IsCollateralValid(std::string& strError, bool& fMissingC
     AssertLockHeld(cs_main);
     int nConfirmationsIn = 0;
     if (nBlockHash != uint256()) {
-        BlockMap::iterator mi = mapBlockIndex.find(nBlockHash);
+        auto mi = mapBlockIndex.find(nBlockHash);
         if (mi != mapBlockIndex.end() && (*mi).second) {
             CBlockIndex* pindex = (*mi).second;
             if (chainActive.Contains(pindex)) {
@@ -668,7 +668,7 @@ bool CGovernanceObject::GetCurrentMNVotes(const COutPoint& mnCollateralOutpoint,
 {
     LOCK(cs);
 
-    vote_m_cit it = mapCurrentMNVotes.find(mnCollateralOutpoint);
+    auto it = mapCurrentMNVotes.find(mnCollateralOutpoint);
     if (it == mapCurrentMNVotes.end()) {
         return false;
     }
@@ -727,7 +727,7 @@ void CGovernanceObject::CheckOrphanVotes(CConnman& connman)
     int64_t nNow = GetAdjustedTime();
     auto mnList = deterministicMNManager->GetListAtChainTip();
     const vote_cmm_t::list_t& listVotes = cmmapOrphanVotes.GetItemList();
-    vote_cmm_t::list_cit it = listVotes.begin();
+    auto it = listVotes.begin();
     while (it != listVotes.end()) {
         bool fRemove = false;
         const COutPoint& key = it->key;
