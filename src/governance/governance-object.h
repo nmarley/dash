@@ -244,6 +244,8 @@ public:
     bool CheckSignature(const CBLSPublicKey& pubKey) const;
 
     uint256 GetSignatureHash() const;
+    uint256 GetPayloadDataHash() const;
+
 
     // CORE OBJECT FUNCTIONS
 

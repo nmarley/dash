@@ -168,4 +168,101 @@ public:
     bool IsExpired() const;
 };
 
+class CProposalDetail {
+private:
+    // Payload data members
+    std::string strName;
+    std::string strURL;
+
+    int nStartHeight;
+    int nEndHeight;
+
+    CAmount nPaymentAmount;
+    CBitcoinAddress payeeAddr;
+
+    // deprecated
+    int nStartEpoch;
+    int nEndEpoch;
+
+    // Parsing related
+    std::vector<std::string> vecStrErrMessages;
+    bool fParsedOK;
+    bool fOldFormat;
+    void ParseStrDataHex(const std::string& strDataHex);
+
+public:
+    explicit CProposalDetail(const std::string& strDataHex);
+
+    // Parsing
+    std::string ErrorMessages() const;
+    bool DidParse() const { return fParsedOK; }
+
+    // Accessors
+    std::string Name() const { return strName; }
+    CAmount Amount() const { return nPaymentAmount; }
+    CBitcoinAddress Address() const { return payeeAddr; }
+    int startHeight() const { return nStartHeight; }
+    int endHeight() const { return nEndHeight; }
+
+    uint256 GetHash() const;
+};
+
+// CPayment represents a Dash superblock payment for a single proposal.
+class CPayment {
+public:
+    CPayment(const uint256& nProposalHash, CBitcoinAddress address, CAmount nAmount);
+
+    uint256 nProposalHash;
+    CBitcoinAddress address;
+    CAmount nAmount;
+
+    bool operator<(const CPayment& other) const
+    {
+        return (UintToArith256(nProposalHash) < UintToArith256(other.nProposalHash));
+    }
+
+    bool operator==(const CPayment& other) const
+    {
+        return (
+            (nProposalHash == other.nProposalHash) &&
+            (address == other.address) &&
+            (nAmount == other.nAmount)
+        );
+    }
+
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action)
+    {
+        READWRITE(nProposalHash);
+        READWRITE(address.ToString());
+        READWRITE(nAmount);
+    }
+};
+
+class CTriggerDetail {
+private:
+    // Payload data members
+    int nHeight;
+    std::vector<CPayment> vecPayments;
+
+    // Parsing related
+    std::vector<std::string> vecStrErrMessages;
+    bool fParsedOK;
+    void ParseStrDataHex(const std::string& strDataHex);
+
+public:
+    explicit CTriggerDetail(const std::string& strDataHex);
+
+    CTriggerDetail(int nHeight, const std::vector<const CGovernanceObject *>& vecProposals);
+
+    std::string GetDataHexStr() const;
+    uint256 GetHash() const;
+
+    // Parsing
+    std::string ErrorMessages() const;
+    bool DidParse() const { return fParsedOK; }
+};
+
 #endif // BITCOIN_GOVERNANCE_GOVERNANCE_CLASSES_H

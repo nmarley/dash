@@ -297,6 +297,21 @@ uint256 CGovernanceObject::GetSignatureHash() const
     return SerializeHash(*this);
 }
 
+uint256 CGovernanceObject::GetPayloadDataHash() const
+{
+    switch (GetObjectType()) {
+        case GOVERNANCE_OBJECT_PROPOSAL: {
+            CProposalDetail proposalDetail(GetDataAsHexString());
+            return proposalDetail.GetHash();
+        }
+        case GOVERNANCE_OBJECT_TRIGGER: {
+            CTriggerDetail triggerDetail(GetDataAsHexString());
+            return triggerDetail.GetHash();
+        }
+    }
+    return uint256{};
+}
+
 void CGovernanceObject::SetMasternodeOutpoint(const COutPoint& outpoint)
 {
     masternodeOutpoint = outpoint;

@@ -58,6 +58,7 @@ BITCOIN_TESTS =\
   test/evo_deterministicmns_tests.cpp \
   test/evo_simplifiedmns_tests.cpp \
   test/getarg_tests.cpp \
+  test/gov_detail_tests.cpp \
   test/governance_validators_tests.cpp \
   test/hash_tests.cpp \
   test/key_io_tests.cpp \
