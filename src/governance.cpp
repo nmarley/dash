@@ -555,17 +555,6 @@ std::vector<const CGovernanceObject*> CGovernanceManager::GetAllNewerThan(int64_
     return vGovObjs;
 }
 
-//
-// Sort by votes, if there's a tie sort by their feeHash TX
-//
-struct sortProposalsByVotes {
-    bool operator()(const std::pair<CGovernanceObject*, int>& left, const std::pair<CGovernanceObject*, int>& right)
-    {
-        if (left.second != right.second) return (left.second > right.second);
-        return (UintToArith256(left.first->GetCollateralHash()) > UintToArith256(right.first->GetCollateralHash()));
-    }
-};
-
 void CGovernanceManager::DoMaintenance(CConnman& connman)
 {
     if (fLiteMode || !masternodeSync.IsSynced() || ShutdownRequested()) return;
@@ -596,7 +585,12 @@ void CGovernanceManager::DoMaintenance(CConnman& connman)
 }
 
 bool CGovernanceManager::CreateSBTrigger() {
+    // do not request objects until it's time to sync
+    // if (!masternodeSync.IsBlockchainSynced()) return false;
+
     int64_t nNow = GetAdjustedTime();
+
+    LogPrint("gobject", "CGovernanceManager::%s nNow = %lld\n", __func__, nNow);
 
     return false;
 }
