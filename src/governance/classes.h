@@ -9,6 +9,7 @@
 #include <script/script.h>
 #include <script/standard.h>
 #include <uint256.h>
+#include <arith_uint256.h>
 
 class CTxOut;
 class CTransaction;
@@ -148,6 +149,99 @@ public:
 
     bool IsValid(const CTransaction& txNew, int nBlockHeight, CAmount blockReward);
     bool IsExpired() const;
+};
+
+class CProposalDetail {
+private:
+    // Payload data members
+    std::string strName;
+    std::string strURL;
+
+    int nStartHeight;
+    int nEndHeight;
+
+    CAmount nPaymentAmount;
+    CScript script;
+
+    // deprecated
+    int nStartEpoch;
+    int nEndEpoch;
+
+    // Parsing related
+    // 2022-02-18: This seems like code smell...
+    std::vector<std::string> vecStrErrMessages;
+    bool fParsedOK;
+    bool fOldFormat;
+    void ParseStrDataHex(const std::string& strDataHex);
+
+public:
+    explicit CProposalDetail(const std::string& strDataHex);
+
+    // Parsing
+    std::string ErrorMessages() const;
+    bool DidParse() const { return fParsedOK; }
+
+    // Accessors
+    std::string Name() const { return strName; }
+    CAmount Amount() const { return nPaymentAmount; }
+    CScript Script() const { return script; }
+    int startHeight() const { return nStartHeight; }
+    int endHeight() const { return nEndHeight; }
+
+    uint256 GetHash() const;
+};
+
+// CPayment represents a Dash superblock payment for a single proposal.
+class CPayment {
+public:
+    CPayment(const uint256& nProposalHash, CTxDestination& dest, CAmount nAmount);
+
+    uint256 nProposalHash;
+    CScript script;
+    CAmount nAmount;
+
+    bool operator<(const CPayment& other) const
+    {
+        return (UintToArith256(nProposalHash) < UintToArith256(other.nProposalHash));
+    }
+
+    bool operator==(const CPayment& other) const
+    {
+        return (
+            (nProposalHash == other.nProposalHash) &&
+            (script == other.script) &&
+            (nAmount == other.nAmount)
+        );
+    }
+
+    SERIALIZE_METHODS(CPayment, obj)
+    {
+        READWRITE(obj.nProposalHash, obj.script, obj.nAmount);
+    }
+};
+
+class CTriggerDetail {
+private:
+    // Payload data members
+    int nHeight;
+    std::vector<CPayment> vecPayments;
+
+    // Parsing related -- code smell, refactor
+    std::vector<std::string> vecStrErrMessages;
+    bool fParsedOK;
+    void ParseStrDataHex(const std::string& strDataHex);
+
+public:
+    explicit CTriggerDetail(const std::string& strDataHex);
+
+    CTriggerDetail(int nHeight, const std::vector<CGovernanceObject>& vecProposals);
+
+    std::string GetDataHexStr() const;
+    uint256 GetHash() const;
+
+    // Parsing -- code smell, refactor
+    std::string ErrorMessages() const;
+    bool DidParse() const { return fParsedOK; }
 };
 
 #endif // BITCOIN_GOVERNANCE_CLASSES_H
