@@ -640,7 +640,7 @@ bool CGovernanceManager::CreateSBTrigger() {
     LogPrint("gobject", "NGM got %d govObjs = %d\n", objs.size());
 
     // Construct a list of proposals to consider for SuperBlock trigger
-    std::list<const CGovernanceObject*> lProposals;
+    std::vector<const CGovernanceObject*> vProposals;
     for (const auto& pGovObj : objs) {
         // Skip objects which are not set to be funded
         if (!pGovObj->IsSetCachedFunding()) continue;
@@ -654,11 +654,11 @@ bool CGovernanceManager::CreateSBTrigger() {
         if (pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING) < nGovQuorum) continue;
 
         // Add pGovObj to the list to be sorted by votes.
-        lProposals.push_back(pGovObj);
+        vProposals.push_back(pGovObj);
     }
 
     // Sort by Absolute Yes Count (using lambda expression)
-    std::sort(lProposals.begin(), lProposals.end(), [](const CGovernanceObject* a, const CGovernanceObject* b) {
+    std::sort(vProposals.begin(), vProposals.end(), [](const CGovernanceObject* a, const CGovernanceObject* b) {
         return a->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING) > b->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
     });
 
