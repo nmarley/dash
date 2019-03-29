@@ -642,10 +642,14 @@ bool CGovernanceManager::CreateSBTrigger() {
     // Construct a list of proposals to consider for SuperBlock trigger
     std::vector<const CGovernanceObject*> vProposals;
     for (const auto& pGovObj : objs) {
+        LogPrint("gobject", "NGM pass 1: analyzing proposal %s, funding votes: %d\n", pGovObj->GetHash().ToString(), pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING));
         // Skip objects which are not set to be funded
 //        if (!pGovObj->IsSetCachedFunding()) continue;
         // Skip non-proposals
-        if (!pGovObj->GetObjectType() != GOVERNANCE_OBJECT_PROPOSAL) continue;
+        if (pGovObj->GetObjectType() != GOVERNANCE_OBJECT_PROPOSAL) {
+            LogPrint("gobject", "NGM obj not proposal, moving on");
+            continue;
+        }
 
         // pGovObj->IsValidLocally(std::string& strError, bool fCheckCollateral)
 
@@ -669,7 +673,7 @@ bool CGovernanceManager::CreateSBTrigger() {
     CAmount nBudgetUsed(0);
     std::vector<const CGovernanceObject*> vFinalProposals;
     for (auto pGovObj : vProposals) {
-        LogPrint("gobject", "NGM analyzing proposal %s, votes: %d\n", pGovObj->GetHash().ToString(), pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING));
+        LogPrint("gobject", "NGM pass 2: analyzing proposal %s, funding votes: %d\n", pGovObj->GetHash().ToString(), pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING));
         auto v = CProposalValidator(pGovObj->GetDataAsHexString(), false);
         auto deets = v.GetProposalDetail();
         LogPrint("gobject", "NGM got deets\n");
