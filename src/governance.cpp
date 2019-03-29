@@ -591,8 +591,26 @@ bool CGovernanceManager::CreateSBTrigger() {
 
     int64_t nNow = GetAdjustedTime();
     int nHeight = pindexBestHeader->nHeight;
+    // or should chainActive be used?
 
     LogPrint("gobject", "NGM CGovernanceManager::%s nNow = %lld, nHeight = %d\n", __func__, nNow, nHeight);
+
+    // LOCK(cs_main);
+    int nLastSB = 0, nNextSB = 0;
+    CSuperblock::GetNearestSuperblocksHeights(nHeight, nLastSB, nNextSB);
+    CAmount nBudget = CSuperblock::GetPaymentsLimit(nHeight);
+
+    LogPrint("gobject", "NGM nLastSB = %d, nNextSB = %d, nBudget = %lld\n", nLastSB, nNextSB, nBudget);
+
+    // Get all governance objects in memory
+    // std::vector<const CGovernanceObject*>
+    auto objs = GetAllNewerThan(0);
+    for (const auto& pGovObj : objs) {
+        // Skip objects which are not set to be funded
+        if (!pGovObj->IsSetCachedFunding()) continue;
+        // Skip non-proposals
+        if (!pGovObj->GetObjectType() != GOVERNANCE_OBJECT_PROPOSAL) continue;
+    }
 
     return false;
 }
