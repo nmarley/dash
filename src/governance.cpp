@@ -601,6 +601,7 @@ bool CGovernanceManager::CreateSBTrigger() {
     CAmount nBudget = CSuperblock::GetPaymentsLimit(nNextSB);
 
     LogPrint("gobject", "NGM nLastSB = %d, nNextSB = %d, nBudget = %lld\n", nLastSB, nNextSB, nBudget);
+    LogPrint("gobject", "NGM nSuperblockMaturityWindow = %d\n", Params().GetConsensus().nSuperblockMaturityWindow);
 
     // 2019-03-29 15:13:20 NGM CGovernanceManager::CreateSBTrigger nNow = 1553872400, nHeight = 69544
     // 2019-03-29 15:13:20 NGM nLastSB = 69528, nNextSB = 69552, nBudget = 6000000000
