@@ -669,8 +669,7 @@ bool CGovernanceManager::CreateSBTrigger() {
     CAmount nBudgetUsed(0);
     std::vector<const CGovernanceObject*> vFinalProposals;
     for (auto pGovObj : vProposals) {
-        int j = pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
-        LogPrint("gobject", "NGM analyzing proposal %s, votes: %d\n", pGovObj->GetHash().ToString(), j);
+        LogPrint("gobject", "NGM analyzing proposal %s, votes: %d\n", pGovObj->GetHash().ToString(), pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING));
         auto v = CProposalValidator(pGovObj->GetDataAsHexString(), false);
         auto deets = v.GetProposalDetail();
         LogPrint("gobject", "NGM got deets\n");
@@ -729,14 +728,14 @@ bool CGovernanceManager::ConfirmInventoryRequest(const CInv& inv)
             return false;
         }
         break;
-    } 
+    }
     case MSG_GOVERNANCE_OBJECT_VOTE: {
         if (cmapVoteToObject.HasKey(inv.hash)) {
             LogPrint("gobject", "CGovernanceManager::ConfirmInventoryRequest already have governance vote, returning false\n");
             return false;
         }
         break;
-    } 
+    }
     default:
         LogPrint("gobject", "CGovernanceManager::ConfirmInventoryRequest unknown type, returning false\n");
         return false;
