@@ -643,7 +643,7 @@ bool CGovernanceManager::CreateSBTrigger() {
     std::vector<const CGovernanceObject*> vProposals;
     for (const auto& pGovObj : objs) {
         // Skip objects which are not set to be funded
-        if (!pGovObj->IsSetCachedFunding()) continue;
+//        if (!pGovObj->IsSetCachedFunding()) continue;
         // Skip non-proposals
         if (!pGovObj->GetObjectType() != GOVERNANCE_OBJECT_PROPOSAL) continue;
 
@@ -651,7 +651,7 @@ bool CGovernanceManager::CreateSBTrigger() {
 
         // Skip it if the funding votes are less than nGovQuorum (10% of valid MNs)
         // This might not be necessary due to the isSetCachedFunding check above...
-        if (pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING) < nGovQuorum) continue;
+//        if (pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING) < nGovQuorum) continue;
 
         // Add pGovObj to the list to be sorted by votes.
         vProposals.push_back(pGovObj);
@@ -666,17 +666,27 @@ bool CGovernanceManager::CreateSBTrigger() {
     // CAmount nBudgetUsed = 0;
     // 6000000000
 
-    // CAmount nBudget = CSuperblock::GetPaymentsLimit(nNextSB);
     CAmount nBudgetUsed(0);
+    std::vector<const CGovernanceObject*> vFinalProposals;
     for (auto pGovObj : vProposals) {
         auto v = CProposalValidator(pGovObj->GetDataAsHexString(), false);
         auto deets = v.GetProposalDetail();
         LogPrint("gobject", "NGM got deets\n");
+        if (deets.nPaymentAmount > nBudget) {
+            LogPrint("gobject", "NGM Proposal %s ALONE breaks budget, moving on.\n", deets.strName);
+            continue;
+        }
+        if ((nBudgetUsed + deets.nPaymentAmount) > nBudget) {
+            LogPrint("gobject", "NGM Proposal %s pushes total over budget, moving on.\n", deets.strName);
+            continue;
+        }
+
+        LogPrint("gobject", "NGM Proposal %s is ok, adding to candidate SB.\n", deets.strName);
+        nBudgetUsed += deets.nPaymentAmount;
+        LogPrint("gobject", "NGM nBudgetUsed = %lld\n", nBudgetUsed);
+
+        vFinalProposals.push_back(pGovObj);
     }
-
-
-    // pGovObj->GetAbsoluteYesCount()
-    // lProposals.sort_by
 
     return false;
 }
