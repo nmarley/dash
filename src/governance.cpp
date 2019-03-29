@@ -618,6 +618,11 @@ bool CGovernanceManager::CreateSBTrigger() {
     int nTriggerEpochTime = EstimateFutureBlockTime(nNextSB, nHeight);
     LogPrint("gobject", "NGM nTriggerEpochTime = %d\n", nTriggerEpochTime);
 
+//    proposals = Proposal.approved_and_ranked(
+//            proposal_quorum=dashd.governance_quorum(),
+//            next_superblock_max_budget=budget_max
+//    )
+
     // Get all governance objects in memory
     // std::vector<const CGovernanceObject*>
     auto objs = GetAllNewerThan(0);
@@ -632,8 +637,16 @@ bool CGovernanceManager::CreateSBTrigger() {
 }
 
 int CGovernanceManager::EstimateFutureBlockTime(int nFutureBlockHeight, int nNextSBHeight) {
-    double dFutureSeconds = nNextSBHeight - nFutureBlockHeight * 2.62 * 60;
-    return int(GetAdjustedTime() + dFutureSeconds);
+    double dFutureSeconds = (nNextSBHeight - nFutureBlockHeight) * 2.62 * 60;
+    LogPrint("gobject", "NGM func = %s\n", __func__);
+    LogPrint("gobject", "NGM nNextSBHeight = %d\n", nNextSBHeight);
+    LogPrint("gobject", "NGM nFutureBlockHeight = %d\n", nFutureBlockHeight);
+    LogPrint("gobject", "NGM dFutureSeconds = %.2g\n", dFutureSeconds);
+
+    int result = int(GetAdjustedTime() + dFutureSeconds);
+    LogPrint("gobject", "NGM result: %d\n", result);
+
+    return result;
 }
 
 //#def estimateFutureBlockTime(self, height):
