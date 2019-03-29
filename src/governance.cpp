@@ -603,8 +603,20 @@ bool CGovernanceManager::CreateSBTrigger() {
     LogPrint("gobject", "NGM nLastSB = %d, nNextSB = %d, nBudget = %lld\n", nLastSB, nNextSB, nBudget);
     LogPrint("gobject", "NGM nSuperblockMaturityWindow = %d\n", Params().GetConsensus().nSuperblockMaturityWindow);
 
+    int nSuperblockMaturityWindow = Params().GetConsensus().nSuperblockMaturityWindow;
+
+    // If not yet within maturity window... bail out
+    int nMaturityStartBlock = nNextSB - nSuperblockMaturityWindow;
+    if (nHeight < nMaturityStartBlock) {
+        LogPrint("gobject", "NGM Not within SB maturity window... will not attempt to create SB trigger.");
+        return false;
+    }
+
     // 2019-03-29 15:13:20 NGM CGovernanceManager::CreateSBTrigger nNow = 1553872400, nHeight = 69544
     // 2019-03-29 15:13:20 NGM nLastSB = 69528, nNextSB = 69552, nBudget = 6000000000
+
+    int nTriggerEpochTime = EstimateFutureBlockTime(nNextSB, nHeight);
+    LogPrint("gobject", "NGM nTriggerEpochTime = %d\n", nTriggerEpochTime);
 
     // Get all governance objects in memory
     // std::vector<const CGovernanceObject*>
@@ -618,6 +630,17 @@ bool CGovernanceManager::CreateSBTrigger() {
 
     return false;
 }
+
+int CGovernanceManager::EstimateFutureBlockTime(int nFutureBlockHeight, int nNextSBHeight) {
+    double dFutureSeconds = nNextSBHeight - nFutureBlockHeight * 2.62 * 60;
+    return int(GetAdjustedTime() + dFutureSeconds);
+}
+
+//#def estimateFutureBlockTime(self, height):
+//#    future_seconds = (nNextSB - nHeight) * 2.62 * 60
+//#    estimated_epoch = int(time.time() + future_seconds)
+//#    return estimated_epoch
+
 
 bool CGovernanceManager::ConfirmInventoryRequest(const CInv& inv)
 {

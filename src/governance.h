@@ -280,6 +280,7 @@ public:
 
     void DoMaintenance(CConnman& connman);
     bool CreateSBTrigger();
+    int EstimateFutureBlockTime(int, int);
 
     CGovernanceObject* FindGovernanceObject(const uint256& nHash);
 
