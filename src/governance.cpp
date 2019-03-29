@@ -666,12 +666,12 @@ bool CGovernanceManager::CreateSBTrigger() {
     // CAmount nBudgetUsed = 0;
     // CAmount nBudget = CSuperblock::GetPaymentsLimit(nNextSB);
     // 6000000000
-
-    for (auto pGovObj : lProposals) {
-        UniValue obj;
-        pGovObj->GetData(&obj);
-        obj->get_obj
-    }
+//
+//    for (auto pGovObj : lProposals) {
+//        UniValue obj;
+//        pGovObj->GetData(&obj);
+//        obj->get_obj
+//    }
 
 
     // pGovObj->GetAbsoluteYesCount()
