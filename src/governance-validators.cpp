@@ -340,7 +340,7 @@ CProposalDetail CProposalValidator::GetProposalDetail() {
     propDetail.payeeAddr = CBitcoinAddress(strPaymentAddress);
 
     double dValue = objJSON["payment_amount"].get_real();
-    propDetail.nPaymentAmount = int64_t(dValue * 1000);
+    propDetail.nPaymentAmount = int64_t(dValue * COIN);
 
     return propDetail;
 }
