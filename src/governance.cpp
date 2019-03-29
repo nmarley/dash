@@ -598,7 +598,7 @@ bool CGovernanceManager::CreateSBTrigger() {
     // LOCK(cs_main);
     int nLastSB = 0, nNextSB = 0;
     CSuperblock::GetNearestSuperblocksHeights(nHeight, nLastSB, nNextSB);
-    CAmount nBudget = CSuperblock::GetPaymentsLimit(nHeight);
+    CAmount nBudget = CSuperblock::GetPaymentsLimit(nNextSB);
 
     LogPrint("gobject", "NGM nLastSB = %d, nNextSB = %d, nBudget = %lld\n", nLastSB, nNextSB, nBudget);
 
