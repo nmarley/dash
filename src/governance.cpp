@@ -626,8 +626,8 @@ bool CGovernanceManager::CreateSBTrigger() {
     int nMinQuorum = Params().GetConsensus().nGovernanceMinQuorum;
     LogPrint("gobject", "NGM nMinQuorum = %d\n", nMinQuorum);
 
-    int nMaxObjRequestsPerNode = std::max(nMinQuorum, (nValidMNCount / 10));
-    LogPrint("gobject", "NGM nMaxObjRequestsPerNode = %d\n", nMaxObjRequestsPerNode);
+    int nGovQuorum = std::max(nMinQuorum, (nValidMNCount / 10));
+    LogPrint("gobject", "NGM nGovQuorum = %d\n", nGovQuorum);
 
 //    proposals = Proposal.approved_and_ranked(
 //            proposal_quorum=dashd.governance_quorum(),
