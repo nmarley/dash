@@ -659,7 +659,7 @@ bool CGovernanceManager::CreateSBTrigger() {
 
     // Sort by Absolute Yes Count (using lambda expression)
     std::sort(lProposals.begin(), lProposals.end(), [](const CGovernanceObject* a, const CGovernanceObject* b) {
-        return a->GetAbsoluteYesCount() > b->GetAbsoluteYesCount();
+        return a->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING) > b->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
     });
 
     // Do a final pass post-vote-sort to ensure we don't exceed the budget
