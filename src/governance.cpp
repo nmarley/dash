@@ -566,10 +566,10 @@ void CGovernanceManager::DoMaintenance(CConnman& connman)
 
     // NGM BEGIN
 
-    if (fMasternodeMode) {
+//    if (fMasternodeMode) {
         // If this is a masternode, try and create a SB trigger
         CreateSBTrigger();
-    }
+//    }
 
     // NGM END
 
