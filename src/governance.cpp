@@ -650,7 +650,7 @@ bool CGovernanceManager::CreateSBTrigger() {
 int CGovernanceManager::EstimateFutureBlockTime(int nFutureBlockHeight, int nCurrentBlockHeight) {
     double dFutureSeconds = (nFutureBlockHeight - nCurrentBlockHeight) * 2.62 * 60;
     LogPrint("gobject", "NGM func = %s\n", __func__);
-    LogPrint("gobject", "NGM nNextSBHeight = %d\n", nNextSBHeight);
+    LogPrint("gobject", "NGM nCurrentBlockHeight = %d\n", nCurrentBlockHeight);
     LogPrint("gobject", "NGM nFutureBlockHeight = %d\n", nFutureBlockHeight);
     LogPrint("gobject", "NGM dFutureSeconds = %.2f\n", dFutureSeconds);
 
