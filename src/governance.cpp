@@ -669,7 +669,8 @@ bool CGovernanceManager::CreateSBTrigger() {
     CAmount nBudgetUsed(0);
     std::vector<const CGovernanceObject*> vFinalProposals;
     for (auto pGovObj : vProposals) {
-        LogPrint("gobject", "NGM analyzing proposal %s, votes: %d\n", pGovObj->GetHash(), pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING));
+        int j = pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
+        LogPrint("gobject", "NGM analyzing proposal %s, votes: %d\n", pGovObj->GetHash().ToString(), j);
         auto v = CProposalValidator(pGovObj->GetDataAsHexString(), false);
         auto deets = v.GetProposalDetail();
         LogPrint("gobject", "NGM got deets\n");
