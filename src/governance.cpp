@@ -637,12 +637,45 @@ bool CGovernanceManager::CreateSBTrigger() {
     // Get all governance objects in memory
     // std::vector<const CGovernanceObject*>
     auto objs = GetAllNewerThan(0);
+    LogPrint("gobject", "NGM got %d govObjs = %d\n", objs.size());
+
+    // Construct a list of proposals to consider for SuperBlock trigger
+    std::list<const CGovernanceObject*> lProposals;
     for (const auto& pGovObj : objs) {
         // Skip objects which are not set to be funded
         if (!pGovObj->IsSetCachedFunding()) continue;
         // Skip non-proposals
         if (!pGovObj->GetObjectType() != GOVERNANCE_OBJECT_PROPOSAL) continue;
+
+        // pGovObj->IsValidLocally(std::string& strError, bool fCheckCollateral)
+
+        // Skip it if the funding votes are less than nGovQuorum (10% of valid MNs)
+        // This might not be necessary due to the isSetCachedFunding check above...
+        if (pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING) < nGovQuorum) continue;
+
+        // Add pGovObj to the list to be sorted by votes.
+        lProposals.push_back(pGovObj);
     }
+
+    // Sort by Absolute Yes Count (using lambda expression)
+    std::sort(lProposals.begin(), lProposals.end(), [](const CGovernanceObject* a, const CGovernanceObject* b) {
+        return a->GetAbsoluteYesCount() > b->GetAbsoluteYesCount();
+    });
+
+    // Do a final pass post-vote-sort to ensure we don't exceed the budget
+    // CAmount nBudgetUsed = 0;
+    // CAmount nBudget = CSuperblock::GetPaymentsLimit(nNextSB);
+    // 6000000000
+
+    for (auto pGovObj : lProposals) {
+        UniValue obj;
+        pGovObj->GetData(&obj);
+        obj->get_obj
+    }
+
+
+    // pGovObj->GetAbsoluteYesCount()
+    // lProposals.sort_by
 
     return false;
 }
