@@ -590,8 +590,9 @@ bool CGovernanceManager::CreateSBTrigger() {
     // if (!masternodeSync.IsBlockchainSynced()) return false;
 
     int64_t nNow = GetAdjustedTime();
+    int nHeight = pindexBestHeader->nHeight;
 
-    LogPrint("gobject", "NGM CGovernanceManager::%s nNow = %lld\n", __func__, nNow);
+    LogPrint("gobject", "NGM CGovernanceManager::%s nNow = %lld, nHeight = %d\n", __func__, nNow, nHeight);
 
     return false;
 }
