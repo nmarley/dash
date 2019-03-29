@@ -641,7 +641,7 @@ int CGovernanceManager::EstimateFutureBlockTime(int nFutureBlockHeight, int nNex
     LogPrint("gobject", "NGM func = %s\n", __func__);
     LogPrint("gobject", "NGM nNextSBHeight = %d\n", nNextSBHeight);
     LogPrint("gobject", "NGM nFutureBlockHeight = %d\n", nFutureBlockHeight);
-    LogPrint("gobject", "NGM dFutureSeconds = %.2g\n", dFutureSeconds);
+    LogPrint("gobject", "NGM dFutureSeconds = %.2f\n", dFutureSeconds);
 
     int result = int(GetAdjustedTime() + dFutureSeconds);
     LogPrint("gobject", "NGM result: %d\n", result);
