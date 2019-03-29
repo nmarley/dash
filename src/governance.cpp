@@ -637,7 +637,7 @@ bool CGovernanceManager::CreateSBTrigger() {
     // Get all governance objects in memory
     // std::vector<const CGovernanceObject*>
     auto objs = GetAllNewerThan(0);
-    LogPrint("gobject", "NGM got %d govObjs = %d\n", objs.size());
+    LogPrint("gobject", "NGM got %d govObjs\n", objs.size());
 
     // Construct a list of proposals to consider for SuperBlock trigger
     std::vector<const CGovernanceObject*> vProposals;
