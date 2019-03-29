@@ -602,6 +602,9 @@ bool CGovernanceManager::CreateSBTrigger() {
 
     LogPrint("gobject", "NGM nLastSB = %d, nNextSB = %d, nBudget = %lld\n", nLastSB, nNextSB, nBudget);
 
+    // 2019-03-29 15:13:20 NGM CGovernanceManager::CreateSBTrigger nNow = 1553872400, nHeight = 69544
+    // 2019-03-29 15:13:20 NGM nLastSB = 69528, nNextSB = 69552, nBudget = 6000000000
+
     // Get all governance objects in memory
     // std::vector<const CGovernanceObject*>
     auto objs = GetAllNewerThan(0);
