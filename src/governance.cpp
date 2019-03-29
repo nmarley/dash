@@ -557,6 +557,7 @@ std::vector<const CGovernanceObject*> CGovernanceManager::GetAllNewerThan(int64_
 
 void CGovernanceManager::DoMaintenance(CConnman& connman)
 {
+    LogPrintf("NGM CGovernanceManager::%s\n", __func__);
     if (fLiteMode || !masternodeSync.IsSynced() || ShutdownRequested()) return;
 
     if (deterministicMNManager->IsDIP3Enforced()) {
@@ -590,7 +591,7 @@ bool CGovernanceManager::CreateSBTrigger() {
 
     int64_t nNow = GetAdjustedTime();
 
-    LogPrint("gobject", "CGovernanceManager::%s nNow = %lld\n", __func__, nNow);
+    LogPrint("gobject", "NGM CGovernanceManager::%s nNow = %lld\n", __func__, nNow);
 
     return false;
 }
