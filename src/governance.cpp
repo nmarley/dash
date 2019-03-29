@@ -664,14 +664,15 @@ bool CGovernanceManager::CreateSBTrigger() {
 
     // Do a final pass post-vote-sort to ensure we don't exceed the budget
     // CAmount nBudgetUsed = 0;
-    // CAmount nBudget = CSuperblock::GetPaymentsLimit(nNextSB);
     // 6000000000
-//
-//    for (auto pGovObj : lProposals) {
-//        UniValue obj;
-//        pGovObj->GetData(&obj);
-//        obj->get_obj
-//    }
+
+    // CAmount nBudget = CSuperblock::GetPaymentsLimit(nNextSB);
+    CAmount nBudgetUsed(0);
+    for (auto pGovObj : vProposals) {
+        auto v = CProposalValidator(pGovObj->GetDataAsHexString(), false);
+        auto deets = v.GetProposalDetail();
+        LogPrint("gobject", "NGM got deets\n");
+    }
 
 
     // pGovObj->GetAbsoluteYesCount()
