@@ -647,7 +647,7 @@ bool CGovernanceManager::CreateSBTrigger() {
 //        if (!pGovObj->IsSetCachedFunding()) continue;
         // Skip non-proposals
         if (pGovObj->GetObjectType() != GOVERNANCE_OBJECT_PROPOSAL) {
-            LogPrint("gobject", "NGM obj not proposal, moving on");
+            LogPrint("gobject", "NGM obj not proposal, moving on\n");
             continue;
         }
 
