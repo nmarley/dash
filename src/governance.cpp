@@ -618,6 +618,17 @@ bool CGovernanceManager::CreateSBTrigger() {
     int nTriggerEpochTime = EstimateFutureBlockTime(nNextSB, nHeight);
     LogPrint("gobject", "NGM nTriggerEpochTime = %d\n", nTriggerEpochTime);
 
+    // max of this...
+    int nValidMNCount = (int)deterministicMNManager->GetListAtChainTip().GetValidMNsCount();
+    LogPrint("gobject", "NGM nValidMNCount = %d\n", nValidMNCount);
+
+    // ... or this
+    int nMinQuorum = Params().GetConsensus().nGovernanceMinQuorum;
+    LogPrint("gobject", "NGM nMinQuorum = %d\n", nMinQuorum);
+
+    int nMaxObjRequestsPerNode = std::max(nMinQuorum, (nValidMNCount / 10));
+    LogPrint("gobject", "NGM nMaxObjRequestsPerNode = %d\n", nMaxObjRequestsPerNode);
+
 //    proposals = Proposal.approved_and_ranked(
 //            proposal_quorum=dashd.governance_quorum(),
 //            next_superblock_max_budget=budget_max
