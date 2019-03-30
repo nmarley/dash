@@ -709,15 +709,27 @@ bool CGovernanceManager::CreateSBTrigger() {
     objJSON.push_back(Pair("event_block_height", nNextSB));
     objJSON.push_back(Pair("type", 2));
     objJSON.push_back(Pair("payment_addresses", strPaymentAddresses));
-    objJSON.push_back(Pair("proposal_hashes", strProposalHashes));
     objJSON.push_back(Pair("payment_amounts", strPaymentAmounts));
+    objJSON.push_back(Pair("proposal_hashes", strProposalHashes));
 
     std::string strValue = objJSON.write(0, 1);
     std::string strHexValue = HexStr(strValue);
     LogPrint("gobject", "NGM JSON Trigger = '%s'\n", strValue);
     LogPrint("gobject", "NGM Hex  Trigger = '%s'\n", strHexValue);
 
+    // Unique trigger data fingerprint (not entire GovObject)
+    CHashWriter ss(SER_GETHASH, CORE_SUPERBLOCKS_PROTO_VERSION);
+    ss << nNextSB;
+    ss << strPaymentAddresses;
+    ss << strPaymentAmounts;
+    ss << strProposalHashes;
+    uint256 theTriggerFingerprint = ss.GetHash();
+    LogPrint("gobject", "NGM theTriggerFingerprint = '%s'\n", theTriggerFingerprint.ToString());
+
     CGovernanceObject theTrigger(uint256(), 1, GetAdjustedTime(), uint256(), strHexValue);
+
+    // hash this, see if any other triggers which match this exist... if so, vote on that... if not, try and submit this one (if we're the winner?)
+    // theTrigger.GetDataAsHexString()
     LogPrint("gobject", "NGM created govobj theTrigger = '%s'\n", theTrigger.GetHash().ToString());
 
     // TODO: this will only be run on a MN, so no need for the check... (will be done above)

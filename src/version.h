@@ -54,4 +54,7 @@ static const int LLMQS_PROTO_VERSION = 70214;
 //! TODO we can remove this in 0.15.0.0
 static const int SENDDSQUEUE_PROTO_VERSION = 70214;
 
+//! Superblock triggers created by DashCore
+static const int CORE_SUPERBLOCKS_PROTO_VERSION = 70214;
+
 #endif // BITCOIN_VERSION_H
