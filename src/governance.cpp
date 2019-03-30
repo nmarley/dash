@@ -696,7 +696,7 @@ bool CGovernanceManager::CreateSBTrigger() {
     objJSON.push_back(Pair("event_block_height", nNextSB));
     objJSON.push_back(Pair("type", 2));
 
-    std::string strValue = objJSON.write(1, 1);
+    std::string strValue = objJSON.write(0, 1);
     LogPrint("gobject", "NGM SB Trigger obj(2) = '%s'\n", strValue);
 
 //    for (auto pGovObj : vFinalProposals) {
