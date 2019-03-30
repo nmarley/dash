@@ -699,9 +699,9 @@ bool CGovernanceManager::CreateSBTrigger() {
 
     LogPrint("gobject", "NGM SB Trigger obj = '%s'\n", objJSON.getValStr());
     // objJSON.getValStr()
-    const char z;
-    objJSON.read(&z);
-    LogPrint("gobject", "NGM SB Trigger obj(2) = '%s'\n", z);
+    const std::string& strValue;
+    objJSON.read(&strValue);
+    LogPrint("gobject", "NGM SB Trigger obj(2) = '%s'\n", strValue);
 
 //    for (auto pGovObj : vFinalProposals) {
 //    }
