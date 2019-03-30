@@ -718,7 +718,7 @@ bool CGovernanceManager::CreateSBTrigger() {
     LogPrint("gobject", "NGM Hex  Trigger = '%s'\n", strHexValue);
 
     CGovernanceObject theTrigger(uint256(), 1, GetAdjustedTime(), uint256(), strHexValue);
-    LogPrint("gobject", "NGM created govobj theTrigger = '%s'\n", theTrigger.GetHash.ToString());
+    LogPrint("gobject", "NGM created govobj theTrigger = '%s'\n", theTrigger.GetHash().ToString());
 
     // TODO: this will only be run on a MN, so no need for the check... (will be done above)
     auto mnList = deterministicMNManager->GetListAtChainTip();
