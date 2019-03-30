@@ -693,17 +693,11 @@ bool CGovernanceManager::CreateSBTrigger() {
 
 //    std::vector vAddresses
     UniValue objJSON(UniValue::VOBJ);
-
     objJSON.push_back(Pair("event_block_height", nNextSB));
     objJSON.push_back(Pair("type", 2));
 
-    LogPrint("gobject", "NGM SB Trigger obj = '%s'\n", objJSON.getValStr());
-    // objJSON.getValStr()
-    // const std::string& strValue;
-    std::string strValue;
-    const std::string& z = strValue;
-    objJSON.read(z);
-    LogPrint("gobject", "NGM SB Trigger obj(2) = '%s'\n", z);
+    std::string strValue = objJSON.write(1, 1);
+    LogPrint("gobject", "NGM SB Trigger obj(2) = '%s'\n", strValue);
 
 //    for (auto pGovObj : vFinalProposals) {
 //    }
