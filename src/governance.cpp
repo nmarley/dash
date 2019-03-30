@@ -728,7 +728,7 @@ bool CGovernanceManager::CreateSBTrigger() {
     if (fMnFound) {
         LogPrint("gobject", "NGM activeMasternodeInfo.outpoint = %s\n", activeMasternodeInfo.outpoint.ToString());
         theTrigger.SetMasternodeOutpoint(activeMasternodeInfo.outpoint);
-        LogPrint("gobject", "NGM signing trigger w/key = %s\n", *activeMasternodeInfo.blsKeyOperator->GetPublicKey().ToString());
+//        LogPrint("gobject", "NGM signing trigger w/key = %s\n", *activeMasternodeInfo.blsKeyOperator->GetPublicKey().ToString());
         theTrigger.Sign(*activeMasternodeInfo.blsKeyOperator);
     } else {
         LogPrintf("gobject(submit) -- Trigger submission rejected because node is not a masternode\n");
