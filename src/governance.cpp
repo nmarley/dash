@@ -698,6 +698,10 @@ bool CGovernanceManager::CreateSBTrigger() {
     objJSON.push_back(Pair("type", 2));
 
     LogPrint("gobject", "NGM SB Trigger obj = '%s'\n", objJSON.getValStr());
+    // objJSON.getValStr()
+    const char z;
+    objJSON.read(&z);
+    LogPrint("gobject", "NGM SB Trigger obj(2) = '%s'\n", z);
 
 //    for (auto pGovObj : vFinalProposals) {
 //    }
