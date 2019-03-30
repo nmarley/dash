@@ -666,7 +666,6 @@ bool CGovernanceManager::CreateSBTrigger() {
     // 6000000000
 
     CAmount nBudgetUsed(0);
-    std::vector<const CGovernanceObject*> vFinalProposals;
 
     std::string strPaymentAddresses;
     std::string strPaymentAmounts;
@@ -701,8 +700,6 @@ bool CGovernanceManager::CreateSBTrigger() {
 
         if (!strProposalHashes.empty()) strProposalHashes += "|";
         strProposalHashes += pGovObj->GetHash().ToString();
-
-        vFinalProposals.push_back(pGovObj);
     }
 
 // Create the trigger object
@@ -719,8 +716,6 @@ bool CGovernanceManager::CreateSBTrigger() {
     std::string strValue = objJSON.write(0, 1);
     LogPrint("gobject", "NGM SB Trigger obj(2) = '%s'\n", strValue);
 
-//    for (auto pGovObj : vFinalProposals) {
-//    }
 
     return false;
 }
