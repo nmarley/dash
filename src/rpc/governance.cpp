@@ -273,6 +273,10 @@ UniValue gobject_submit(const JSONRPCRequest& request)
     } else {
         hashParent = ParseHashV(request.params[1], "parent object hash, parameter 2");
     }
+    // cmd = ['gobject', 'submit', '0', '1', str(int(time.time())), obj_data]
+    // 0 1 GetAdjustedTime() HexData
+    // CGovernanceObject govobj(hashParent, nRevision, nTime, txidFee, strDataHex);
+    // uint256()
 
     // GET THE PARAMETERS FROM USER
 

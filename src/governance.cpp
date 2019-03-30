@@ -629,11 +629,6 @@ bool CGovernanceManager::CreateSBTrigger() {
     int nGovQuorum = std::max(nMinQuorum, (nValidMNCount / 10));
     LogPrint("gobject", "NGM nGovQuorum = %d\n", nGovQuorum);
 
-//    proposals = Proposal.approved_and_ranked(
-//            proposal_quorum=dashd.governance_quorum(),
-//            next_superblock_max_budget=budget_max
-//    )
-
     // Get all governance objects in memory
     // std::vector<const CGovernanceObject*>
     auto objs = GetAllNewerThan(0);
@@ -693,6 +688,18 @@ bool CGovernanceManager::CreateSBTrigger() {
         vFinalProposals.push_back(pGovObj);
     }
 
+    // Create the trigger object
+//    cmd = ['gobject', 'submit', '0', '1', str(int(time.time())), obj_data]
+
+//    std::vector vAddresses
+    UniValue objJSON(UniValue::VOBJ);
+
+    objJSON.push_back(Pair("event_block_height", nNextSB));
+    LogPrint("gobject", "NGM SB Trigger obj = '%s'\n", objJSON.getValStr());
+
+    for (auto pGovObj : vFinalProposals) {
+    }
+
     return false;
 }
 
@@ -708,12 +715,6 @@ int CGovernanceManager::EstimateFutureBlockTime(int nFutureBlockHeight, int nCur
 
     return result;
 }
-
-//#def estimateFutureBlockTime(self, height):
-//#    future_seconds = (nNextSB - nHeight) * 2.62 * 60
-//#    estimated_epoch = int(time.time() + future_seconds)
-//#    return estimated_epoch
-
 
 bool CGovernanceManager::ConfirmInventoryRequest(const CInv& inv)
 {
