@@ -668,7 +668,10 @@ bool CGovernanceManager::CreateSBTrigger() {
     CAmount nBudgetUsed(0);
     std::vector<const CGovernanceObject*> vFinalProposals;
 
-    std::string strPaymentAddressses;
+    std::string strPaymentAddresses;
+    std::string strPaymentAmounts;
+    std::string strProposalHashes;
+
     for (auto pGovObj : vProposals) {
         LogPrint("gobject", "NGM pass 2: analyzing proposal %s, funding votes: %d\n", pGovObj->GetHash().ToString(), pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING));
         auto v = CProposalValidator(pGovObj->GetDataAsHexString(), false);
@@ -683,23 +686,33 @@ bool CGovernanceManager::CreateSBTrigger() {
             continue;
         }
 
-        if (strPaymentAddressses.size() != 0) strPaymentAddressses += "|";
-        strPaymentAddressses += deets.payeeAddr.ToString();
+        // Add.
         LogPrint("gobject", "NGM Proposal %s is ok, adding to candidate SB.\n", deets.strName);
         nBudgetUsed += deets.nPaymentAmount;
         LogPrint("gobject", "NGM nBudgetUsed = %lld\n", nBudgetUsed);
 
+        if (!strPaymentAddresses.empty()) strPaymentAddresses += "|";
+        strPaymentAddresses += deets.payeeAddr.ToString();
+
+        if (!strPaymentAmounts.empty()) strPaymentAmounts += "|";
+        strPaymentAmounts += sprintf("%.8f", deets.nPaymentAmount);
+
+        if (!strProposalHashes.empty()) strProposalHashes += "|";
+        strProposalHashes += pGovObj->GetHash().ToString();
+
         vFinalProposals.push_back(pGovObj);
     }
 
-    // Create the trigger object
-//    cmd = ['gobject', 'submit', '0', '1', str(int(time.time())), obj_data]
+// Create the trigger object
+// cmd = ['gobject', 'submit', '0', '1', str(int(time.time())), obj_data]
+// std::vector vAddresses
 
-//    std::vector vAddresses
     UniValue objJSON(UniValue::VOBJ);
     objJSON.push_back(Pair("event_block_height", nNextSB));
     objJSON.push_back(Pair("type", 2));
-    objJSON.push_back(Pair("payment_addresses", strPaymentAddressses));
+    objJSON.push_back(Pair("payment_addresses", strPaymentAddresses));
+    objJSON.push_back(Pair("proposal_hashes", strProposalHashes));
+    objJSON.push_back(Pair("payment_amounts", strPaymentAmounts));
 
     std::string strValue = objJSON.write(0, 1);
     LogPrint("gobject", "NGM SB Trigger obj(2) = '%s'\n", strValue);
