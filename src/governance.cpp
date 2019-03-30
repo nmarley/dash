@@ -695,10 +695,12 @@ bool CGovernanceManager::CreateSBTrigger() {
     UniValue objJSON(UniValue::VOBJ);
 
     objJSON.push_back(Pair("event_block_height", nNextSB));
+    objJSON.push_back(Pair("type", 2));
+
     LogPrint("gobject", "NGM SB Trigger obj = '%s'\n", objJSON.getValStr());
 
-    for (auto pGovObj : vFinalProposals) {
-    }
+//    for (auto pGovObj : vFinalProposals) {
+//    }
 
     return false;
 }
