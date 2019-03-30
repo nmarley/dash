@@ -728,10 +728,12 @@ bool CGovernanceManager::CreateSBTrigger() {
     if (fMnFound) {
         LogPrint("gobject", "NGM activeMasternodeInfo.outpoint = %s\n", activeMasternodeInfo.outpoint.ToString());
         theTrigger.SetMasternodeOutpoint(activeMasternodeInfo.outpoint);
-        // LogPrint("gobject", "NGM signing trigger w/key = %s\n", *activeMasternodeInfo.blsKeyOperator);
+        LogPrint("gobject", "NGM signing trigger w/key = %s\n", *activeMasternodeInfo.blsKeyOperator->GetPublicKey().ToString());
         theTrigger.Sign(*activeMasternodeInfo.blsKeyOperator);
     } else {
         LogPrintf("gobject(submit) -- Trigger submission rejected because node is not a masternode\n");
+        LogPrint("gobject", "NGM -- Trigger submission rejected because node is not a masternode\n");
+        return false;
         // throw JSONRPCError(RPC_INVALID_PARAMETER, "Only valid masternodes can submit this type of object");
     }
 
@@ -743,6 +745,7 @@ bool CGovernanceManager::CreateSBTrigger() {
         LOCK(cs_main);
         if (!theTrigger.IsValidLocally(strError, fMissingMasternode, fMissingConfirmations, true) && !fMissingConfirmations) {
             LogPrintf("gobject(submit) -- Trigger submission rejected because object is not valid - hash = %s, strError = %s\n", strHash, strError);
+            LogPrint("gobject", "NGM -- Trigger submission rejected because object is not valid - hash = %s, strError = %s\n", strHash, strError);
             // throw JSONRPCError(RPC_INTERNAL_ERROR, "Governance object is not valid - " + strHash + " - " + strError);
         }
     }
@@ -751,17 +754,22 @@ bool CGovernanceManager::CreateSBTrigger() {
     // Reject if rate check fails but don't update buffer
     if (!governance.MasternodeRateCheck(theTrigger)) {
         LogPrintf("gobject(submit) -- Trigger submission rejected because of rate check failure - hash = %s\n", strHash);
+        LogPrint("gobject", "NGM -- Trigger submission rejected because of rate check failture - hash = %s\n", strHash);
+        return false;
         // throw JSONRPCError(RPC_INVALID_PARAMETER, "Object creation rate limit exceeded");
     }
 
     LogPrintf("gobject(submit) -- Adding locally created Trigger object - %s\n", strHash);
+    LogPrint("gobject", "NGM -- Adding locally created Trigger object - %s\n", strHash);
 
     // Now relay this Trigger
     if (fMissingConfirmations) {
-        governance.AddPostponedObject(govobj);
-        govobj.Relay(*g_connman);
+        LogPrint("gobject", "NGM Missing confirmations, postpone / relay\n");
+        governance.AddPostponedObject(theTrigger);
+        theTrigger.Relay(*g_connman);
     } else {
-        governance.AddGovernanceObject(govobj, *g_connman);
+        LogPrint("gobject", "NGM not missing confs, Add Governance Object\n");
+        governance.AddGovernanceObject(theTrigger, *g_connman);
     }
 
 
