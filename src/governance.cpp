@@ -695,7 +695,9 @@ bool CGovernanceManager::CreateSBTrigger() {
         strPaymentAddresses += deets.payeeAddr.ToString();
 
         if (!strPaymentAmounts.empty()) strPaymentAmounts += "|";
-        strPaymentAmounts += sprintf("%.8f", deets.nPaymentAmount);
+        char buffer[50];
+        sprintf(buffer, "%.8f", double(deets.nPaymentAmount / COIN));
+        strPaymentAmounts += buffer;
 
         if (!strProposalHashes.empty()) strProposalHashes += "|";
         strProposalHashes += pGovObj->GetHash().ToString();
