@@ -714,8 +714,9 @@ bool CGovernanceManager::CreateSBTrigger() {
     objJSON.push_back(Pair("payment_amounts", strPaymentAmounts));
 
     std::string strValue = objJSON.write(0, 1);
-    LogPrint("gobject", "NGM SB Trigger obj(2) = '%s'\n", strValue);
-
+    std::string strHexValue = HexStr(strValue);
+    LogPrint("gobject", "NGM JSON Trigger = '%s'\n", strValue);
+    LogPrint("gobject", "NGM Hex  Trigger = '%s'\n", strHexValue);
 
     return false;
 }
