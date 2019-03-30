@@ -774,15 +774,17 @@ bool CGovernanceManager::CreateSBTrigger() {
     LogPrintf("gobject(submit) -- Adding locally created Trigger object - %s\n", strHash);
     LogPrint("gobject", "NGM -- Adding locally created Trigger object - %s\n", strHash);
 
+    LogPrint("gobject", "NGM -- Trigger relay TEMPORARILY disabled\n");
+
     // Now relay this Trigger
-    if (fMissingConfirmations) {
-        LogPrint("gobject", "NGM Missing confirmations, postpone / relay\n");
-        governance.AddPostponedObject(theTrigger);
-        theTrigger.Relay(*g_connman);
-    } else {
-        LogPrint("gobject", "NGM not missing confs, Add Governance Object\n");
-        governance.AddGovernanceObject(theTrigger, *g_connman);
-    }
+//    if (fMissingConfirmations) {
+//        LogPrint("gobject", "NGM Missing confirmations, postpone / relay\n");
+//        governance.AddPostponedObject(theTrigger);
+//        theTrigger.Relay(*g_connman);
+//    } else {
+//        LogPrint("gobject", "NGM not missing confs, Add Governance Object\n");
+//        governance.AddGovernanceObject(theTrigger, *g_connman);
+//    }
 
 
     return false;
