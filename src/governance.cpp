@@ -667,6 +667,8 @@ bool CGovernanceManager::CreateSBTrigger() {
 
     CAmount nBudgetUsed(0);
     std::vector<const CGovernanceObject*> vFinalProposals;
+
+    std::string strPaymentAddressses;
     for (auto pGovObj : vProposals) {
         LogPrint("gobject", "NGM pass 2: analyzing proposal %s, funding votes: %d\n", pGovObj->GetHash().ToString(), pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING));
         auto v = CProposalValidator(pGovObj->GetDataAsHexString(), false);
@@ -681,6 +683,8 @@ bool CGovernanceManager::CreateSBTrigger() {
             continue;
         }
 
+        if (strPaymentAddressses.size() != 0) strPaymentAddressses += "|";
+        strPaymentAddressses += deets.payeeAddr.ToString();
         LogPrint("gobject", "NGM Proposal %s is ok, adding to candidate SB.\n", deets.strName);
         nBudgetUsed += deets.nPaymentAmount;
         LogPrint("gobject", "NGM nBudgetUsed = %lld\n", nBudgetUsed);
@@ -695,6 +699,7 @@ bool CGovernanceManager::CreateSBTrigger() {
     UniValue objJSON(UniValue::VOBJ);
     objJSON.push_back(Pair("event_block_height", nNextSB));
     objJSON.push_back(Pair("type", 2));
+    objJSON.push_back(Pair("payment_addresses", strPaymentAddressses));
 
     std::string strValue = objJSON.write(0, 1);
     LogPrint("gobject", "NGM SB Trigger obj(2) = '%s'\n", strValue);
