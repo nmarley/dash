@@ -2,6 +2,7 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include "activemasternode.h"
 #include "governance.h"
 #include "consensus/validation.h"
 #include "governance-classes.h"
@@ -676,6 +677,8 @@ bool CGovernanceManager::CreateSBTrigger() {
         auto v = CProposalValidator(pGovObj->GetDataAsHexString(), false);
         auto deets = v.GetProposalDetail();
         LogPrint("gobject", "NGM got deets\n");
+
+        // Note: this should be in pass1 TBH...
         if (deets.nPaymentAmount > nBudget) {
             LogPrint("gobject", "NGM Proposal %s ALONE breaks budget, moving on.\n", deets.strName);
             continue;
@@ -688,7 +691,7 @@ bool CGovernanceManager::CreateSBTrigger() {
         // Add.
         LogPrint("gobject", "NGM Proposal %s is ok, adding to candidate SB.\n", deets.strName);
         nBudgetUsed += deets.nPaymentAmount;
-        LogPrint("gobject", "NGM nBudgetUsed = %lld\n", nBudgetUsed);
+        LogPrint("gobject", "NGM nBudgetUsed = %lld, total = %lld\n", nBudgetUsed, nBudget);
 
         if (!strPaymentAddresses.empty()) strPaymentAddresses += "|";
         strPaymentAddresses += deets.payeeAddr.ToString();
@@ -702,10 +705,6 @@ bool CGovernanceManager::CreateSBTrigger() {
         strProposalHashes += pGovObj->GetHash().ToString();
     }
 
-// Create the trigger object
-// cmd = ['gobject', 'submit', '0', '1', str(int(time.time())), obj_data]
-// std::vector vAddresses
-
     UniValue objJSON(UniValue::VOBJ);
     objJSON.push_back(Pair("event_block_height", nNextSB));
     objJSON.push_back(Pair("type", 2));
@@ -717,6 +716,54 @@ bool CGovernanceManager::CreateSBTrigger() {
     std::string strHexValue = HexStr(strValue);
     LogPrint("gobject", "NGM JSON Trigger = '%s'\n", strValue);
     LogPrint("gobject", "NGM Hex  Trigger = '%s'\n", strHexValue);
+
+    CGovernanceObject theTrigger(uint256(), 1, GetAdjustedTime(), uint256(), strHexValue);
+    LogPrint("gobject", "NGM created govobj theTrigger = '%s'\n", theTrigger.GetHash.ToString());
+
+    // TODO: this will only be run on a MN, so no need for the check... (will be done above)
+    auto mnList = deterministicMNManager->GetListAtChainTip();
+    LogPrint("gobject", "NGM got mnlist\n");
+    bool fMnFound = mnList.HasValidMNByCollateral(activeMasternodeInfo.outpoint);
+    LogPrint("gobject", "NGM fMnFound = %s\n", (fMnFound ? "true" : "false"));
+    if (fMnFound) {
+        LogPrint("gobject", "NGM activeMasternodeInfo.outpoint = %s\n", activeMasternodeInfo.outpoint.ToString());
+        theTrigger.SetMasternodeOutpoint(activeMasternodeInfo.outpoint);
+        // LogPrint("gobject", "NGM signing trigger w/key = %s\n", *activeMasternodeInfo.blsKeyOperator);
+        theTrigger.Sign(*activeMasternodeInfo.blsKeyOperator);
+    } else {
+        LogPrintf("gobject(submit) -- Trigger submission rejected because node is not a masternode\n");
+        // throw JSONRPCError(RPC_INVALID_PARAMETER, "Only valid masternodes can submit this type of object");
+    }
+
+    std::string strHash = theTrigger.GetHash().ToString();
+    std::string strError = "";
+    bool fMissingMasternode;
+    bool fMissingConfirmations;
+    {
+        LOCK(cs_main);
+        if (!theTrigger.IsValidLocally(strError, fMissingMasternode, fMissingConfirmations, true) && !fMissingConfirmations) {
+            LogPrintf("gobject(submit) -- Trigger submission rejected because object is not valid - hash = %s, strError = %s\n", strHash, strError);
+            // throw JSONRPCError(RPC_INTERNAL_ERROR, "Governance object is not valid - " + strHash + " - " + strError);
+        }
+    }
+
+    // RELAY THIS OBJECT
+    // Reject if rate check fails but don't update buffer
+    if (!governance.MasternodeRateCheck(theTrigger)) {
+        LogPrintf("gobject(submit) -- Trigger submission rejected because of rate check failure - hash = %s\n", strHash);
+        // throw JSONRPCError(RPC_INVALID_PARAMETER, "Object creation rate limit exceeded");
+    }
+
+    LogPrintf("gobject(submit) -- Adding locally created Trigger object - %s\n", strHash);
+
+    // Now relay this Trigger
+    if (fMissingConfirmations) {
+        governance.AddPostponedObject(govobj);
+        govobj.Relay(*g_connman);
+    } else {
+        governance.AddGovernanceObject(govobj, *g_connman);
+    }
+
 
     return false;
 }
