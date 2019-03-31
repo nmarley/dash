@@ -205,15 +205,14 @@ struct CPayment {
     CBitcoinAddress addr;
     CAmount amt;
 
-//    CPayment();
     CPayment(uint256, CBitcoinAddress, CAmount);
 };
 
-CPayment::CPayment(uint256 proposalHash, CBitcoinAddress addr, CAmount amt) :
-    proposalHash(proposalHash),
-    addr(addr),
-    amt(amt)
-{ }
+//CPayment::CPayment(uint256 proposalHash, CBitcoinAddress addr, CAmount amt) :
+//    proposalHash(proposalHash),
+//    addr(addr),
+//    amt(amt)
+//{ }
 
 class CTriggerDetail {
 private:
