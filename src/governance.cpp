@@ -674,31 +674,32 @@ bool CGovernanceManager::CreateSBTrigger() {
 
     for (auto pGovObj : vProposals) {
         LogPrint("gobject", "NGM pass 2: analyzing proposal %s, funding votes: %d\n", pGovObj->GetHash().ToString(), pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING));
-        auto v = CProposalValidator(pGovObj->GetDataAsHexString(), false);
-        auto deets = v.GetProposalDetail();
+        // auto v = CProposalValidator(pGovObj->GetDataAsHexString(), false);
+        // auto deets = v.GetProposalDetail();
+        auto deets = CProposalDetail(pGovObj->GetDataAsHexString());
         LogPrint("gobject", "NGM got deets\n");
 
         // Note: this should be in pass1 TBH...
-        if (deets.nPaymentAmount > nBudget) {
-            LogPrint("gobject", "NGM Proposal %s ALONE breaks budget, moving on.\n", deets.strName);
+        if (deets.Amount() > nBudget) {
+            LogPrint("gobject", "NGM Proposal %s ALONE breaks budget, moving on.\n", deets.Name());
             continue;
         }
-        if ((nBudgetUsed + deets.nPaymentAmount) > nBudget) {
-            LogPrint("gobject", "NGM Proposal %s pushes total over budget, moving on.\n", deets.strName);
+        if ((nBudgetUsed + deets.Amount()) > nBudget) {
+            LogPrint("gobject", "NGM Proposal %s pushes total over budget, moving on.\n", deets.Name());
             continue;
         }
 
         // Add.
-        LogPrint("gobject", "NGM Proposal %s is ok, adding to candidate SB.\n", deets.strName);
-        nBudgetUsed += deets.nPaymentAmount;
+        LogPrint("gobject", "NGM Proposal %s is ok, adding to candidate SB.\n", deets.Name());
+        nBudgetUsed += deets.Amount();
         LogPrint("gobject", "NGM nBudgetUsed = %lld, total = %lld\n", nBudgetUsed, nBudget);
 
         if (!strPaymentAddresses.empty()) strPaymentAddresses += "|";
-        strPaymentAddresses += deets.payeeAddr.ToString();
+        strPaymentAddresses += deets.Address().ToString();
 
         if (!strPaymentAmounts.empty()) strPaymentAmounts += "|";
         char buffer[50];
-        sprintf(buffer, "%.8f", (double(deets.nPaymentAmount) / COIN));
+        sprintf(buffer, "%.8f", (double(deets.Amount()) / COIN));
         strPaymentAmounts += buffer;
 
         if (!strProposalHashes.empty()) strProposalHashes += "|";
