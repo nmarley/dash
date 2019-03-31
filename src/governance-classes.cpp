@@ -755,13 +755,12 @@ void CProposalDetail::parseDetail()
     LogPrint("gobject", "NGM in parseDetail, strDataHex = '%s'\n", strDataHex);
     LogPrint("gobject", "NGM in parseDetail, strDataHex.size() = '%d'\n", strDataHex.size());
 
-    // std::vector<unsigned char>& vchData = ParseHex(strDataHex);
-    std::string vchData = ParseHex(strDataHex);
+    std::vector<unsigned char> vchData = ParseHex(strDataHex);
+    // std::string vchData = ParseHex(strDataHex);
     LogPrint("gobject", "NGM in parseDetail, vchData.size() = '%d'\n", vchData.size());
 
     try {
-        // obj.read(vchData.begin(), vchData.end());
-        obj.read(vchData);
+         obj.read(std::string(vchData.begin(), vchData.end()));
         if (!obj.isObject()) {
 //            if (fAllowLegacyFormat) {
 //                obj = obj.getValues().at(0).getValues().at(1);
