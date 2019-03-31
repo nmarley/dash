@@ -801,4 +801,6 @@ void CProposalDetail::Debug() const
     LogPrint("gobject", "NGM nPaymentAmount: %lld\n", nPaymentAmount);
     LogPrint("gobject", "NGM nStartEpoch: %d\n", nStartEpoch);
     LogPrint("gobject", "NGM nEndEpoch: %d\n", nEndEpoch);
+
+    LogPrint("gobject", "NGM strDataHex: '%s'\n", strDataHex);
 }
