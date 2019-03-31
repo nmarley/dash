@@ -879,7 +879,11 @@ void CTriggerDetail::ParseStrDataHex(const std::string& strDataHex)
         }
 
         for (int q = 0; q < (int)vecAddrs.size(); ++q) {
-            CPayment payment(vecHashes[q], vecAddrs[q], vecAmts[q]);
+            CBitcoinAddress address(vecAddrs[q]);
+            CAmount nAmount = ParsePaymentAmount(vecAmts[q]);
+
+            uint256 hash = uint256S(vecHashes[q]);
+            CPayment payment(hash, address, nAmount);
             vecPayments.push_back(payment);
         }
 
