@@ -814,7 +814,7 @@ CTriggerDetail::CTriggerDetail(int nHeight, std::vector<CPayment> vecPayments) :
 {
 }
 
-const std::string& CTriggerDetail::PaymentAddresses() const {
+std::string& CTriggerDetail::PaymentAddresses() const {
     std::string strPaymentAddresses;
     for (auto p : vecPayments) {
         if (!strPaymentAddresses.empty()) strPaymentAddresses += "|";
