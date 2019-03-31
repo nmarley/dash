@@ -258,6 +258,8 @@ public:
 
     std::string GetSignatureMessage() const;
     uint256 GetSignatureHash() const;
+    uint256 GetPayloadDataHash() const;
+
 
     // CORE OBJECT FUNCTIONS
 
