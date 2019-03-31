@@ -752,6 +752,7 @@ CProposalDetail::CProposalDetail(const std::string& strDataHex):
 void CProposalDetail::parseDetail()
 {
     UniValue obj(UniValue::VOBJ);
+    LogPrint("gobject", "NGM in parseDetail, strDataHex = '%s'\n", strDataHex);
 
     try {
         obj.read(strDataHex);
@@ -759,6 +760,7 @@ void CProposalDetail::parseDetail()
 //            if (fAllowLegacyFormat) {
 //                obj = obj.getValues().at(0).getValues().at(1);
 //            } else {
+            LogPrint("gobject", "NGM Legacy proposal serialization format not allowed\n");
                 throw std::runtime_error("Legacy proposal serialization format not allowed");
 //            }
         }
@@ -773,7 +775,9 @@ void CProposalDetail::parseDetail()
         fParsedOK = true;
     } catch (std::exception& e) {
 //        strError = std::string(e.what());
+        LogPrint("gobject", "NGM shoot, failed: %s\n", std::string(e.what()));
     } catch (...) {
+        LogPrint("gobject", "NGM shoot, unknown exception\n");
 //        strError = "Unknown exception";
     }
 }
