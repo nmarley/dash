@@ -765,12 +765,12 @@ bool CGovernanceManager::CreateSBTrigger() {
 
     // RELAY THIS OBJECT
     // Reject if rate check fails but don't update buffer
-    if (!governance.MasternodeRateCheck(theTrigger)) {
-        LogPrintf("gobject(submit) -- Trigger submission rejected because of rate check failure - hash = %s\n", strHash);
-        LogPrint("gobject", "NGM -- Trigger submission rejected because of rate check failture - hash = %s\n", strHash);
-        return false;
-        // throw JSONRPCError(RPC_INVALID_PARAMETER, "Object creation rate limit exceeded");
-    }
+//    if (!governance.MasternodeRateCheck(theTrigger)) {
+//        LogPrintf("gobject(submit) -- Trigger submission rejected because of rate check failure - hash = %s\n", strHash);
+//        LogPrint("gobject", "NGM -- Trigger submission rejected because of rate check failture - hash = %s\n", strHash);
+//        return false;
+//        // throw JSONRPCError(RPC_INVALID_PARAMETER, "Object creation rate limit exceeded");
+//    }
 
     LogPrintf("gobject(submit) -- Adding locally created Trigger object - %s\n", strHash);
     LogPrint("gobject", "NGM -- Adding locally created Trigger object - %s\n", strHash);
