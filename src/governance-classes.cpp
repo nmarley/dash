@@ -759,7 +759,7 @@ void CProposalDetail::parseDetail()
     LogPrint("gobject", "NGM in parseDetail, vchData.size() = '%d'\n", vchData.size());
 
     try {
-        obj.read(vchData);
+        obj.read(vchData.begin(), vchData.end());
         if (!obj.isObject()) {
 //            if (fAllowLegacyFormat) {
 //                obj = obj.getValues().at(0).getValues().at(1);
