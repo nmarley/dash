@@ -17,10 +17,10 @@ CGovernanceTriggerManager triggerman;
 
 // SPLIT UP STRING BY DELIMITER
 // http://www.boost.org/doc/libs/1_58_0/doc/html/boost/algorithm/split_idp202406848.html
-std::vector<std::string> SplitBy(const std::string& strCommand, const std::string& strDelimit)
+std::vector<std::string> SplitBy(const std::string& strInput, const std::string& strDelimit)
 {
     std::vector<std::string> vParts;
-    boost::split(vParts, strCommand, boost::is_any_of(strDelimit));
+    boost::split(vParts, strInput, boost::is_any_of(strDelimit));
 
     for (int q = 0; q < (int)vParts.size(); q++) {
         if (strDelimit.find(vParts[q]) != std::string::npos) {
@@ -741,29 +741,28 @@ std::string CSuperblockManager::GetRequiredPaymentsString(int nBlockHeight)
     return ret;
 }
 
-//const std::string& strDataHex
 CProposalDetail::CProposalDetail(const std::string& strDataHex):
-    strDataHex(strDataHex)
+    fParsedOK(false)
 {
     LogPrint("gobject", "NGM CProposalDetail constructor\n");
-    parseDetail();
+
+    if (!strDataHex.empty()) {
+        ParseStrDataHex(strDataHex);
+    }
 }
 
-void CProposalDetail::parseDetail()
+
+void CProposalDetail::ParseStrDataHex(const std::string& strDataHex)
 {
     UniValue obj(UniValue::VOBJ);
     std::vector<unsigned char> vchData = ParseHex(strDataHex);
     try {
         obj.read(std::string(vchData.begin(), vchData.end()));
         if (!obj.isObject()) {
-//            if (fAllowLegacyFormat) {
-//                obj = obj.getValues().at(0).getValues().at(1);
-//            } else {
-            LogPrint("gobject", "NGM Legacy proposal serialization format not allowed\n");
-                throw std::runtime_error("Legacy proposal serialization format not allowed");
-//            }
+            throw std::runtime_error("Parse error - object expected");
         }
 
+        // load data members from obj
         nStartEpoch = obj["start_epoch"].get_int();
         nEndEpoch = obj["end_epoch"].get_int();
         strName = obj["name"].get_str();
@@ -773,11 +772,11 @@ void CProposalDetail::parseDetail()
 
         fParsedOK = true;
     } catch (std::exception& e) {
-//        strError = std::string(e.what());
         LogPrint("gobject", "NGM shoot, failed: %s\n", std::string(e.what()));
+        vecStrErrMessages.emplace_back(std::string(e.what()));
     } catch (...) {
         LogPrint("gobject", "NGM shoot, unknown exception\n");
-//        strError = "Unknown exception";
+        vecStrErrMessages.emplace_back("Unknown exception");
     }
 }
 
@@ -808,18 +807,147 @@ void CProposalDetail::Debug() const
     LogPrint("gobject", "NGM strDataHex: '%s'\n", strDataHex);
 }
 
-CTriggerDetail::CTriggerDetail(int nHeight, std::vector<CPayment> vecPayments) :
-    nHeight(nHeight),
-    vecPayments(vecPayments)
+std::string CProposalDetail::ErrorMessages() const
 {
+    std::string combinedMessage;
+    for (std::string msg : vecStrErrMessages) {
+        if (!combinedMessage.empty()) combinedMessage += ";"
+        combinedMessage += msg;
+    }
+    return combinedMessage;
 }
 
-std::string CTriggerDetail::PaymentAddresses() const {
+//CTriggerDetail::CTriggerDetail(int nHeight, std::vector<CPayment> vecPayments) :
+//    nHeight(nHeight),
+//    vecPayments(vecPayments)
+//{
+//}
+
+CTriggerDetail::CTriggerDetail(const std::string& strDataHex):
+    nHeight(0),
+    fParsedOK(false)
+{
+    LogPrint("gobject", "NGM CTriggerDetail constructor\n");
+
+    if (!strDataHex.empty()) {
+        ParseStrDataHex(strDataHex);
+    }
+}
+
+CTriggerDetail::CTriggerDetail(int nHeight, const std::vector<CGovernanceObject *>& vecProposals):
+    nHeight(nHeight),
+    fParsedOK(false)
+{
+    for (auto pGovObj : vecProposals) {
+        uint256 hash = pGovObj->GetHash();
+
+        auto deets = CProposalDetail(pGovObj->GetDataAsHexString());
+        if (!deets.DidParse()) {
+            vecStrErrMessages.emplace_back(deets.ErrorMessages());
+            return;
+        }
+        vecPayments.emplace_back(CPayment(hash, deets.Address(), deets.Amount()));
+    }
+    fParsedOK = true;
+}
+
+void CTriggerDetail::ParseStrDataHex(const std::string& strDataHex)
+{
+    UniValue obj(UniValue::VOBJ);
+    std::vector<unsigned char> vchData = ParseHex(strDataHex);
+    try {
+        obj.read(std::string(vchData.begin(), vchData.end()));
+        if (!obj.isObject()) {
+            throw std::runtime_error("Parse error - object expected");
+        }
+
+        // load data members from obj
+        nHeight = obj["event_block_height"].get_int();
+
+        std::string strPaymentAddresses = obj["payment_addresses"].get_str();
+        std::string strPaymentAmounts = obj["payment_amounts"].get_str();
+        std::string strProposalHashes = obj["proposal_hashes"].get_str();
+
+        std::vector<std::string> vecAddrs = SplitBy(strPaymentAddresses, "|");
+        std::vector<std::string> vecAmts = SplitBy(strPaymentAmounts, "|");
+        std::vector<std::string> vecHashes = SplitBy(strProposalHashes, "|");
+
+        // IF THESE DONT MATCH, SOMETHING IS WRONG
+        if (!(vecAddrs.size() == vecAmts.size() == vecHashes.size())) {
+            std::ostringstream ostr;
+            ostr << "NGM " << __func__ << " - Mismatched payments, amounts, and/or proposal hashes";
+            LogPrint("gobject", "%s\n", ostr.str());
+            throw std::runtime_error(ostr.str());
+        }
+
+        for (q = 0; q < (int)vecAddrs.size(); ++q) {
+            CPayment payment(vecHashes[q], vecAddrs[q], vecAmts[q]);
+            vecPayments.push_back(payment);
+        }
+
+        fParsedOK = true;
+    } catch (std::exception& e) {
+        LogPrint("gobject", "NGM shoot, failed: %s\n", std::string(e.what()));
+        vecStrErrMessages.emplace_back(std::string(e.what()));
+    } catch (...) {
+        LogPrint("gobject", "NGM shoot, unknown exception\n");
+        vecStrErrMessages.emplace_back("Unknown exception");
+    }
+}
+
+uint256 CTriggerDetail::GetHash() const
+{
+    CHashWriter ss(SER_GETHASH, CORE_SUPERBLOCKS_PROTO_VERSION);
+
+    ss << nHeight;
+    // ss << nEndEpoch;
+
+    return ss.GetHash();
+}
+
+std::string CTriggerDetail::ErrorMessages() const
+{
+    std::string combinedMessage;
+    for (std::string msg : vecStrErrMessages) {
+        if (!combinedMessage.empty()) combinedMessage += ";"
+        combinedMessage += msg;
+    }
+    return combinedMessage;
+}
+
+std::string CTriggerDetail::GetDataHexStr() const
+{
+    UniValue objJSON(UniValue::VOBJ);
+    objJSON.push_back(Pair("event_block_height", nHeight));
+    objJSON.push_back(Pair("type", 2));
+
     std::string strPaymentAddresses;
+    std::string strPaymentAmounts;
+    std::string strProposalHashes;
+
     for (auto p : vecPayments) {
         if (!strPaymentAddresses.empty()) strPaymentAddresses += "|";
         strPaymentAddresses += p.addr.ToString();
+
+        if (!strPaymentAmounts.empty()) strPaymentAmounts += "|";
+        char buffer[50];
+        sprintf(buffer, "%.8f", (double(p.amt()) / COIN));
+        strPaymentAmounts += buffer;
+
+        if (!strProposalHashes.empty()) strProposalHashes += "|";
+        strProposalHashes += p.proposalHash.ToString();
     }
 
-    return strPaymentAddresses;
+    objJSON.push_back(Pair("payment_addresses", strPaymentAddresses));
+    objJSON.push_back(Pair("payment_amounts", strPaymentAmounts));
+    objJSON.push_back(Pair("proposal_hashes", strProposalHashes));
+
+    std::string strValue = objJSON.write(0, 1);
+    std::string strHexValue = HexStr(strValue);
+
+    return strHexValue;
 }
+
+CPayment::CPayment(uint256 proposalHash, CBitcoinAddress addr, CAmount amt) :
+    proposalHash(proposalHash), addr(addr), amt(amt)
+{ }

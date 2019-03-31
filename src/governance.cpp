@@ -647,7 +647,7 @@ bool CGovernanceManager::CreateSBTrigger() {
             continue;
         }
 
-        // pGovObj->IsValidLocally(std::string& strError, bool fCheckCollateral)
+//         pGovObj->IsValidLocally(std::string& strError, bool fCheckCollateral)
 
         // Skip it if the funding votes are less than nGovQuorum (10% of valid MNs)
         // This might not be necessary due to the isSetCachedFunding check above...
@@ -672,21 +672,24 @@ bool CGovernanceManager::CreateSBTrigger() {
     std::string strPaymentAmounts;
     std::string strProposalHashes;
 
+    std::vector<const CGovernanceObject*> vFinalProposals;
     for (auto pGovObj : vProposals) {
         LogPrint("gobject", "NGM pass 2: analyzing proposal %s, funding votes: %d\n", pGovObj->GetHash().ToString(), pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING));
         auto deets = CProposalDetail(pGovObj->GetDataAsHexString());
         if (!deets.DidParse()) {
             // TODO: vote to delete here?
             LogPrint("gobject", "NGM did NOT get deets, parse error. Moving on.\n");
+            LogPrint("gobject", "NGM Parse errors: %s\n", deets.ErrorMessages());
             continue;
         }
-        deets.Debug();
+//      deets.Debug();
 
         // Note: this should be in pass1 TBH...
         if (deets.Amount() > nBudget) {
             LogPrint("gobject", "NGM Proposal %s ALONE breaks budget, moving on.\n", deets.Name());
             continue;
         }
+
         if ((nBudgetUsed + deets.Amount()) > nBudget) {
             LogPrint("gobject", "NGM Proposal %s pushes total over budget, moving on.\n", deets.Name());
             continue;
@@ -697,37 +700,49 @@ bool CGovernanceManager::CreateSBTrigger() {
         nBudgetUsed += deets.Amount();
         LogPrint("gobject", "NGM nBudgetUsed = %lld, total = %lld\n", nBudgetUsed, nBudget);
 
-        if (!strPaymentAddresses.empty()) strPaymentAddresses += "|";
-        strPaymentAddresses += deets.Address().ToString();
+        vFinalProposals.push_back(pGovObj);
 
-        if (!strPaymentAmounts.empty()) strPaymentAmounts += "|";
-        char buffer[50];
-        sprintf(buffer, "%.8f", (double(deets.Amount()) / COIN));
-        strPaymentAmounts += buffer;
-
-        if (!strProposalHashes.empty()) strProposalHashes += "|";
-        strProposalHashes += pGovObj->GetHash().ToString();
+        // HERE
+//
+//        if (!strPaymentAddresses.empty()) strPaymentAddresses += "|";
+//        strPaymentAddresses += deets.Address().ToString();
+//
+//        if (!strPaymentAmounts.empty()) strPaymentAmounts += "|";
+//        char buffer[50];
+//        sprintf(buffer, "%.8f", (double(deets.Amount()) / COIN));
+//        strPaymentAmounts += buffer;
+//
+//        if (!strProposalHashes.empty()) strProposalHashes += "|";
+//        strProposalHashes += pGovObj->GetHash().ToString();
     }
 
-    UniValue objJSON(UniValue::VOBJ);
-    objJSON.push_back(Pair("event_block_height", nNextSB));
-    objJSON.push_back(Pair("type", 2));
-    objJSON.push_back(Pair("payment_addresses", strPaymentAddresses));
-    objJSON.push_back(Pair("payment_amounts", strPaymentAmounts));
-    objJSON.push_back(Pair("proposal_hashes", strProposalHashes));
+    auto tdeets = CTriggerDetail(nHeight, vFinalProposals);
 
-    std::string strValue = objJSON.write(0, 1);
-    std::string strHexValue = HexStr(strValue);
-    LogPrint("gobject", "NGM JSON Trigger = '%s'\n", strValue);
+    // TODO: CTriggerDetail ctor with nHeight, list of proposal pGovObjs
+
+//    // TODO: move this into CTriggerDetail
+//    UniValue objJSON(UniValue::VOBJ);
+//    objJSON.push_back(Pair("event_block_height", nNextSB));
+//    objJSON.push_back(Pair("type", 2));
+//    objJSON.push_back(Pair("payment_addresses", strPaymentAddresses));
+//    objJSON.push_back(Pair("payment_amounts", strPaymentAmounts));
+//    objJSON.push_back(Pair("proposal_hashes", strProposalHashes));
+//    std::string strValue = objJSON.write(0, 1);
+//    std::string strHexValue = HexStr(strValue);
+//    LogPrint("gobject", "NGM JSON Trigger = '%s'\n", strValue);
+    std::string strHexValue = tdeets.GetDataHexStr();
     LogPrint("gobject", "NGM Hex  Trigger = '%s'\n", strHexValue);
+    // CTriggerDetail deet = CTriggerDetail(strHexValue);
 
     // Unique trigger data fingerprint (not entire GovObject)
-    CHashWriter ss(SER_GETHASH, CORE_SUPERBLOCKS_PROTO_VERSION);
-    ss << nNextSB;
-    ss << strPaymentAddresses;
-    ss << strPaymentAmounts;
-    ss << strProposalHashes;
-    uint256 theTriggerFingerprint = ss.GetHash();
+//    CHashWriter ss(SER_GETHASH, CORE_SUPERBLOCKS_PROTO_VERSION);
+//    ss << nNextSB;
+//    ss << strPaymentAddresses;
+//    ss << strPaymentAmounts;
+//    ss << strProposalHashes;
+//    uint256 theTriggerFingerprint = ss.GetHash();
+
+    uint256 theTriggerFingerprint = tdeets.GetHash();
     LogPrint("gobject", "NGM theTriggerFingerprint = '%s'\n", theTriggerFingerprint.ToString());
 
     CGovernanceObject theTrigger(uint256(), 1, GetAdjustedTime(), uint256(), strHexValue);

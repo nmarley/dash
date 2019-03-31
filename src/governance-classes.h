@@ -174,6 +174,7 @@ public:
 
 class CProposalDetail {
 private:
+    // Payload data members
     std::string strName;
     std::string strURL;
     int nStartEpoch;
@@ -181,53 +182,60 @@ private:
     CAmount nPaymentAmount;
     CBitcoinAddress payeeAddr;
 
-    bool fParsedOK = false;
-    std::string strDataHex;
-    void parseDetail();
+    // Parsing related
+    std::vector<std::string> vecStrErrMessages;
+    bool fParsedOK;
+    void ParseStrDataHex(const std::string& strDataHex);
 
 public:
     explicit CProposalDetail(const std::string& strDataHex);
 
     void Debug() const;
 
+    // Parsing
+    std::string ErrorMessages() const;
     bool DidParse() const { return fParsedOK; }
+
+    // Only implemented these b/c this is all that's necessary... we can
+    // implement the other accessors later if needed.
     std::string Name() const { return strName; }
-    std::string URL() const { return strURL; }
     CAmount Amount() const { return nPaymentAmount; }
     CBitcoinAddress Address() const { return payeeAddr; }
 
     uint256 GetHash() const;
 };
 
-//CProposalDetail
-struct CPayment {
+// CPayment represents a Dash superblock payment for a single proposal.
+class CPayment {
+public:
+    CPayment(uint256 proposalHash, CBitcoinAddress addr, CAmount amt);
+
     uint256 proposalHash;
     CBitcoinAddress addr;
     CAmount amt;
-
-    CPayment(uint256, CBitcoinAddress, CAmount);
 };
-
-//CPayment::CPayment(uint256 proposalHash, CBitcoinAddress addr, CAmount amt) :
-//    proposalHash(proposalHash),
-//    addr(addr),
-//    amt(amt)
-//{ }
 
 class CTriggerDetail {
 private:
+    // Payload data members
     int nHeight;
     std::vector<CPayment> vecPayments;
 
-//    std::string strPaymentAddresses;
-//    std::string strPaymentAmounts;
-//    std::string strProposalHashes;
-public:
-    // CTriggerDetail();
-    explicit CTriggerDetail(int nHeight, std::vector<CPayment> vecPayments);
-//    uint256 GetHash() const;
+    // Parsing related
+    std::vector<std::string> vecStrErrMessages;
+    bool fParsedOK;
+    void ParseStrDataHex(const std::string& strDataHex);
 
-    std::string PaymentAddresses() const;
+public:
+    explicit CTriggerDetail(const std::string& strDataHex);
+    explicit CTriggerDetail(int nHeight, const std::vector<CGovernanceObject *>& vecProposals);
+
+    std::string GetDataHexStr() const;
+    uint256 GetHash() const;
+
+    // Parsing
+    std::string ErrorMessages() const;
+    bool DidParse() const { return fParsedOK; }
 };
 
 #endif
