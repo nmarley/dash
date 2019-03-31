@@ -228,7 +228,7 @@ public:
     explicit CTriggerDetail(int nHeight, std::vector<CPayment> vecPayments);
 //    uint256 GetHash() const;
 
-    std::string& PaymentAddresses() const;
+    std::string PaymentAddresses() const;
 };
 
 #endif
