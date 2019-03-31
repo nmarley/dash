@@ -755,7 +755,8 @@ void CProposalDetail::parseDetail()
     LogPrint("gobject", "NGM in parseDetail, strDataHex = '%s'\n", strDataHex);
     LogPrint("gobject", "NGM in parseDetail, strDataHex.size() = '%d'\n", strDataHex.size());
 
-    std::vector<unsigned char>& vchData = ParseHex(strDataHex);
+    // std::vector<unsigned char>& vchData = ParseHex(strDataHex);
+    std::string vchData = ParseHex(strDataHex);
     LogPrint("gobject", "NGM in parseDetail, vchData.size() = '%d'\n", vchData.size());
 
     try {
