@@ -933,7 +933,7 @@ std::string CTriggerDetail::GetDataHexStr() const
 
         if (!strPaymentAmounts.empty()) strPaymentAmounts += "|";
         char buffer[50];
-        sprintf(buffer, "%.8f", (double(p.amt()) / COIN));
+        sprintf(buffer, "%.8f", (double(p.amt) / COIN));
         strPaymentAmounts += buffer;
 
         if (!strProposalHashes.empty()) strProposalHashes += "|";
