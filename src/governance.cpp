@@ -674,17 +674,13 @@ bool CGovernanceManager::CreateSBTrigger() {
 
     for (auto pGovObj : vProposals) {
         LogPrint("gobject", "NGM pass 2: analyzing proposal %s, funding votes: %d\n", pGovObj->GetHash().ToString(), pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING));
-        // auto v = CProposalValidator(pGovObj->GetDataAsHexString(), false);
-        // auto deets = v.GetProposalDetail();
         auto deets = CProposalDetail(pGovObj->GetDataAsHexString());
-        if (deets.DidParse()) {
-            LogPrint("gobject", "NGM GOT DEETS\n");
-        } else {
-            LogPrint("gobject", "NGM did NOT get deets\n");
+        if (!deets.DidParse()) {
+            // TODO: vote to delete here?
+            LogPrint("gobject", "NGM did NOT get deets, parse error. Moving on.\n");
+            continue;
         }
         deets.Debug();
-
-        LogPrint("gobject", "NGM Proposal %s ALONE breaks budget, moving on.\n", deets.Name());
 
         // Note: this should be in pass1 TBH...
         if (deets.Amount() > nBudget) {

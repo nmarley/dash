@@ -752,15 +752,9 @@ CProposalDetail::CProposalDetail(const std::string& strDataHex):
 void CProposalDetail::parseDetail()
 {
     UniValue obj(UniValue::VOBJ);
-    LogPrint("gobject", "NGM in parseDetail, strDataHex = '%s'\n", strDataHex);
-    LogPrint("gobject", "NGM in parseDetail, strDataHex.size() = '%d'\n", strDataHex.size());
-
     std::vector<unsigned char> vchData = ParseHex(strDataHex);
-    // std::string vchData = ParseHex(strDataHex);
-    LogPrint("gobject", "NGM in parseDetail, vchData.size() = '%d'\n", vchData.size());
-
     try {
-         obj.read(std::string(vchData.begin(), vchData.end()));
+        obj.read(std::string(vchData.begin(), vchData.end()));
         if (!obj.isObject()) {
 //            if (fAllowLegacyFormat) {
 //                obj = obj.getValues().at(0).getValues().at(1);
@@ -812,4 +806,20 @@ void CProposalDetail::Debug() const
     LogPrint("gobject", "NGM nEndEpoch: %d\n", nEndEpoch);
 
     LogPrint("gobject", "NGM strDataHex: '%s'\n", strDataHex);
+}
+
+CTriggerDetail::CTriggerDetail(int nHeight, std::vector<CPayment> vecPayments) :
+    nHeight(nHeight),
+    vecPayments(vecPayments)
+{
+}
+
+const std::string& CTriggerDetail::PaymentAddresses() const {
+    std::string strPaymentAddresses;
+    for (auto p : vecPayments) {
+        if (!strPaymentAddresses.empty()) strPaymentAddresses += "|";
+        strPaymentAddresses += p.addr.ToString();
+    }
+
+    return strPaymentAddresses;
 }

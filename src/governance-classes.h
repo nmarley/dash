@@ -199,18 +199,36 @@ public:
     uint256 GetHash() const;
 };
 
-//class CTriggerDetail {
-//private:
-//    int nHeight;
-//    // std::vector<CBitcoinAddress>
-//    // map hash -> proposals?
-//
-////    std::string strPaymentAddresses;
-////    std::string strPaymentAmounts;
-////    std::string strProposalHashes;
-//public:
-//    // CTriggerDetail();
+//CProposalDetail
+struct CPayment {
+    uint256 proposalHash;
+    CBitcoinAddress addr;
+    CAmount amt;
+
+//    CPayment();
+    CPayment(uint256, CBitcoinAddress, CAmount);
+};
+
+CPayment::CPayment(uint256 proposalHash, CBitcoinAddress addr, CAmount amt) :
+    proposalHash(proposalHash),
+    addr(addr),
+    amt(amt)
+{ }
+
+class CTriggerDetail {
+private:
+    int nHeight;
+    std::vector<CPayment> vecPayments;
+
+//    std::string strPaymentAddresses;
+//    std::string strPaymentAmounts;
+//    std::string strProposalHashes;
+public:
+    // CTriggerDetail();
+    explicit CTriggerDetail(int nHeight, std::vector<CPayment> vecPayments);
 //    uint256 GetHash() const;
-//};
+
+    const std::string& PaymentAddresses() const;
+};
 
 #endif
