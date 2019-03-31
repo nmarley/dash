@@ -740,3 +740,52 @@ std::string CSuperblockManager::GetRequiredPaymentsString(int nBlockHeight)
 
     return ret;
 }
+
+CProposalDetail::CProposalDetail(const std::string& strDataHex)
+{
+    this->strDataHex = strDataHex;
+    parseDetail();
+}
+
+void CProposalDetail::parseDetail()
+{
+    UniValue obj(UniValue::VOBJ);
+
+    try {
+        obj.read(strDataHex);
+        if (!obj.isObject()) {
+//            if (fAllowLegacyFormat) {
+//                obj = obj.getValues().at(0).getValues().at(1);
+//            } else {
+                throw std::runtime_error("Legacy proposal serialization format not allowed");
+//            }
+        }
+
+        nStartEpoch = obj["start_epoch"].get_int();
+        nEndEpoch = obj["end_epoch"].get_int();
+        strName = obj["name"].get_str();
+        strURL = obj["url"].get_str();
+        payeeAddr = CBitcoinAddress(obj["payment_address"].get_str());
+        nPaymentAmount = int64_t(obj["payment_amount"].get_real() * COIN);
+
+        fParsedOK = true;
+    } catch (std::exception& e) {
+//        strError = std::string(e.what());
+    } catch (...) {
+//        strError = "Unknown exception";
+    }
+}
+
+uint256 CProposalDetail::GetHash() const
+{
+    CHashWriter ss(SER_GETHASH, CORE_SUPERBLOCKS_PROTO_VERSION);
+
+    ss << strName;
+    ss << strURL;
+    ss << payeeAddr;
+    ss << nPaymentAmount;
+    ss << nStartEpoch;
+    ss << nEndEpoch;
+
+    return ss.GetHash();
+}

@@ -10,16 +10,6 @@
 #include <univalue.h>
 #include "base58.h"
 
-class CProposalDetail {
-public:
-    std::string strName;
-    std::string strURL;
-    int nStartEpoch;
-    int nEndEpoch;
-    CAmount nPaymentAmount;
-    CBitcoinAddress payeeAddr;
-};
-
 class CProposalValidator
 {
 private:
@@ -31,7 +21,7 @@ private:
 public:
     CProposalValidator(const std::string& strDataHexIn = std::string(), bool fAllowLegacyFormat = true);
 
-    CProposalDetail GetProposalDetail();
+    // CProposalDetail GetProposalDetail();
     bool Validate(bool fCheckExpiration = true);
 
     const std::string& GetErrorMessages()

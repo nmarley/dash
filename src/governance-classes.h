@@ -172,4 +172,37 @@ public:
     bool IsExpired();
 };
 
+class CProposalDetail {
+private:
+    std::string strName;
+    std::string strURL;
+    int nStartEpoch;
+    int nEndEpoch;
+    CAmount nPaymentAmount;
+    CBitcoinAddress payeeAddr;
+
+    bool fParsedOK;
+    std::string strDataHex;
+    void parseDetail();
+
+public:
+    explicit CProposalDetail(const std::string& strDataHex);
+
+    bool DidParse() const { return fParsedOK; }
+    std::string Name() const { return strName; }
+    std::string URL() const { return strURL; }
+    CAmount Amount() const { return nPaymentAmount; }
+    CBitcoinAddress Address() const { return payeeAddr; }
+
+    uint256 GetHash() const;
+};
+
+//class CTriggerDetail {
+//public:
+//    int nHeight;
+//    std::string strPaymentAddresses;
+//    std::string strPaymentAmounts;
+//    std::string strProposalHashes;
+//};
+
 #endif
