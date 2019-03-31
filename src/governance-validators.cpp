@@ -323,24 +323,3 @@ bool CProposalValidator::CheckURL(const std::string& strURLIn)
 
     return true;
 }
-
-CProposalDetail CProposalValidator::GetProposalDetail() {
-    CProposalDetail propDetail = CProposalDetail();
-
-    // Call Validate before this to ensure valid data types, etc.
-    // This does double work but this is easier than re-implementing or refactoring the Validator class.
-
-    propDetail.nStartEpoch = objJSON["start_epoch"].get_int();
-    propDetail.nEndEpoch = objJSON["end_epoch"].get_int();
-
-    propDetail.strName = objJSON["name"].get_str();
-    propDetail.strURL = objJSON["url"].get_str();
-
-    std::string strPaymentAddress = objJSON["payment_address"].get_str();
-    propDetail.payeeAddr = CBitcoinAddress(strPaymentAddress);
-
-    double dValue = objJSON["payment_amount"].get_real();
-    propDetail.nPaymentAmount = int64_t(dValue * COIN);
-
-    return propDetail;
-}
