@@ -832,7 +832,7 @@ CTriggerDetail::CTriggerDetail(const std::string& strDataHex):
     }
 }
 
-CTriggerDetail::CTriggerDetail(int nHeight, const std::vector<CGovernanceObject *>& vecProposals):
+CTriggerDetail::CTriggerDetail(int nHeight, const std::vector<const CGovernanceObject *>& vecProposals):
     nHeight(nHeight),
     fParsedOK(false)
 {
