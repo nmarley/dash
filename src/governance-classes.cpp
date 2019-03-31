@@ -878,7 +878,7 @@ void CTriggerDetail::ParseStrDataHex(const std::string& strDataHex)
             throw std::runtime_error(ostr.str());
         }
 
-        for (q = 0; q < (int)vecAddrs.size(); ++q) {
+        for (int q = 0; q < (int)vecAddrs.size(); ++q) {
             CPayment payment(vecHashes[q], vecAddrs[q], vecAmts[q]);
             vecPayments.push_back(payment);
         }
