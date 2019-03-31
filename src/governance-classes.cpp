@@ -791,3 +791,14 @@ uint256 CProposalDetail::GetHash() const
 
     return ss.GetHash();
 }
+
+void CProposalDetail::Debug() const
+{
+    LogPrint("gobject", "NGM CProposalDetail Debug:\n");
+    LogPrint("gobject", "NGM strName: %s\n", strName);
+    LogPrint("gobject", "NGM strURL: %s\n", strURL);
+    LogPrint("gobject", "NGM payeeAddr: %s\n", payeeAddr.ToString());
+    LogPrint("gobject", "NGM nPaymentAmount: %lld\n", nPaymentAmount);
+    LogPrint("gobject", "NGM nStartEpoch: %d\n", nStartEpoch);
+    LogPrint("gobject", "NGM nEndEpoch: %d\n", nEndEpoch);
+}

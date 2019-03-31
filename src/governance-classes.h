@@ -181,12 +181,14 @@ private:
     CAmount nPaymentAmount;
     CBitcoinAddress payeeAddr;
 
-    bool fParsedOK;
+    bool fParsedOK = false;
     std::string strDataHex;
     void parseDetail();
 
 public:
     explicit CProposalDetail(const std::string& strDataHex);
+
+    void Debug() const;
 
     bool DidParse() const { return fParsedOK; }
     std::string Name() const { return strName; }
@@ -198,11 +200,17 @@ public:
 };
 
 //class CTriggerDetail {
-//public:
+//private:
 //    int nHeight;
-//    std::string strPaymentAddresses;
-//    std::string strPaymentAmounts;
-//    std::string strProposalHashes;
+//    // std::vector<CBitcoinAddress>
+//    // map hash -> proposals?
+//
+////    std::string strPaymentAddresses;
+////    std::string strPaymentAmounts;
+////    std::string strProposalHashes;
+//public:
+//    // CTriggerDetail();
+//    uint256 GetHash() const;
 //};
 
 #endif

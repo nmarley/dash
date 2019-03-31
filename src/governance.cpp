@@ -682,6 +682,9 @@ bool CGovernanceManager::CreateSBTrigger() {
         } else {
             LogPrint("gobject", "NGM did NOT get deets\n");
         }
+        deets.Debug();
+
+        LogPrint("gobject", "NGM Proposal %s ALONE breaks budget, moving on.\n", deets.Name());
 
         // Note: this should be in pass1 TBH...
         if (deets.Amount() > nBudget) {
