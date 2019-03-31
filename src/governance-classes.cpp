@@ -911,7 +911,7 @@ std::string CTriggerDetail::ErrorMessages() const
 {
     std::string combinedMessage;
     for (std::string msg : vecStrErrMessages) {
-        if (!combinedMessage.empty()) combinedMessage += ";"
+        if (!combinedMessage.empty()) combinedMessage += ";";
         combinedMessage += msg;
     }
     return combinedMessage;
