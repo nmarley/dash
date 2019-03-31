@@ -745,8 +745,6 @@ std::string CSuperblockManager::GetRequiredPaymentsString(int nBlockHeight)
 CProposalDetail::CProposalDetail(const std::string& strDataHex):
     strDataHex(strDataHex)
 {
-    // LogPrint("gobject", "NGM CProposalDetail constructor\n");
-    // this.strDataHex = strDataHex;
     LogPrint("gobject", "NGM CProposalDetail constructor\n");
     parseDetail();
 }
