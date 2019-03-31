@@ -758,10 +758,8 @@ void CProposalDetail::parseDetail()
     std::vector<unsigned char> vchData = ParseHex(strDataHex);
     LogPrint("gobject", "NGM in parseDetail, vchData.size() = '%d'\n", vchData.size());
 
-//    CPubKey vchPubKey(ParseHex(ks))
-
     try {
-        obj.read(strDataHex);
+        obj.read(vchData);
         if (!obj.isObject()) {
 //            if (fAllowLegacyFormat) {
 //                obj = obj.getValues().at(0).getValues().at(1);
