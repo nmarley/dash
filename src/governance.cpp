@@ -677,7 +677,11 @@ bool CGovernanceManager::CreateSBTrigger() {
         // auto v = CProposalValidator(pGovObj->GetDataAsHexString(), false);
         // auto deets = v.GetProposalDetail();
         auto deets = CProposalDetail(pGovObj->GetDataAsHexString());
-        LogPrint("gobject", "NGM got deets\n");
+        if (deets.DidParse()) {
+            LogPrint("gobject", "NGM GOT DEETS\n");
+        } else {
+            LogPrint("gobject", "NGM did NOT get deets\n");
+        }
 
         // Note: this should be in pass1 TBH...
         if (deets.Amount() > nBudget) {
@@ -754,14 +758,14 @@ bool CGovernanceManager::CreateSBTrigger() {
     std::string strError = "";
     bool fMissingMasternode;
     bool fMissingConfirmations;
-    {
-        LOCK(cs_main);
-        if (!theTrigger.IsValidLocally(strError, fMissingMasternode, fMissingConfirmations, true) && !fMissingConfirmations) {
-            LogPrintf("gobject(submit) -- Trigger submission rejected because object is not valid - hash = %s, strError = %s\n", strHash, strError);
-            LogPrint("gobject", "NGM -- Trigger submission rejected because object is not valid - hash = %s, strError = %s\n", strHash, strError);
-            // throw JSONRPCError(RPC_INTERNAL_ERROR, "Governance object is not valid - " + strHash + " - " + strError);
-        }
-    }
+//    {
+//        LOCK(cs_main);
+//        if (!theTrigger.IsValidLocally(strError, fMissingMasternode, fMissingConfirmations, true) && !fMissingConfirmations) {
+//            LogPrintf("gobject(submit) -- Trigger submission rejected because object is not valid - hash = %s, strError = %s\n", strHash, strError);
+//            LogPrint("gobject", "NGM -- Trigger submission rejected because object is not valid - hash = %s, strError = %s\n", strHash, strError);
+//            // throw JSONRPCError(RPC_INTERNAL_ERROR, "Governance object is not valid - " + strHash + " - " + strError);
+//        }
+//    }
 
     // RELAY THIS OBJECT
     // Reject if rate check fails but don't update buffer
