@@ -1,5 +1,9 @@
 // Copyright (c) 2019 The Dash Core developers
 
+#include <iostream>
+using std::cout;
+using std::endl;
+
 #include "governance-classes.h"
 #include "test/test_dash.h"
 
@@ -16,6 +20,9 @@ BOOST_AUTO_TEST_CASE(detail_test)
     // These two should produce the same "fingerprint", e.g. payload hash.
     CTriggerDetail triggerDeets1(strHexTrigger1);
     CTriggerDetail triggerDeets2(strHexTrigger2);
+
+    std::cout << triggerDeets1.GetDataHexStr() << std::endl;
+    std::cout << triggerDeets2.GetDataHexStr() << std::endl;
 
     BOOST_CHECK_EQUAL(triggerDeets1.GetHash().ToString(), triggerDeets2.GetHash().ToString());
 }
