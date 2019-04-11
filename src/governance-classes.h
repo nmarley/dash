@@ -204,28 +204,9 @@ public:
 };
 
 // CPayment represents a Dash superblock payment for a single proposal.
-struct CPayment {
-//    CPayment();
-
+class CPayment {
+public:
     CPayment(const uint256& nProposalHash, CBitcoinAddress address, CAmount nAmount);
-
-//    CPayment(const CPayment& other);
-
-//    CPayment& operator=(const CPayment& ref) = default;
-//
-//    CPayment(CPayment&& ref)
-//    {
-//        std::swap(nProposalHash, ref.nProposalHash);
-//        std::swap(address, ref.address);
-//        std::swap(nAmount, ref.nAmount);
-//    }
-//    CPayment& operator=(CPayment&& ref)
-//    {
-//        std::swap(nProposalHash, ref.nProposalHash);
-//        std::swap(address, ref.address);
-//        std::swap(nAmount, ref.nAmount);
-//        return *this;
-//    }
 
     uint256 nProposalHash;
     CBitcoinAddress address;
@@ -254,15 +235,6 @@ struct CPayment {
         READWRITE(address.ToString());
         READWRITE(nAmount);
     }
-
-//    friend std::ostream& operator<<(std::ostream& os, const CPayment& p)
-//    {
-//        os << p.proposalHash.ToString();
-//        os << p.addr.ToString();
-//        os << p.amt;
-//
-//        return os;
-//    }
 };
 
 class CTriggerDetail {
@@ -277,8 +249,6 @@ private:
     void ParseStrDataHex(const std::string& strDataHex);
 
 public:
-    CTriggerDetail();
-
     explicit CTriggerDetail(const std::string& strDataHex);
 
     CTriggerDetail(int nHeight, const std::vector<const CGovernanceObject *>& vecProposals);

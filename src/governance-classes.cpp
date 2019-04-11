@@ -12,10 +12,6 @@
 
 #include <univalue.h>
 
-#include <iostream>
-using std::cout;
-using std::endl;
-
 // DECLARE GLOBAL VARIABLES FOR GOVERNANCE CLASSES
 CGovernanceTriggerManager triggerman;
 
@@ -809,12 +805,6 @@ std::string CProposalDetail::ErrorMessages() const
     return combinedMessage;
 }
 
-CTriggerDetail::CTriggerDetail() :
-    nHeight(0),
-    fParsedOK(false)
-{
-}
-
 CTriggerDetail::CTriggerDetail(const std::string& strDataHex):
     nHeight(0),
     fParsedOK(false)
@@ -831,12 +821,12 @@ CTriggerDetail::CTriggerDetail(int nHeight, const std::vector<const CGovernanceO
     for (const auto& pGovObj : vecProposals) {
         uint256 hash = pGovObj->GetHash();
 
-        auto deets = CProposalDetail(pGovObj->GetDataAsHexString());
-        if (!deets.DidParse()) {
-            vecStrErrMessages.emplace_back(deets.ErrorMessages());
+        auto detail = CProposalDetail(pGovObj->GetDataAsHexString());
+        if (!detail.DidParse()) {
+            vecStrErrMessages.emplace_back(detail.ErrorMessages());
             return;
         }
-        vecPayments.push_back(CPayment(hash, deets.Address(), deets.Amount()));
+        vecPayments.push_back(CPayment(hash, detail.Address(), detail.Amount()));
     }
     fParsedOK = true;
 }
@@ -862,17 +852,12 @@ void CTriggerDetail::ParseStrDataHex(const std::string& strDataHex)
         std::vector<std::string> vecAmts = SplitBy(strPaymentAmounts, "|");
         std::vector<std::string> vecHashes = SplitBy(strProposalHashes, "|");
 
-        LogPrint("gobject", "NGM vecAddrs.size() = %d\n", (int)vecAddrs.size());
-        LogPrint("gobject", "NGM vecAmts.size() = %d\n", (int)vecAmts.size());
-        LogPrint("gobject", "NGM vecHashes.size() = %d\n", (int)vecHashes.size());
-
         bool fSameSize = (vecAddrs.size() == vecAmts.size() && vecAmts.size() == vecHashes.size());
-        LogPrint("gobject", "NGM fSameSize = %s\n", (fSameSize ? "true" : "false"));
 
         // If the sizes for each of the three vectors do not match, something is wrong.
         if (!fSameSize) {
             std::ostringstream ostr;
-            ostr << "NGM " << __func__ << " - Mismatched payments, amounts, and/or proposal hashes";
+            ostr << __func__ << " - Mismatched payments, amounts, and/or proposal hashes";
             LogPrint("gobject", "%s\n", ostr.str());
             throw std::runtime_error(ostr.str());
         }
@@ -896,26 +881,14 @@ void CTriggerDetail::ParseStrDataHex(const std::string& strDataHex)
 
 uint256 CTriggerDetail::GetHash()
 {
+    CHashWriter ss(SER_GETHASH, CORE_SUPERBLOCKS_PROTO_VERSION);
+    ss << nHeight;
+
     // Order payments
     std::sort(vecPayments.begin(), vecPayments.end());
 
-//    // Order payments
-//    std::sort(vecPayments.begin(), vecPayments.end(), [](const CPayment& lhs, const CPayment& rhs) {
-//         return (UintToArith256(lhs.nProposalHash) > UintToArith256(rhs.nProposalHash));
-//    });
-
-    CHashWriter ss(SER_GETHASH, CORE_SUPERBLOCKS_PROTO_VERSION);
-
-    LogPrint("gobject", "NGM New Fingerprint, adding nHeight = %d\n", nHeight);
-    std::cout << "New Fingerprint, adding nHeight = " << nHeight << std::endl;
-    ss << nHeight;
-
     // Add each payment to the stream
     for (const auto& p : vecPayments) {
-        std::cout << "p.nProposalHash =" << p.nProposalHash.ToString() << std::endl;
-        std::cout << "p.address =" << p.address.ToString() << std::endl;
-        std::cout << "p.nAmount =" << p.nAmount << std::endl;
-
         ss << p;
     }
 
@@ -942,8 +915,7 @@ std::string CTriggerDetail::GetDataHexStr() const
     std::string strPaymentAmounts;
     std::string strProposalHashes;
 
-    for (std::vector<CPayment>::const_iterator it = vecPayments.begin(); it != vecPayments.end(); ++it) {
-        CPayment p = (*it);
+    for (const auto& p : vecPayments) {
         if (!strPaymentAddresses.empty()) strPaymentAddresses += "|";
         strPaymentAddresses += p.address.ToString();
 
@@ -966,21 +938,8 @@ std::string CTriggerDetail::GetDataHexStr() const
     return strHexValue;
 }
 
-//CPayment::CPayment() :
-//    nProposalHash(),
-//    address(),
-//    nAmount(0)
-//{ }
-
 CPayment::CPayment(const uint256& nProposalHash, CBitcoinAddress address, CAmount nAmount) :
     nProposalHash(nProposalHash),
     address(address),
     nAmount(nAmount)
 { }
-
-//CPayment::CPayment(const CPayment& other) :
-//    nProposalHash(other.nProposalHash),
-//    address(other.address),
-//    nAmount(other.nAmount)
-//{
-//}
