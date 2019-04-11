@@ -191,6 +191,7 @@ private:
     // Parsing related
     std::vector<std::string> vecStrErrMessages;
     bool fParsedOK;
+    bool fOldFormat;
     void ParseStrDataHex(const std::string& strDataHex);
 
 public:
