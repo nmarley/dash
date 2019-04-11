@@ -177,10 +177,16 @@ private:
     // Payload data members
     std::string strName;
     std::string strURL;
-    int nStartEpoch;
-    int nEndEpoch;
+
+    int nStartHeight;
+    int nEndHeight;
+
     CAmount nPaymentAmount;
     CBitcoinAddress payeeAddr;
+
+    // deprecated
+    int nStartEpoch;
+    int nEndEpoch;
 
     // Parsing related
     std::vector<std::string> vecStrErrMessages;
@@ -194,11 +200,12 @@ public:
     std::string ErrorMessages() const;
     bool DidParse() const { return fParsedOK; }
 
-    // Only implemented these b/c this is all that's necessary... we can
-    // implement the other accessors later if needed.
+    // Accessors
     std::string Name() const { return strName; }
     CAmount Amount() const { return nPaymentAmount; }
     CBitcoinAddress Address() const { return payeeAddr; }
+    int startHeight() const { return startHeight; }
+    int endHeight() const { return endHeight; }
 
     uint256 GetHash() const;
 };

@@ -2,12 +2,17 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <iostream>
+using std::cout;
+using std::endl;
+
 #include "governance-classes.h"
 #include "core_io.h"
 #include "init.h"
 #include "utilstrencodings.h"
 #include "validation.h"
 
+// TODO: Remove once we no longer have to parse '|'-delimited strings.
 #include <boost/algorithm/string.hpp>
 
 #include <univalue.h>
@@ -15,6 +20,7 @@
 // DECLARE GLOBAL VARIABLES FOR GOVERNANCE CLASSES
 CGovernanceTriggerManager triggerman;
 
+// TODO: Remove once we no longer have to parse '|'-delimited strings.
 // SPLIT UP STRING BY DELIMITER
 // http://www.boost.org/doc/libs/1_58_0/doc/html/boost/algorithm/split_idp202406848.html
 std::vector<std::string> SplitBy(const std::string& strCommand, const std::string& strDelimit)
@@ -32,6 +38,7 @@ std::vector<std::string> SplitBy(const std::string& strCommand, const std::strin
     return vParts;
 }
 
+// TODO: Remove once we no longer have to payments as strings.
 CAmount ParsePaymentAmount(const std::string& strAmount)
 {
     CAmount nAmount = 0;
@@ -744,14 +751,16 @@ std::string CSuperblockManager::GetRequiredPaymentsString(int nBlockHeight)
 CProposalDetail::CProposalDetail(const std::string& strDataHex):
     nStartEpoch(0),
     nEndEpoch(0),
+    nStartHeight(0),
+    nEndHeight(0),
     nPaymentAmount(0),
+    fOldFormat(false),
     fParsedOK(false)
 {
     if (!strDataHex.empty()) {
         ParseStrDataHex(strDataHex);
     }
 }
-
 
 void CProposalDetail::ParseStrDataHex(const std::string& strDataHex)
 {
@@ -763,13 +772,36 @@ void CProposalDetail::ParseStrDataHex(const std::string& strDataHex)
             throw std::runtime_error("Parse error - object expected");
         }
 
-        // load data members from obj
-        nStartEpoch = obj["start_epoch"].get_int();
-        nEndEpoch = obj["end_epoch"].get_int();
-        strName = obj["name"].get_str();
-        strURL = obj["url"].get_str();
-        payeeAddr = CBitcoinAddress(obj["payment_address"].get_str());
-        nPaymentAmount = int64_t(obj["payment_amount"].get_real() * COIN);
+        // Make a map of all obj keys, so we can call hasKey().
+        std::map<std::string, bool> mapObjKeys;
+        for (auto key : obj.getKeys()) {
+            mapObjKeys.emplace(key, true);
+        }
+        // Define a hasKey lambda function.
+        auto hasKey = [&mapObjKeys](const std::string& key) { return (mapObjKeys.count(key) > 0); };
+
+        // Load data members from obj
+
+        // Parse proposal details
+        if (hasKey("startHeight")) {
+            nStartHeight = obj["startHeight"].get_int();
+            nEndEpoch = obj["endHeight"].get_int();
+            strName = obj["name"].get_str();
+            strURL = obj["url"].get_str();
+            payeeAddr = CBitcoinAddress(obj["payment_address"].get_str());
+            // This new format is already in Satoshis
+            nPaymentAmount = int64_t(obj["payment_amount"].get_int64());
+        } else if (hasKey("start_epoch")) {
+            // Do it the old way.
+            nStartEpoch = obj["start_epoch"].get_int();
+            nEndEpoch = obj["end_epoch"].get_int();
+            strName = obj["name"].get_str();
+            strURL = obj["url"].get_str();
+            payeeAddr = CBitcoinAddress(obj["payment_address"].get_str());
+            // This old format is in COIN - convert to Satoshis
+            nPaymentAmount = int64_t(obj["payment_amount"].get_real() * COIN);
+            fOldFormat = true;
+        }
 
         fParsedOK = true;
     } catch (std::exception& e) {
@@ -841,32 +873,61 @@ void CTriggerDetail::ParseStrDataHex(const std::string& strDataHex)
             throw std::runtime_error("Parse error - object expected");
         }
 
-        // load data members from obj
-        nHeight = obj["event_block_height"].get_int();
+        // Make a map of all obj keys, so we can call hasKey().
+        std::map<std::string, bool> mapObjKeys;
+        for (auto key : obj.getKeys()) {
+            mapObjKeys.emplace(key, true);
+        }
+        // Define a hasKey lambda function.
+        auto hasKey = [&mapObjKeys](const std::string& key) { return (mapObjKeys.count(key) > 0); };
 
-        std::string strPaymentAddresses = obj["payment_addresses"].get_str();
-        std::string strPaymentAmounts = obj["payment_amounts"].get_str();
-        std::string strProposalHashes = obj["proposal_hashes"].get_str();
+        // Load data members from obj
 
-        std::vector<std::string> vecAddrs = SplitBy(strPaymentAddresses, "|");
-        std::vector<std::string> vecAmts = SplitBy(strPaymentAmounts, "|");
-        std::vector<std::string> vecHashes = SplitBy(strProposalHashes, "|");
-
-        bool fSameSize = (vecAddrs.size() == vecAmts.size() && vecAmts.size() == vecHashes.size());
-
-        // If the sizes for each of the three vectors do not match, something is wrong.
-        if (!fSameSize) {
-            std::ostringstream ostr;
-            ostr << __func__ << " - Mismatched payments, amounts, and/or proposal hashes";
-            LogPrint("gobject", "%s\n", ostr.str());
-            throw std::runtime_error(ostr.str());
+        // Superblock Height
+        if (hasKey("sbHeight")) {
+            nHeight = obj["sbHeight"].get_int();
+        } else if (hasKey("event_block_height")) {
+            nHeight = obj["event_block_height"].get_int();
         }
 
-        for (int q = 0; q < (int)vecAddrs.size(); ++q) {
-            CBitcoinAddress address(vecAddrs[q]);
-            CAmount nAmount = ParsePaymentAmount(vecAmts[q]);
-            uint256 hash = uint256S(vecHashes[q]);
-            vecPayments.push_back(CPayment(hash, address, nAmount));
+        // Payments data
+        if (hasKey("payments")) {
+            for (auto pymtObj : obj["payments"].get_array()) {
+                CBitcoinAddress address(pymtObj["address"].get_str());
+                CAmount nAmount(pymtObj["amount"].get_int64());
+                uint256 hash = uint256S(pymtObj["propHash"].get_str());
+                vecPayments.push_back(CPayment(hash, address, nAmount));
+            }
+        } else {
+            // Do it the less civilized way.
+            //
+            // All this rubbish (this else branch) can hopefully be deleted
+            // once objects move over to the new format.
+            // 
+            std::string strPaymentAddresses = obj["payment_addresses"].get_str();
+            std::string strPaymentAmounts = obj["payment_amounts"].get_str();
+            std::string strProposalHashes = obj["proposal_hashes"].get_str();
+
+            std::vector<std::string> vecAddrs = SplitBy(strPaymentAddresses, "|");
+            std::vector<std::string> vecAmts = SplitBy(strPaymentAmounts, "|");
+            std::vector<std::string> vecHashes = SplitBy(strProposalHashes, "|");
+
+            bool fSameSize = (vecAddrs.size() == vecAmts.size() && vecAmts.size() == vecHashes.size());
+
+            // If the sizes for each of the three vectors do not match, something is wrong.
+            if (!fSameSize) {
+                std::ostringstream ostr;
+                ostr << __func__ << " - Mismatched payments, amounts, and/or proposal hashes";
+                LogPrint("gobject", "%s\n", ostr.str());
+                throw std::runtime_error(ostr.str());
+            }
+
+            for (int q = 0; q < (int)vecAddrs.size(); ++q) {
+                CBitcoinAddress address(vecAddrs[q]);
+                CAmount nAmount = ParsePaymentAmount(vecAmts[q]);
+                uint256 hash = uint256S(vecHashes[q]);
+                vecPayments.push_back(CPayment(hash, address, nAmount));
+            }
         }
 
         fParsedOK = true;
@@ -908,29 +969,20 @@ std::string CTriggerDetail::ErrorMessages() const
 std::string CTriggerDetail::GetDataHexStr() const
 {
     UniValue objJSON(UniValue::VOBJ);
-    objJSON.push_back(Pair("event_block_height", nHeight));
+    objJSON.push_back(Pair("sbHeight", nHeight));
     objJSON.push_back(Pair("type", 2));
 
-    std::string strPaymentAddresses;
-    std::string strPaymentAmounts;
-    std::string strProposalHashes;
-
+    UniValue arrPaymentsJSON(UniValue::VARR);
     for (const auto& p : vecPayments) {
-        if (!strPaymentAddresses.empty()) strPaymentAddresses += "|";
-        strPaymentAddresses += p.address.ToString();
+        UniValue objPayment(UniValue::VOBJ);
 
-        if (!strPaymentAmounts.empty()) strPaymentAmounts += "|";
-        char buffer[50];
-        sprintf(buffer, "%.8f", (double(p.nAmount) / COIN));
-        strPaymentAmounts += buffer;
+        objPayment.push_back("address", p.address.ToString());
+        objPayment.push_back("amount", p.nAmount);
+        objPayment.push_back("propHash", p.nProposalHash.ToString());
 
-        if (!strProposalHashes.empty()) strProposalHashes += "|";
-        strProposalHashes += p.nProposalHash.ToString();
+        arrPaymentsJSON.push_back(objPayment);
     }
-
-    objJSON.push_back(Pair("payment_addresses", strPaymentAddresses));
-    objJSON.push_back(Pair("payment_amounts", strPaymentAmounts));
-    objJSON.push_back(Pair("proposal_hashes", strProposalHashes));
+    objJSON.push_back(Pair("payments", arrPaymentsJSON));
 
     std::string strValue = objJSON.write(0, 1);
     std::string strHexValue = HexStr(strValue);
