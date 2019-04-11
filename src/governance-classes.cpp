@@ -892,7 +892,9 @@ void CTriggerDetail::ParseStrDataHex(const std::string& strDataHex)
 
         // Payments data
         if (hasKey("payments")) {
-            for (auto pymtObj : obj["payments"].get_array()) {
+            const UniValue& payments = obj["payments"].get_array();
+            for (size_t i = 0; i < payments.size(); ++i) {
+                const UniValue& pymtObj = payments[i];
                 CBitcoinAddress address(pymtObj["address"].get_str());
                 CAmount nAmount(pymtObj["amount"].get_int64());
                 uint256 hash = uint256S(pymtObj["propHash"].get_str());
