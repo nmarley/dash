@@ -204,8 +204,8 @@ public:
     std::string Name() const { return strName; }
     CAmount Amount() const { return nPaymentAmount; }
     CBitcoinAddress Address() const { return payeeAddr; }
-    int startHeight() const { return startHeight; }
-    int endHeight() const { return endHeight; }
+    int startHeight() const { return nStartHeight; }
+    int endHeight() const { return nEndHeight; }
 
     uint256 GetHash() const;
 };
