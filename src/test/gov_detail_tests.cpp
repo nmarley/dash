@@ -24,6 +24,8 @@ BOOST_AUTO_TEST_CASE(detail_test)
     std::cout << triggerDeets1.GetDataHexStr() << std::endl;
     std::cout << triggerDeets2.GetDataHexStr() << std::endl;
 
+    std::cout << "The digest is: " << triggerDeets1.GetHash().ToString() << std::endl;
+
     BOOST_CHECK_EQUAL(triggerDeets1.GetHash().ToString(), triggerDeets2.GetHash().ToString());
 }
 
