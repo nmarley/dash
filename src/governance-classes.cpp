@@ -861,8 +861,8 @@ CTriggerDetail::CTriggerDetail(int nHeight, const std::vector<const CGovernanceO
         vecPayments.push_back(CPayment(hash, detail.Address(), detail.Amount()));
     }
 
-    // Order payments once loaded
-    std::sort(vecPayments.begin(), vecPayments.end());
+    // Order payments once loaded, sorted by proposal hash descending
+    std::sort(vecPayments.rbegin(), vecPayments.rend());
 
     fParsedOK = true;
 }
@@ -936,8 +936,8 @@ void CTriggerDetail::ParseStrDataHex(const std::string& strDataHex)
             }
         }
 
-        // Order payments once parsed
-        std::sort(vecPayments.begin(), vecPayments.end());
+        // Order payments once parsed, sorted by proposal hash descending
+        std::sort(vecPayments.rbegin(), vecPayments.rend());
 
         fParsedOK = true;
     } catch (std::exception& e) {
