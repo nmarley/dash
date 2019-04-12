@@ -815,7 +815,7 @@ void CProposalDetail::ParseStrDataHex(const std::string& strDataHex)
 
 uint256 CProposalDetail::GetHash() const
 {
-    CHashWriter ss(SER_GETHASH, CORE_SUPERBLOCKS_PROTO_VERSION);
+    CHashWriter ss(SER_GETHASH, 0);
 
     ss << strName;
     ss << strURL;
@@ -951,7 +951,7 @@ void CTriggerDetail::ParseStrDataHex(const std::string& strDataHex)
 
 uint256 CTriggerDetail::GetHash() const
 {
-    CHashWriter ss(SER_GETHASH, CORE_SUPERBLOCKS_PROTO_VERSION);
+    CHashWriter ss(SER_GETHASH, 0);
     ss << nHeight;
 
     // Add each payment to the stream
