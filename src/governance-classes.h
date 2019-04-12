@@ -262,7 +262,7 @@ public:
     CTriggerDetail(int nHeight, const std::vector<const CGovernanceObject *>& vecProposals);
 
     std::string GetDataHexStr() const;
-    uint256 GetHash();
+    uint256 GetHash() const;
 
     // Parsing
     std::string ErrorMessages() const;

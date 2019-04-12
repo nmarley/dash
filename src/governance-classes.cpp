@@ -860,6 +860,10 @@ CTriggerDetail::CTriggerDetail(int nHeight, const std::vector<const CGovernanceO
         }
         vecPayments.push_back(CPayment(hash, detail.Address(), detail.Amount()));
     }
+
+    // Order payments once loaded
+    std::sort(vecPayments.begin(), vecPayments.end());
+
     fParsedOK = true;
 }
 
@@ -932,6 +936,9 @@ void CTriggerDetail::ParseStrDataHex(const std::string& strDataHex)
             }
         }
 
+        // Order payments once parsed
+        std::sort(vecPayments.begin(), vecPayments.end());
+
         fParsedOK = true;
     } catch (std::exception& e) {
         LogPrint("gobject", "NGM shoot, failed: %s\n", std::string(e.what()));
@@ -942,13 +949,10 @@ void CTriggerDetail::ParseStrDataHex(const std::string& strDataHex)
     }
 }
 
-uint256 CTriggerDetail::GetHash()
+uint256 CTriggerDetail::GetHash() const
 {
     CHashWriter ss(SER_GETHASH, CORE_SUPERBLOCKS_PROTO_VERSION);
     ss << nHeight;
-
-    // Order payments
-    std::sort(vecPayments.begin(), vecPayments.end());
 
     // Add each payment to the stream
     for (const auto& p : vecPayments) {
