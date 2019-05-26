@@ -79,6 +79,10 @@ struct vote_instance_t {
 
 typedef std::map<int, vote_instance_t> vote_instance_m_t;
 
+typedef vote_instance_m_t::iterator vote_instance_m_it;
+
+typedef vote_instance_m_t::const_iterator vote_instance_m_cit;
+
 struct vote_rec_t {
     vote_instance_m_t mapInstances;
 
