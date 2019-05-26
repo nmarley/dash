@@ -144,7 +144,7 @@ void CGovernanceTriggerManager::CleanAndRemove()
     // Remove triggers that are invalid or expired
     LogPrint(BCLog::GOBJECT, "CGovernanceTriggerManager::CleanAndRemove -- mapTrigger.size() = %d\n", mapTrigger.size());
 
-    auto it = mapTrigger.begin();
+    trigger_m_it it = mapTrigger.begin();
     while (it != mapTrigger.end()) {
         bool remove = false;
         CGovernanceObject* pObj = nullptr;

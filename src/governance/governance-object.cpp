@@ -135,7 +135,7 @@ bool CGovernanceObject::ProcessVote(CNode* pfrom,
         return false;
     }
 
-    auto it = mapCurrentMNVotes.emplace(vote_m_t::value_type(vote.GetMasternodeOutpoint(), vote_rec_t())).first;
+    vote_m_it it = mapCurrentMNVotes.emplace(vote_m_t::value_type(vote.GetMasternodeOutpoint(), vote_rec_t())).first;
     vote_rec_t& voteRecordRef = it->second;
     vote_signal_enum_t eSignal = vote.GetSignal();
     if (eSignal == VOTE_SIGNAL_NONE) {
@@ -152,7 +152,7 @@ bool CGovernanceObject::ProcessVote(CNode* pfrom,
         exception = CGovernanceException(ostr.str(), GOVERNANCE_EXCEPTION_PERMANENT_ERROR, 20);
         return false;
     }
-    auto it2 = voteRecordRef.mapInstances.emplace(vote_instance_m_t::value_type(int(eSignal), vote_instance_t())).first;
+    vote_instance_m_it it2 = voteRecordRef.mapInstances.emplace(vote_instance_m_t::value_type(int(eSignal), vote_instance_t())).first;
     vote_instance_t& voteInstanceRef = it2->second;
 
     // Reject obsolete votes
@@ -233,7 +233,7 @@ void CGovernanceObject::ClearMasternodeVotes()
 
     auto mnList = deterministicMNManager->GetListAtChainTip();
 
-    auto it = mapCurrentMNVotes.begin();
+    vote_m_it it = mapCurrentMNVotes.begin();
     while (it != mapCurrentMNVotes.end()) {
         if (!mnList.HasValidMNByCollateral(it->first)) {
             fileVotes.RemoveVotesFromMasternode(it->first);
@@ -613,7 +613,7 @@ bool CGovernanceObject::IsCollateralValid(std::string& strError, bool& fMissingC
     AssertLockHeld(cs_main);
     int nConfirmationsIn = 0;
     if (nBlockHash != uint256()) {
-        auto mi = mapBlockIndex.find(nBlockHash);
+        BlockMap::iterator mi = mapBlockIndex.find(nBlockHash);
         if (mi != mapBlockIndex.end() && (*mi).second) {
             CBlockIndex* pindex = (*mi).second;
             if (chainActive.Contains(pindex)) {
@@ -647,7 +647,7 @@ int CGovernanceObject::CountMatchingVotes(vote_signal_enum_t eVoteSignalIn, vote
     int nCount = 0;
     for (const auto& votepair : mapCurrentMNVotes) {
         const vote_rec_t& recVote = votepair.second;
-        auto it2 = recVote.mapInstances.find(eVoteSignalIn);
+        vote_instance_m_cit it2 = recVote.mapInstances.find(eVoteSignalIn);
         if (it2 != recVote.mapInstances.end() && it2->second.eOutcome == eVoteOutcomeIn) {
             ++nCount;
         }
@@ -688,7 +688,7 @@ bool CGovernanceObject::GetCurrentMNVotes(const COutPoint& mnCollateralOutpoint,
 {
     LOCK(cs);
 
-    auto it = mapCurrentMNVotes.find(mnCollateralOutpoint);
+    vote_m_cit it = mapCurrentMNVotes.find(mnCollateralOutpoint);
     if (it == mapCurrentMNVotes.end()) {
         return false;
     }
@@ -747,7 +747,7 @@ void CGovernanceObject::CheckOrphanVotes(CConnman& connman)
     int64_t nNow = GetAdjustedTime();
     auto mnList = deterministicMNManager->GetListAtChainTip();
     const vote_cmm_t::list_t& listVotes = cmmapOrphanVotes.GetItemList();
-    auto it = listVotes.begin();
+    vote_cmm_t::list_cit it = listVotes.begin();
     while (it != listVotes.end()) {
         bool fRemove = false;
         const COutPoint& key = it->key;
