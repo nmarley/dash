@@ -31,13 +31,25 @@ bool CheckProposalTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVal
         return state.DoS(100, false, REJECT_INVALID, "bad-proptx-height");
     }
 
+    // TODO:
+    //     * Ensure start & end height are SB heights
+    //     * Ensure amount is positive and under the budget limit for startHeight
+    //       (all future block heights will have the same or smaller budget)
+    //     * Ensure payout script is valid
+    //     * Validate name / URL
+
     return true;
 }
 
 std::string CProposalTx::ToString() const
 {
-    return strprintf("CProposalTx(nHeight=%d, nVersion=%d, TODO/finish...)",
-        nVersion, nHeight);
+    return strprintf(
+        "CProposalTx(nHeight=%d, nVersion=%d, nStartHeight=%d, nEndHeight=%d)",
+        nVersion,
+        nHeight,
+        nStartHeight,
+        nEndHeight
+    );
 }
 
 void CProposalTx::ToJson(UniValue& obj) const
@@ -46,5 +58,7 @@ void CProposalTx::ToJson(UniValue& obj) const
     obj.setObject();
     obj.push_back(Pair("version", (int)nVersion));
     obj.push_back(Pair("height", (int)nHeight));
-    // TODO: Finish...
+    obj.push_back(Pair("startHeight", (int)nStartHeight));
+    obj.push_back(Pair("endHeight", (int)nEndHeight));
+    obj.push_back(Pair("amount", nAmount));
 }

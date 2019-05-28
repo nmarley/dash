@@ -21,8 +21,11 @@ public:
 public:
     uint16_t nVersion{CURRENT_VERSION};
     int32_t nHeight{0};
-    uint256 merkleRootMNList;
-    uint256 merkleRootQuorums;
+
+    //payload data
+    int32_t nStartHeight{0};
+    int32_t nEndHeight{0};
+    CAmount nAmount{0};
 
 public:
     ADD_SERIALIZE_METHODS;
@@ -32,11 +35,8 @@ public:
     {
         READWRITE(nVersion);
         READWRITE(nHeight);
-        READWRITE(merkleRootMNList);
-
-        if (nVersion >= 2) {
-            READWRITE(merkleRootQuorums);
-        }
+        READWRITE(nStartHeight);
+        READWRITE(nEndHeight);
     }
 
     std::string ToString() const;
@@ -44,9 +44,5 @@ public:
 };
 
 bool CheckProposalTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state);
-
-bool CheckCbTxMerkleRoots(const CBlock& block, const CBlockIndex* pindex, CValidationState& state);
-bool CalcCbTxMerkleRootMNList(const CBlock& block, const CBlockIndex* pindexPrev, uint256& merkleRootRet, CValidationState& state);
-bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPrev, uint256& merkleRootRet, CValidationState& state);
 
 #endif //DASH_PROPOSALTX_H
