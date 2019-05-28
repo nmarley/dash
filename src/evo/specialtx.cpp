@@ -39,6 +39,10 @@ bool CheckSpecialTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVali
         return CheckCbTx(tx, pindexPrev, state);
     case TRANSACTION_QUORUM_COMMITMENT:
         return llmq::CheckLLMQCommitment(tx, pindexPrev, state);
+    case TRANSACTION_PROPOSAL:
+        return CheckProposalTX(tx, pindexPrev, state);
+    case TRANSACTION_PROPOSAL_VOTE:
+        return CheckProposalVoteTx(tx, pindexPrev, state);
     }
 
     return state.DoS(10, false, REJECT_INVALID, "bad-tx-type-check");
@@ -60,6 +64,9 @@ bool ProcessSpecialTx(const CTransaction& tx, const CBlockIndex* pindex, CValida
         return true; // nothing to do
     case TRANSACTION_QUORUM_COMMITMENT:
         return true; // handled per block
+    case TRANSACTION_PROPOSAL:
+    case TRANSACTION_PROPOSAL_VOTE:
+        return true;
     }
 
     return state.DoS(100, false, REJECT_INVALID, "bad-tx-type-proc");
@@ -81,6 +88,9 @@ bool UndoSpecialTx(const CTransaction& tx, const CBlockIndex* pindex)
         return true; // nothing to do
     case TRANSACTION_QUORUM_COMMITMENT:
         return true; // handled per block
+    case TRANSACTION_PROPOSAL:
+    case TRANSACTION_PROPOSAL_VOTE:
+        return true;
     }
 
     return false;
