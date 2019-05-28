@@ -44,11 +44,13 @@ bool CheckProposalTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVal
 std::string CProposalTx::ToString() const
 {
     return strprintf(
-        "CProposalTx(nHeight=%d, nVersion=%d, nStartHeight=%d, nEndHeight=%d)",
+        "CProposalTx(nHeight=%d, nVersion=%d, nStartHeight=%d, nEndHeight=%d,"
+        "nAmount=%lld)",
         nVersion,
         nHeight,
         nStartHeight,
-        nEndHeight
+        nEndHeight,
+        nAmount,
     );
 }
 
