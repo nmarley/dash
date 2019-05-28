@@ -46,9 +46,8 @@ bool CheckProposalTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVal
 
     // Ensure amount is positive and under the budget limit for startHeight
     // (all future block heights will have the same or smaller budget)
-    CAmount nStartHeightBudget = CSuperblock::GetPaymentsLimit(nStartHeight)
+    CAmount nStartHeightBudget = CSuperblock::GetPaymentsLimit(nStartHeight);
 
-            ;
     if (propTx.nAmount > nStartHeightBudget) {
         return state.DoS(100, false, REJECT_INVALID, "bad-proptx-amount");
     }

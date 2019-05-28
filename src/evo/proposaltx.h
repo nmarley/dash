@@ -18,16 +18,15 @@ class CProposalTx
 public:
     static const uint16_t CURRENT_VERSION = 1;
 
-public:
     uint16_t nVersion{CURRENT_VERSION};
     int32_t nHeight{0};
 
-    //payload data
+    // payload data
     int32_t nStartHeight{0};
     int32_t nEndHeight{0};
     CAmount nAmount{0};
+    CScript scriptPayout;
 
-public:
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
