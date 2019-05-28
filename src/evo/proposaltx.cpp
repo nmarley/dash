@@ -31,10 +31,29 @@ bool CheckProposalTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVal
         return state.DoS(100, false, REJECT_INVALID, "bad-proptx-height");
     }
 
+    // Ensure start & end height are superblock heights
+    const Consensus::Params& consensusParams = Params().GetConsensus();
+
+    // start height must be a superblock height
+    if ((propTx.nStartHeight % consensusParams.nBudgetPaymentsCycleBlocks) != 0) {
+        return state.DoS(100, false, REJECT_INVALID, "bad-proptx-start-height");
+    }
+
+    // end height must be a superblock height
+    if ((propTx.nEndHeight % consensusParams.nBudgetPaymentsCycleBlocks) != 0) {
+        return state.DoS(100, false, REJECT_INVALID, "bad-proptx-end-height");
+    }
+
+    // Ensure amount is positive and under the budget limit for startHeight
+    // (all future block heights will have the same or smaller budget)
+    CAmount nStartHeightBudget = CSuperblock::GetPaymentsLimit(nStartHeight)
+
+            ;
+    if (propTx.nAmount > nStartHeightBudget) {
+        return state.DoS(100, false, REJECT_INVALID, "bad-proptx-amount");
+    }
+
     // TODO:
-    //     * Ensure start & end height are SB heights
-    //     * Ensure amount is positive and under the budget limit for startHeight
-    //       (all future block heights will have the same or smaller budget)
     //     * Ensure payout script is valid
     //     * Validate name / URL
 
