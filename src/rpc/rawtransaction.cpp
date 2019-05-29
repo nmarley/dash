@@ -32,6 +32,7 @@
 
 #include "evo/specialtx.h"
 #include "evo/providertx.h"
+#include "evo/proposaltx.h"
 #include "evo/cbtx.h"
 
 #include "llmq/quorums_chainlocks.h"
@@ -185,13 +186,13 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
             propTx.ToJson(obj);
             entry.push_back(Pair("propTx", obj));
         }
-    } else if (tx.nType == TRANSACTION_PROPOSAL_VOTE) {
-        CProposalVoteTx propVoteTx;
-        if (GetTxPayload(tx, propVoteTx)) {
-            UniValue obj;
-            propVoteTx.ToJson(obj);
-            entry.push_back(Pair("propVoteTx", obj));
-        }
+    //} else if (tx.nType == TRANSACTION_PROPOSAL_VOTE) {
+    //    CProposalVoteTx propVoteTx;
+    //    if (GetTxPayload(tx, propVoteTx)) {
+    //        UniValue obj;
+    //        propVoteTx.ToJson(obj);
+    //        entry.push_back(Pair("propVoteTx", obj));
+    //    }
     }
 
     bool chainLock = false;
