@@ -10,6 +10,7 @@
 #include "primitives/transaction.h"
 #include "validation.h"
 
+#include "proposaltx.h"
 #include "cbtx.h"
 #include "deterministicmns.h"
 #include "specialtx.h"
@@ -40,9 +41,9 @@ bool CheckSpecialTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVali
     case TRANSACTION_QUORUM_COMMITMENT:
         return llmq::CheckLLMQCommitment(tx, pindexPrev, state);
     case TRANSACTION_PROPOSAL:
-        return CheckProposalTX(tx, pindexPrev, state);
-    case TRANSACTION_PROPOSAL_VOTE:
-        return CheckProposalVoteTx(tx, pindexPrev, state);
+        return CheckProposalTx(tx, pindexPrev, state);
+//    case TRANSACTION_PROPOSAL_VOTE:
+//        return CheckProposalVoteTx(tx, pindexPrev, state);
     }
 
     return state.DoS(10, false, REJECT_INVALID, "bad-tx-type-check");

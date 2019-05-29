@@ -31,6 +31,7 @@
 
 #include "evo/specialtx.h"
 #include "evo/providertx.h"
+#include "evo/proposaltx.h"
 #include "evo/cbtx.h"
 
 #include "llmq/quorums_chainlocks.h"

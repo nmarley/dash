@@ -285,13 +285,13 @@ void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry,
             propTx.ToJson(obj);
             entry.push_back(Pair("propTx", obj));
         }
-    } else if (tx.nType == TRANSACTION_PROPOSAL_VOTE) {
-        CProposalVoteTx propVoteTx;
-        if (GetTxPayload(tx, propVoteTx)) {
-            UniValue obj;
-            propVoteTx.ToJson(obj);
-            entry.push_back(Pair("propVoteTx", obj));
-        }
+    //} else if (tx.nType == TRANSACTION_PROPOSAL_VOTE) {
+    //    CProposalVoteTx propVoteTx;
+    //    if (GetTxPayload(tx, propVoteTx)) {
+    //        UniValue obj;
+    //        propVoteTx.ToJson(obj);
+    //        entry.push_back(Pair("propVoteTx", obj));
+    //    }
     }
 
     if (!hashBlock.IsNull())
