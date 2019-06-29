@@ -460,7 +460,30 @@ bool CGovernanceObject::IsValidLocally(std::string& strError, bool& fMissingConf
 
     switch (nObjectType) {
     case GOVERNANCE_OBJECT_PROPOSAL: {
-        CProposalValidator validator(GetDataAsHexString(), true);
+        // TODO: Once these all roll off, remove legacy logic altogether.
+        // (latest proposal date : 1568438864 = 2019-09-14 05:27:44 UTC)
+        bool fAllowLegacyFormat = false;
+        auto theHash = GetHash().ToString();
+
+        // hard-coded existing hashes for legacy formatted proposals
+        if (
+            theHash == "ae0c74360647da44869af83ee324794de8f908df8bf67e6e0b7614ea90eb3303" ||
+            theHash == "4369cdf9f421c39028d6baf5d3bf61603aa44c0a22b3649ace5bf3f923ad7404" ||
+            theHash == "d2db7c657def49293287fb5118edadc73a48258acb0b967e9ae4247276a3d10e" ||
+            theHash == "3e0eb47f98fa35c6e7659749eabf520263629581b9d7d4f2e72ac42a1f77800f" ||
+            theHash == "1b8fc1d024f23e97ca4f956b64ea7eb3af789cebb8ff0ab07aef3a78bdc83d13" ||
+            theHash == "54f17c8d2b9cec9a4bbdeb75584834fcbe834d2bed1fe6f63ccc7e5006130b52" ||
+            theHash == "b33aee1852fac9cea0ef1baafefd18e6751fc864ef49ee684f6aee9845f37058" ||
+            theHash == "589580b9c27a673ef94e7a2831b2d4f7482876c799952c790ae808818b84a25d" ||
+            theHash == "335a1e8f41e3baeabe552c16c9da15e6214b7e5dc9f5acc20d9d2e78158d0d7c" ||
+            theHash == "090f18fb8658ee3db4abd0fb3e71aa92e041a5ba9727ba7239a29908765a58a6" ||
+            theHash == "75e063d60f75ab9fbd9a6c4760a4a115a9118b4e1be9a23a31a89ae4d5988eb4" ||
+            theHash == "9659de6bd6204d5487f91db2c2e12b00cf7276ed6e12da20803e9d9c033b57fa"
+        ) {
+            fAllowLegacyFormat = true;
+        }
+
+        CProposalValidator validator(GetDataAsHexString(), fAllowLegacyFormat);
         // Note: It's ok to have expired proposals
         // they are going to be cleared by CGovernanceManager::UpdateCachesAndClean()
         // TODO: should they be tagged as "expired" to skip vote downloading?
