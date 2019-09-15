@@ -1,0 +1,29 @@
+From 9001793eb91b5882319aaf812ccd1d792ee85e27 Mon Sep 17 00:00:00 2001
+From: Nathan Marley <nathan.marley@gmail.com>
+Date: Sun, 15 Sep 2019 11:16:29 -0300
+Subject: [PATCH] Patch OpenSSL termios for Alpine
+
+---
+ crypto/ui/ui_openssl.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/crypto/ui/ui_openssl.c b/crypto/ui/ui_openssl.c
+index a38c758..d99edc2 100644
+--- a/crypto/ui/ui_openssl.c
++++ b/crypto/ui/ui_openssl.c
+@@ -190,9 +190,9 @@
+ # undef  SGTTY
+ #endif
+ 
+-#if defined(linux) && !defined(TERMIO)
+-# undef  TERMIOS
+-# define TERMIO
++#if defined(linux)
++# define TERMIOS
++# undef  TERMIO
+ # undef  SGTTY
+ #endif
+ 
+-- 
+2.23.0
+
