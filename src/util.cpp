@@ -605,7 +605,7 @@ std::string HelpMessageOpt(const std::string &option, const std::string &message
 
 static std::string FormatException(const std::exception_ptr pex, const char* pszThread)
 {
-    return GetPrettyExceptionStr(pex);
+    return strprintf("EXCEPTION: %s", GetPrettyExceptionStr(pex));
 }
 
 void PrintExceptionContinue(const std::exception_ptr pex, const char* pszThread)
