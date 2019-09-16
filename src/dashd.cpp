@@ -20,7 +20,6 @@
 #include "httpserver.h"
 #include "httprpc.h"
 #include "utilstrencodings.h"
-#include "stacktraces.h"
 
 #include <boost/thread.hpp>
 
@@ -174,8 +173,11 @@ bool AppInit(int argc, char* argv[])
             exit(EXIT_FAILURE);
         }
         fRet = AppInitMain(threadGroup, scheduler);
+    }
+    catch (const std::exception& e) {
+        PrintExceptionContinue(&e, "AppInit()");
     } catch (...) {
-        PrintExceptionContinue(std::current_exception(), "AppInit()");
+        PrintExceptionContinue(NULL, "AppInit()");
     }
 
     if (!fRet)
@@ -194,9 +196,6 @@ bool AppInit(int argc, char* argv[])
 
 int main(int argc, char* argv[])
 {
-    RegisterPrettyTerminateHander();
-    RegisterPrettySignalHandlers();
-
     SetupEnvironment();
 
     // Connect dashd signal handlers

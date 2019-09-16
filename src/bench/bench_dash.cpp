@@ -6,7 +6,6 @@
 
 #include "crypto/sha256.h"
 #include "key.h"
-#include "stacktraces.h"
 #include "validation.h"
 #include "util.h"
 
@@ -20,9 +19,6 @@ int
 main(int argc, char** argv)
 {
     SHA256AutoDetect();
-
-    RegisterPrettySignalHandlers();
-    RegisterPrettyTerminateHander();
 
     ECC_Start();
     ECCVerifyHandle verifyHandle;
