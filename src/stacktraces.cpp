@@ -288,6 +288,8 @@ static int dl_iterate_callback(struct dl_phdr_info* info, size_t s, void* data)
     if (info->dlpi_name == nullptr || info->dlpi_name[0] == '\0') {
         *p = info->dlpi_addr;
     }
+
+    return (int)*p;
 }
 
 static uint64_t GetBaseAddress()
