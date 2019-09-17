@@ -50,6 +50,30 @@
 #include <backtrace.h>
 #include <string.h>
 
+#if !__GLIBC__ && !WIN32 && !__APPLE__
+int     backtrace(void **, int);
+char ** backtrace_symbols(void *const *, int);
+void    backtrace_symbols_fd(void *const *, int, int);
+
+int
+backtrace(void **buffer, int size)
+{
+    return size;
+}
+
+char **
+backtrace_symbols(void *const *buffer, int size)
+{
+    char **rval;
+    return rval;
+}
+
+void
+backtrace_symbols_fd(void *const *buffer, int size, int fd)
+{
+}
+#endif
+
 std::string DemangleSymbol(const std::string& name)
 {
 #if __GNUC__ || __clang__
