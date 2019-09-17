@@ -26,9 +26,11 @@
 #include <windows.h>
 #include <dbghelp.h>
 #else
-#include <execinfo.h>
 #include <unistd.h>
 #include <signal.h>
+#if __GLIBC__ // GNU-specific header
+#include <execinfo.h>
+#endif
 #endif
 
 #if !WIN32
