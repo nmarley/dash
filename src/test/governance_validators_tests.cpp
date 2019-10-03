@@ -20,7 +20,7 @@ extern UniValue read_json(const std::string& jsondata);
 
 BOOST_FIXTURE_TEST_SUITE(governance_validators_tests, BasicTestingSetup)
 
-std::string CreateEncodedProposalObject(const UniValue& objJSON)
+std::string CreateLegacyProposalObject(const UniValue& objJSON)
 {
     UniValue innerArray(UniValue::VARR);
     innerArray.push_back(UniValue("proposal"));
@@ -44,7 +44,7 @@ BOOST_AUTO_TEST_CASE(valid_proposals_test)
         const UniValue& objProposal = tests[i];
 
         // legacy format (invalid now)
-        std::string strHexData1 = CreateEncodedProposalObject(objProposal);
+        std::string strHexData1 = CreateLegacyProposalObject(objProposal);
         CProposalValidator validator1(strHexData1);
         BOOST_CHECK(!validator1.Validate());
         BOOST_CHECK_EQUAL(validator1.GetErrorMessages(), "Invalid proposal serialization;JSON parsing error;");
