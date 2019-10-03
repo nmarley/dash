@@ -14,10 +14,9 @@
 const size_t MAX_DATA_SIZE = 512;
 const size_t MAX_NAME_SIZE = 40;
 
-CProposalValidator::CProposalValidator(const std::string& strHexData, bool fAllowLegacyFormat) :
+CProposalValidator::CProposalValidator(const std::string& strHexData) :
     objJSON(UniValue::VOBJ),
     fJSONValid(false),
-    fAllowLegacyFormat(fAllowLegacyFormat),
     strErrorMessages()
 {
     if (!strHexData.empty()) {
