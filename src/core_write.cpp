@@ -19,6 +19,7 @@
 
 #include "evo/cbtx.h"
 #include "evo/providertx.h"
+#include "evo/proposaltx.h"
 #include "evo/specialtx.h"
 #include "llmq/quorums_commitment.h"
 
