@@ -205,17 +205,10 @@ void CProposalValidator::ParseJSONData(const std::string& strJSONData)
 
         obj.read(strJSONData);
 
-        if (obj.isObject()) {
-            objJSON = obj;
-        } else {
-            if (fAllowLegacyFormat) {
-                std::vector<UniValue> arr1 = obj.getValues();
-                std::vector<UniValue> arr2 = arr1.at(0).getValues();
-                objJSON = arr2.at(1);
-            } else {
-                throw std::runtime_error("Legacy proposal serialization format not allowed");
-            }
+        if (!obj.isObject()) {
+            throw std::runtime_error("Invalid proposal serialization");
         }
+        objJSON = obj;
 
         fJSONValid = true;
     } catch (std::exception& e) {

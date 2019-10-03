@@ -52,7 +52,7 @@ BOOST_AUTO_TEST_CASE(valid_proposals_test)
         // legacy format w/validation flag off
         CProposalValidator validator0(strHexData1, false);
         BOOST_CHECK(!validator0.Validate());
-        BOOST_CHECK_EQUAL(validator0.GetErrorMessages(), "Legacy proposal serialization format not allowed;JSON parsing error;");
+        BOOST_CHECK_EQUAL(validator0.GetErrorMessages(), "Invalid proposal serialization;JSON parsing error;");
 
         // new format
         std::string strHexData2 = HexStr(objProposal.write());
