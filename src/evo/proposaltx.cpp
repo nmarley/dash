@@ -40,19 +40,29 @@ bool CheckProposalTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVal
         return state.DoS(100, false, REJECT_INVALID, "bad-proptx-start-height");
     }
 
-    // end height must be a superblock height
-    if ((propTx.nEndHeight % consensusParams.nBudgetPaymentsCycleBlocks) != 0) {
-        return state.DoS(100, false, REJECT_INVALID, "bad-proptx-end-height");
+    // num periods must be greater than 0
+    if (propTx.nNumPeriods <= 0) {
+        return state.DoS(100, false, REJECT_INVALID, "bad-proptx-num-periods");
     }
 
-    // Ensure amount is positive and under the budget limit for startHeight
-    // (all future block heights will have the same or smaller budget)
-    CAmount nStartHeightBudget = CSuperblock::GetPaymentsLimit(propTx.nStartHeight);
-    if (propTx.nAmount > nStartHeightBudget) {
-        return state.DoS(100, false, REJECT_INVALID, "bad-proptx-amount");
+    // Validate funding proposal rules
+    if (propTx.nProposalType == PropTxType::Funding) {
+        // Ensure amount is positive and under the budget limit for startHeight
+        // (all future block heights will have the same or smaller budget)
+        CAmount nStartHeightBudget = CSuperblock::GetPaymentsLimit(propTx.nStartHeight);
+        if (propTx.nAmount > nStartHeightBudget) {
+            return state.DoS(100, false, REJECT_INVALID, "bad-proptx-amount");
+        }
+    }
+
+    // Validate governance change proposal rules
+    if (propTx.nProposalType == PropTxType::GovChange) {
+        // amount == 0
+        // script is empty
     }
 
     // TODO:
+    //     * Checks for proptx type (funding vs gov change)
     //     * Ensure payout script is valid
     //     * Validate name / URL
 
