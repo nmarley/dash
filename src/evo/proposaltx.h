@@ -7,6 +7,8 @@
 
 #include "consensus/validation.h"
 #include "primitives/transaction.h"
+
+#include "base58.h"
 #include "pubkey.h"
 #include "univalue.h"
 
@@ -14,7 +16,7 @@ class CBlock;
 class CBlockIndex;
 
 /** Proposal types */
-enum class PropTxType : uint8_t {
+enum class PropTxType {
     Funding = 1,
     GovChange = 2,
 };
@@ -63,10 +65,23 @@ public:
         obj.clear();
         obj.setObject();
         obj.push_back(Pair("version", (int)nVersion));
+        obj.push_back(Pair("proposalType", (int)nProposalType));
         obj.push_back(Pair("height", (int)nHeight));
         obj.push_back(Pair("startHeight", (int)nStartHeight));
         obj.push_back(Pair("numPeriods", (int)nNumPeriods));
         obj.push_back(Pair("amount", nAmount));
+
+        CTxDestination dest;
+        if (ExtractDestination(scriptPayout, dest)) {
+            CBitcoinAddress bitcoinAddress(dest);
+            obj.push_back(Pair("payoutAddress", bitcoinAddress.ToString()));
+        }
+        // obj.push_back(Pair("scriptPayout", scriptPayout));
+
+        obj.push_back(Pair("strName", strName));
+        obj.push_back(Pair("strURL", strURL));
+        obj.push_back(Pair("ownerAddress", CBitcoinAddress(ownerKey).ToString()));
+
     }
 };
 

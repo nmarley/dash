@@ -57,8 +57,12 @@ bool CheckProposalTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVal
 
     // Validate governance change proposal rules
     if (propTx.nProposalType == (uint8_t)PropTxType::GovChange) {
-        // amount == 0
-        // script is empty
+        if (propTx.nAmount != 0) {
+            return state.DoS(100, false, REJECT_INVALID, "bad-proptx-amount");
+        }
+        if (propTx.scriptPayout != CScript()) {
+            return state.DoS(100, false, REJECT_INVALID, "bad-proptx-payout");
+        }
     }
 
     // TODO:
