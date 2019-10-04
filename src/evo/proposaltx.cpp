@@ -81,14 +81,3 @@ std::string CProposalTx::ToString() const
         nAmount
     );
 }
-
-void CProposalTx::ToJson(UniValue& obj) const
-{
-    obj.clear();
-    obj.setObject();
-    obj.push_back(Pair("version", (int)nVersion));
-    obj.push_back(Pair("height", (int)nHeight));
-    obj.push_back(Pair("startHeight", (int)nStartHeight));
-    obj.push_back(Pair("numPeriods", (int)nNumPeriods));
-    obj.push_back(Pair("amount", nAmount));
-}

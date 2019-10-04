@@ -8,10 +8,10 @@
 #include "consensus/validation.h"
 #include "primitives/transaction.h"
 #include "pubkey.h"
+#include "univalue.h"
 
 class CBlock;
 class CBlockIndex;
-class UniValue;
 
 /** Proposal types */
 enum class PropTxType : uint8_t {
@@ -58,7 +58,16 @@ public:
     }
 
     std::string ToString() const;
-    void ToJson(UniValue& obj) const;
+
+    void ToJson(UniValue& obj) const {
+        obj.clear();
+        obj.setObject();
+        obj.push_back(Pair("version", (int)nVersion));
+        obj.push_back(Pair("height", (int)nHeight));
+        obj.push_back(Pair("startHeight", (int)nStartHeight));
+        obj.push_back(Pair("numPeriods", (int)nNumPeriods));
+        obj.push_back(Pair("amount", nAmount));
+    }
 };
 
 bool CheckProposalTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state);
