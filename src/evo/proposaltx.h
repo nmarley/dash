@@ -7,13 +7,14 @@
 
 #include "consensus/validation.h"
 #include "primitives/transaction.h"
+#include "pubkey.h"
 
 class CBlock;
 class CBlockIndex;
 class UniValue;
 
 /** Proposal types */
-enum class PropTxType {
+enum class PropTxType : uint8_t {
     Funding = 1,
     GovChange = 2,
 };

@@ -46,7 +46,7 @@ bool CheckProposalTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVal
     }
 
     // Validate funding proposal rules
-    if (propTx.nProposalType == PropTxType::Funding) {
+    if (propTx.nProposalType == (uint8_t)PropTxType::Funding) {
         // Ensure amount is positive and under the budget limit for startHeight
         // (all future block heights will have the same or smaller budget)
         CAmount nStartHeightBudget = CSuperblock::GetPaymentsLimit(propTx.nStartHeight);
@@ -56,7 +56,7 @@ bool CheckProposalTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVal
     }
 
     // Validate governance change proposal rules
-    if (propTx.nProposalType == PropTxType::GovChange) {
+    if (propTx.nProposalType == (uint8_t)PropTxType::GovChange) {
         // amount == 0
         // script is empty
     }
@@ -72,12 +72,12 @@ bool CheckProposalTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVal
 std::string CProposalTx::ToString() const
 {
     return strprintf(
-        "CProposalTx(nHeight=%d, nVersion=%d, nStartHeight=%d, nEndHeight=%d,"
+        "CProposalTx(nHeight=%d, nVersion=%d, nStartHeight=%d, nNumPeriods=%d,"
         "nAmount=%lld)",
         nVersion,
         nHeight,
         nStartHeight,
-        nEndHeight,
+        nNumPeriods,
         nAmount
     );
 }
@@ -89,6 +89,6 @@ void CProposalTx::ToJson(UniValue& obj) const
     obj.push_back(Pair("version", (int)nVersion));
     obj.push_back(Pair("height", (int)nHeight));
     obj.push_back(Pair("startHeight", (int)nStartHeight));
-    obj.push_back(Pair("endHeight", (int)nEndHeight));
+    obj.push_back(Pair("numPeriods", (int)nNumPeriods));
     obj.push_back(Pair("amount", nAmount));
 }
