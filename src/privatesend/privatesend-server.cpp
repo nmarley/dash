@@ -477,8 +477,9 @@ void CPrivateSendServer::ChargeFees(CConnman& connman)
     //everyone is an offender? That's not right
     if ((int)vecOffendersCollaterals.size() >= nSessionMaxParticipants) return;
 
-    //charge one of the offenders randomly
-    std::random_shuffle(vecOffendersCollaterals.begin(), vecOffendersCollaterals.end());
+    // charge one of the offenders randomly
+    FastRandomContext insecure_rand;
+    std::shuffle(vecOffendersCollaterals.begin(), vecOffendersCollaterals.end(), insecure_rand);
 
     if (nState == POOL_STATE_ACCEPTING_ENTRIES || nState == POOL_STATE_SIGNING) {
         LogPrint(BCLog::PRIVATESEND, "CPrivateSendServer::ChargeFees -- found uncooperative node (didn't %s transaction), charging fees: %s",

@@ -2937,7 +2937,8 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const int nConfMin
     std::vector<CInputCoin> vValue;
     CAmount nTotalLower = 0;
 
-    random_shuffle(vCoins.begin(), vCoins.end(), GetRandInt);
+    FastRandomContext insecure_rand;
+    std::shuffle(vCoins.begin(), vCoins.end(), insecure_rand);
 
     int tryDenomStart = 0;
     CAmount nMinChange = MIN_CHANGE;
@@ -3241,7 +3242,7 @@ bool CWallet::SelectPSInOutPairsByDenominations(int nDenom, CAmount nValueMin, C
     AvailableCoins(vCoins, true, nullptr, 1, MAX_MONEY, MAX_MONEY, 0, 0, 9999999, ONLY_DENOMINATED);
     LogPrint(BCLog::PRIVATESEND, "CWallet::%s -- vCoins.size(): %d\n", __func__, vCoins.size());
 
-    std::random_shuffle(vCoins.rbegin(), vCoins.rend(), GetRandInt);
+    std::shuffle(vCoins.rbegin(), vCoins.rend(), GetRandInt);
 
     std::vector<CAmount> vecPrivateSendDenominations = CPrivateSend::GetStandardDenominations();
     for (const auto& out : vCoins) {

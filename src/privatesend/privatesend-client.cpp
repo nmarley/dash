@@ -1007,9 +1007,9 @@ CDeterministicMNCPtr CPrivateSendClientManager::GetRandomNotUsedMasternode()
         vpMasternodesShuffled.emplace_back(dmn);
     });
 
-    FastRandomContext insecure_rand;
     // shuffle pointers
-    std::random_shuffle(vpMasternodesShuffled.begin(), vpMasternodesShuffled.end(), insecure_rand);
+    FastRandomContext insecure_rand;
+    std::shuffle(vpMasternodesShuffled.begin(), vpMasternodesShuffled.end(), insecure_rand);
 
     std::set<COutPoint> excludeSet(vecMasternodesUsed.begin(), vecMasternodesUsed.end());
 
