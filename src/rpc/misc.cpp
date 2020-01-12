@@ -304,14 +304,14 @@ UniValue spork(const JSONRPCRequest& request)
             throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
 
         // SPORK VALUE
-        int64_t nValue = request.params[1].get_int64();
+        int64_t nValue = request.params[2].get_int64();
 
         //broadcast new spork
         if(sporkManager.UpdateSpork(nSporkID, nValue, *g_connman)){
             return "success";
         } else {
             throw std::runtime_error(
-                "spork \"name\" value\n"
+                "spork set \"name\" value\n"
                 "\nUpdate the value of the specific spork. Requires \"-sporkkey\" to be set to sign the message.\n"
                 "\nArguments:\n"
                 "1. \"name\"              (string, required) The name of the spork to update\n"
@@ -319,8 +319,9 @@ UniValue spork(const JSONRPCRequest& request)
                 "\nResult:\n"
                 "  result               (string) \"success\" if spork value was updated or this help otherwise\n"
                 "\nExamples:\n"
-                + HelpExampleCli("spork", "SPORK_2_INSTANTSEND_ENABLED 4070908800")
-                + HelpExampleRpc("spork", "\"SPORK_2_INSTANTSEND_ENABLED\", 4070908800"));
+                + HelpExampleCli("spork", "set SPORK_2_INSTANTSEND_ENABLED 4070908800")
+                + HelpExampleRpc("spork", "\"set\" \"SPORK_2_INSTANTSEND_ENABLED\", 4070908800")
+            );
         }
     }
 
