@@ -254,48 +254,49 @@ public:
 */
 UniValue spork(const JSONRPCRequest& request)
 {
-    if (request.params.size() == 1) {
-        // basic mode, show info
-        std:: string strCommand = request.params[0].get_str();
-        if (strCommand == "show") {
-            UniValue ret(UniValue::VOBJ);
-            for (const auto& sporkDef : sporkDefs) {
-                ret.push_back(Pair(sporkDef.name, sporkManager.GetSporkValue(sporkDef.sporkId)));
-            }
-            return ret;
-        } else if(strCommand == "active"){
-            UniValue ret(UniValue::VOBJ);
-            for (const auto& sporkDef : sporkDefs) {
-                ret.push_back(Pair(sporkDef.name, sporkManager.IsSporkActive(sporkDef.sporkId)));
-            }
-            return ret;
-        }
-    }
 
-    if (request.fHelp || request.params.size() != 2) {
+    // spork show
+    // spork active (deprecate)
+    // spork set SPORK_NAME value
+
+    if (request.fHelp || (request.params.size() != 1 && request.params.size() != 3)) {
         // default help, for basic mode
         throw std::runtime_error(
             "spork \"command\"\n"
             "\nShows information about current state of sporks\n"
             "\nArguments:\n"
-            "1. \"command\"                     (string, required) 'show' to show all current spork values, 'active' to show which sporks are active\n"
+            "1. \"command\"                     (string, required) 'show' to show all current spork values and active status\n"
             "\nResult:\n"
             "For 'show':\n"
             "{\n"
-            "  \"SPORK_NAME\" : spork_value,    (number) The value of the specific spork with the name SPORK_NAME\n"
-            "  ...\n"
-            "}\n"
-            "For 'active':\n"
-            "{\n"
-            "  \"SPORK_NAME\" : true|false,     (boolean) 'true' for time-based sporks if spork is active and 'false' otherwise\n"
+            "  \"name\" : SPORK_NAME,    (string) The SPORK_NAME of this specific spork\n"
+            "  \"value\" : value,    (number) The value of the specific spork with the name SPORK_NAME\n"
+            "  \"active\" : true|false,     (boolean) 'true' for time-based sporks if spork is active and 'false' otherwise\n"
             "  ...\n"
             "}\n"
             "\nExamples:\n"
             + HelpExampleCli("spork", "show")
-            + HelpExampleRpc("spork", "\"show\""));
-    } else {
+            + HelpExampleRpc("spork", "\"show\"")
+        );
+    }
+
+    std::string strCommand = request.params[0].get_str();
+
+    // basic mode, show info
+    if (strCommand == "show" || strCommand == "active") {
+        UniValue ret(UniValue::VARR);
+        for (const auto& sporkDef : sporkDefs) {
+            UniValue sporkObjRet(UniValue::VOBJ);
+            sporkObjRet.push_back(Pair("name", sporkDef.name));
+            sporkObjRet.push_back(Pair("value", sporkManager.GetSporkValue(sporkDef.sporkId)));
+            sporkObjRet.push_back(Pair("active", sporkManager.IsSporkActive(sporkDef.sporkId)));
+            ret.push_back(sporkObjRet);
+        }
+        return ret;
+    }
+    if (strCommand == "set") {
         // advanced mode, update spork values
-        SporkId nSporkID = sporkManager.GetSporkIDByName(request.params[0].get_str());
+        SporkId nSporkID = sporkManager.GetSporkIDByName(request.params[1].get_str());
         if(nSporkID == SPORK_INVALID)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid spork name");
 
@@ -322,6 +323,7 @@ UniValue spork(const JSONRPCRequest& request)
                 + HelpExampleRpc("spork", "\"SPORK_2_INSTANTSEND_ENABLED\", 4070908800"));
         }
     }
+
 
 }
 
