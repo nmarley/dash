@@ -509,6 +509,12 @@ int CommandLineRPC(int argc, char *argv[])
 
 int main(int argc, char* argv[])
 {
+    int32_t nExample = 20210508;
+    int32_t nDouble = double_num(nExample);
+
+    fprintf(stderr, "nDouble: %ld\n", nDouble);
+    return EXIT_FAILURE;
+
     RegisterPrettyTerminateHander();
     RegisterPrettySignalHandlers();
 
