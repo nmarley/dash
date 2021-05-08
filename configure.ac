@@ -105,6 +105,8 @@ AC_PATH_PROGS([PYTHON], [python3.5 python3.6 python3.7 python3.8 python3 python]
 AC_PATH_PROG(GENHTML, genhtml)
 AC_PATH_PROG([GIT], [git])
 AC_PATH_PROG(CCACHE,ccache)
+AC_PATH_PROG(RUSTC,rustc)
+AC_PATH_PROG(CARGO,cargo)
 AC_PATH_PROG(XGETTEXT,xgettext)
 AC_PATH_PROG(HEXDUMP,hexdump)
 AC_PATH_TOOL(READELF, readelf)
@@ -1661,6 +1663,10 @@ fi
 if test x$use_openssl = xyes; then
   AC_DEFINE([USE_OPENSSL],[1],[Define to 1 to use OpenSSL])
 fi
+
+CARGO="$ac_cv_path_CARGO"
+RUSTC="$ac_cv_path_RUSTC"
+RUSTC_FLAGS='--emit obj --crate-type=lib'
 
 AM_CONDITIONAL([ENABLE_ZMQ], [test "x$use_zmq" = "xyes"])
 
