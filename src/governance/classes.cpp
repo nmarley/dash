@@ -950,20 +950,20 @@ std::string CTriggerDetail::ErrorMessages() const
 std::string CTriggerDetail::GetDataHexStr() const
 {
     UniValue objJSON(UniValue::VOBJ);
-    objJSON.push_back(Pair("sbHeight", nHeight));
-    objJSON.push_back(Pair("type", 2));
+    objJSON.pushKV("sbHeight", nHeight);
+    objJSON.pushKV("type", 2);
 
     UniValue arrPaymentsJSON(UniValue::VARR);
     for (const auto& p : vecPayments) {
         UniValue objPayment(UniValue::VOBJ);
 
-        objPayment.push_back(Pair("address", p.address.ToString()));
-        objPayment.push_back(Pair("amount", p.nAmount));
-        objPayment.push_back(Pair("propHash", p.nProposalHash.ToString()));
+        objPayment.pushKV("address", p.address.ToString());
+        objPayment.pushKV("amount", p.nAmount);
+        objPayment.pushKV("propHash", p.nProposalHash.ToString());
 
         arrPaymentsJSON.push_back(objPayment);
     }
-    objJSON.push_back(Pair("payments", arrPaymentsJSON));
+    objJSON.pushKV("payments", arrPaymentsJSON);
 
     std::string strValue = objJSON.write(0, 1);
     std::string strHexValue = HexStr(strValue);
