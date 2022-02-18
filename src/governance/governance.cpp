@@ -747,7 +747,7 @@ bool CGovernanceManager::CreateSBTrigger() {
 
         std::string strError;
         bool fMissingMasternode, fMissingConfirmations;
-        if (!trigger.IsValidLocally(strError, fMissingMasternode, fMissingConfirmations, true) && !fMissingConfirmations) {
+        if (!trigger.IsValidLocally(strError, fMissingMasternode, fMissingConfirmations) && !fMissingConfirmations) {
             LogPrint(BCLog::GOBJECT, "NGM -- Trigger submission rejected because object is not valid - hash = %s, strError = %s\n", trigger.GetHash().ToString(), strError);
         }
 
