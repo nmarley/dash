@@ -794,7 +794,7 @@ uint256 CProposalDetail::GetHash() const
 
     ss << strName;
     ss << strURL;
-    ss << payeeAddr.ToString();
+    ss << EncodeDestination(payoutDest);
     ss << nPaymentAmount;
     ss << nStartEpoch;
     ss << nEndEpoch;
