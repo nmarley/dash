@@ -4,8 +4,8 @@
 using std::cout;
 using std::endl;
 
-#include "governance-classes.h"
-#include "test/test_dash.h"
+#include <governance/classes.h>
+#include <test/setup_common.h>
 
 #include <boost/test/unit_test.hpp>
 
