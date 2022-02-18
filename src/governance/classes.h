@@ -161,7 +161,8 @@ private:
     int nEndHeight;
 
     CAmount nPaymentAmount;
-    CTxDestination payoutDest;
+    // CTxDestination payoutDest;
+    // CScript payoutDest;
 
     // deprecated
     int nStartEpoch;
@@ -184,7 +185,7 @@ public:
     // Accessors
     std::string Name() const { return strName; }
     CAmount Amount() const { return nPaymentAmount; }
-    CTxDestination PayoutDest() const { return payoutDest; }
+    // CTxDestination PayoutDest() const { return payoutDest; }
     int startHeight() const { return nStartHeight; }
     int endHeight() const { return nEndHeight; }
 
@@ -197,7 +198,7 @@ public:
     CPayment(const uint256& nProposalHash, CTxDestination dest, CAmount nAmount);
 
     uint256 nProposalHash;
-    CTxDestination dest;
+    // CTxDestination dest;
     CAmount nAmount;
 
     bool operator<(const CPayment& other) const
@@ -209,14 +210,15 @@ public:
     {
         return (
             (nProposalHash == other.nProposalHash) &&
-            (dest == other.dest) &&
+            // (dest == other.dest) &&
             (nAmount == other.nAmount)
         );
     }
 
     SERIALIZE_METHODS(CPayment, obj)
     {
-        READWRITE(obj.nProposalHash, EncodeDestination(obj.dest), obj.nAmount);
+        // READWRITE(obj.nProposalHash, EncodeDestination(obj.dest), obj.nAmount);
+        READWRITE(obj.nProposalHash, obj.nAmount);
     }
 };
 

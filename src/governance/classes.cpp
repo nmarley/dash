@@ -763,7 +763,7 @@ void CProposalDetail::ParseStrDataHex(const std::string& strDataHex)
             nEndEpoch = obj["endHeight"].get_int();
             strName = obj["name"].get_str();
             strURL = obj["url"].get_str();
-            payoutDest = DecodeDestination(obj["payment_address"].get_str());
+            // payoutDest = DecodeDestination(obj["payment_address"].get_str());
             // This new format is already in Satoshis
             nPaymentAmount = int64_t(obj["payment_amount"].get_int64());
         } else if (hasKey("start_epoch")) {
@@ -772,7 +772,7 @@ void CProposalDetail::ParseStrDataHex(const std::string& strDataHex)
             nEndEpoch = obj["end_epoch"].get_int();
             strName = obj["name"].get_str();
             strURL = obj["url"].get_str();
-            payoutDest = DecodeDestination(obj["payment_address"].get_str());
+            // payoutDest = DecodeDestination(obj["payment_address"].get_str());
             // This old format is in COIN - convert to Satoshis
             nPaymentAmount = int64_t(obj["payment_amount"].get_real() * COIN);
             fOldFormat = true;
@@ -794,7 +794,7 @@ uint256 CProposalDetail::GetHash() const
 
     ss << strName;
     ss << strURL;
-    ss << EncodeDestination(payoutDest);
+    // ss << EncodeDestination(payoutDest);
     ss << nPaymentAmount;
     ss << nStartEpoch;
     ss << nEndEpoch;
@@ -833,7 +833,7 @@ CTriggerDetail::CTriggerDetail(int nHeight, const std::vector<const CGovernanceO
             vecStrErrMessages.emplace_back(detail.ErrorMessages());
             return;
         }
-        vecPayments.push_back(CPayment(hash, detail.PayoutDest(), detail.Amount()));
+        // vecPayments.push_back(CPayment(hash, detail.PayoutDest(), detail.Amount()));
     }
 
     // Order payments once loaded, sorted by proposal hash descending
@@ -874,10 +874,10 @@ void CTriggerDetail::ParseStrDataHex(const std::string& strDataHex)
             const UniValue& payments = obj["payments"].get_array();
             for (size_t i = 0; i < payments.size(); ++i) {
                 const UniValue& pymtObj = payments[i];
-                CTxDestination dest = DecodeDestination(pymtObj["address"].get_str());
+                // CTxDestination dest = DecodeDestination(pymtObj["address"].get_str());
                 CAmount nAmount(pymtObj["amount"].get_int64());
                 uint256 hash = uint256S(pymtObj["propHash"].get_str());
-                vecPayments.push_back(CPayment(hash, dest, nAmount));
+                // vecPayments.push_back(CPayment(hash, dest, nAmount));
             }
         } else {
             // Do it the less civilized way.
@@ -904,10 +904,10 @@ void CTriggerDetail::ParseStrDataHex(const std::string& strDataHex)
             }
 
             for (int q = 0; q < (int)vecAddrs.size(); ++q) {
-                CTxDestination dest = DecodeDestination(vecAddrs[q]);
+                // CTxDestination dest = DecodeDestination(vecAddrs[q]);
                 CAmount nAmount = ParsePaymentAmount(vecAmts[q]);
                 uint256 hash = uint256S(vecHashes[q]);
-                vecPayments.push_back(CPayment(hash, dest, nAmount));
+                // vecPayments.push_back(CPayment(hash, dest, nAmount));
             }
         }
 
@@ -957,7 +957,7 @@ std::string CTriggerDetail::GetDataHexStr() const
     for (const auto& p : vecPayments) {
         UniValue objPayment(UniValue::VOBJ);
 
-        objPayment.pushKV("address", EncodeDestination(p.payoutDest));
+        // objPayment.pushKV("address", EncodeDestination(p.payoutDest));
         objPayment.pushKV("amount", p.nAmount);
         objPayment.pushKV("propHash", p.nProposalHash.ToString());
 
@@ -973,6 +973,6 @@ std::string CTriggerDetail::GetDataHexStr() const
 
 CPayment::CPayment(const uint256& nProposalHash, CTxDestination dest, CAmount nAmount) :
     nProposalHash(nProposalHash),
-    dest(dest),
+    // dest(dest),
     nAmount(nAmount)
 { }
