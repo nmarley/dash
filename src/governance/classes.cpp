@@ -957,7 +957,7 @@ std::string CTriggerDetail::GetDataHexStr() const
     for (const auto& p : vecPayments) {
         UniValue objPayment(UniValue::VOBJ);
 
-        objPayment.pushKV("address", p.address.ToString());
+        objPayment.pushKV("address", EncodeDestination(p.payoutDest));
         objPayment.pushKV("amount", p.nAmount);
         objPayment.pushKV("propHash", p.nProposalHash.ToString());
 
