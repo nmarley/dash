@@ -8,7 +8,6 @@
 #include <string>
 
 #include <univalue.h>
-#include "base58.h"
 
 class CProposalValidator
 {
