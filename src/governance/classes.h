@@ -168,6 +168,7 @@ private:
     int nEndEpoch;
 
     // Parsing related
+    // 2022-02-18: This seems like code smell...
     std::vector<std::string> vecStrErrMessages;
     bool fParsedOK;
     bool fOldFormat;
@@ -225,7 +226,7 @@ private:
     int nHeight;
     std::vector<CPayment> vecPayments;
 
-    // Parsing related
+    // Parsing related -- code smell, refactor
     std::vector<std::string> vecStrErrMessages;
     bool fParsedOK;
     void ParseStrDataHex(const std::string& strDataHex);
@@ -238,7 +239,7 @@ public:
     std::string GetDataHexStr() const;
     uint256 GetHash() const;
 
-    // Parsing
+    // Parsing -- code smell, refactor
     std::string ErrorMessages() const;
     bool DidParse() const { return fParsedOK; }
 };
