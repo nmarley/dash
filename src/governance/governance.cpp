@@ -572,8 +572,9 @@ bool CGovernanceManager::CreateSBTrigger() {
 
     LogPrint(BCLog::GOBJECT, "NGM CGovernanceManager::%s nNow = %lld, nCurrentHeight = %d\n", __func__, nNow, nCurrentHeight);
 
-    // auto dmn = deterministicMNManager->GetListAtChainTip().GetValidMNByCollateral(activeMasternodeInfo.outpoint);
-    auto dmn = activeMasternodeManager->GetDMN();
+    // auto dmn = activeMasternodeManager->GetDMN();
+    // auto dmn = deterministicMNManager->GetListAtChainTip().GetMN(activeMasternodeInfo.proTxHash);
+    auto dmn = deterministicMNManager->GetListAtChainTip().GetValidMNByCollateral(activeMasternodeInfo.outpoint);
     if (!dmn) {
         LogPrint(BCLog::GOBJECT, "NGM Can't find masternode by collateral output, thanks for playing! Bye.\n");
         return false;
