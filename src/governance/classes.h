@@ -9,6 +9,7 @@
 #include <script/script.h>
 #include <script/standard.h>
 #include <uint256.h>
+#include <arith_uint256.h>
 
 class CTxOut;
 class CTransaction;
