@@ -150,8 +150,6 @@ public:
     bool IsExpired() const;
 };
 
-#endif // BITCOIN_GOVERNANCE_CLASSES_H
-
 class CProposalDetail {
 private:
     // Payload data members
@@ -244,4 +242,4 @@ public:
     bool DidParse() const { return fParsedOK; }
 };
 
-#endif
+#endif // BITCOIN_GOVERNANCE_CLASSES_H
