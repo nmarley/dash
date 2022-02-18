@@ -12,6 +12,7 @@
 #include <governance/classes.h>
 #include <governance/validators.h>
 #include <masternode/meta.h>
+#include <masternode/node.h>
 #include <masternode/sync.h>
 #include <net_processing.h>
 #include <netfulfilledman.h>
