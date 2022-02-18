@@ -214,14 +214,9 @@ public:
         );
     }
 
-    ADD_SERIALIZE_METHODS;
-
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action)
+    SERIALIZE_METHODS(CPayment, obj)
     {
-        READWRITE(nProposalHash);
-        READWRITE(EncodeDestination(dest));
-        READWRITE(nAmount);
+        READWRITE(obj.nProposalHash, EncodeDestination(obj.dest), obj.nAmount);
     }
 };
 
