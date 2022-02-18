@@ -569,12 +569,12 @@ bool CGovernanceManager::CreateSBTrigger() {
     int nCurrentHeight = pindexBestHeader->nHeight;
     // or should chainActive be used?
 
-    LogPrint("gobject", "NGM CGovernanceManager::%s nNow = %lld, nCurrentHeight = %d\n", __func__, nNow, nCurrentHeight);
+    LogPrint(BCLog::GOBJECT, "NGM CGovernanceManager::%s nNow = %lld, nCurrentHeight = %d\n", __func__, nNow, nCurrentHeight);
 
     // auto dmn = deterministicMNManager->GetListAtChainTip().GetValidMNByCollateral(activeMasternodeInfo.outpoint);
     auto dmn = activeMasternodeManager->GetDMN();
     if (!dmn) {
-        LogPrint("gobject", "NGM Can't find masternode by collateral output, thanks for playing! Bye.\n");
+        LogPrint(BCLog::GOBJECT, "NGM Can't find masternode by collateral output, thanks for playing! Bye.\n");
         return false;
     }
 
@@ -585,45 +585,45 @@ bool CGovernanceManager::CreateSBTrigger() {
     CSuperblock::GetNearestSuperblocksHeights(nCurrentHeight, nLastSB, nNextSB);
     CAmount nBudget = CSuperblock::GetPaymentsLimit(nNextSB);
 
-    LogPrint("gobject", "NGM nLastSB = %d, nNextSB = %d, nBudget = %lld\n", nLastSB, nNextSB, nBudget);
-    LogPrint("gobject", "NGM nSuperblockMaturityWindow = %d\n", Params().GetConsensus().nSuperblockMaturityWindow);
+    LogPrint(BCLog::GOBJECT, "NGM nLastSB = %d, nNextSB = %d, nBudget = %lld\n", nLastSB, nNextSB, nBudget);
+    LogPrint(BCLog::GOBJECT, "NGM nSuperblockMaturityWindow = %d\n", Params().GetConsensus().nSuperblockMaturityWindow);
 
     int nSuperblockMaturityWindow = Params().GetConsensus().nSuperblockMaturityWindow;
 
     // If not yet within maturity window... bail out
     int nMaturityStartBlock = nNextSB - nSuperblockMaturityWindow;
     if (nCurrentHeight < nMaturityStartBlock) {
-        LogPrint("gobject", "NGM Not within SB maturity window... will not attempt to create SB trigger.");
+        LogPrint(BCLog::GOBJECT, "NGM Not within SB maturity window... will not attempt to create SB trigger.");
         return false;
     }
 
     // What is this for? Oh, to see if the payment falls within the "window"...
     // TODO: Switch over to using block heights instead of timestamps...
     int nTriggerEpochTime = EstimateFutureBlockTime(nNextSB, nCurrentHeight);
-    LogPrint("gobject", "NGM nTriggerEpochTime = %d\n", nTriggerEpochTime);
+    LogPrint(BCLog::GOBJECT, "NGM nTriggerEpochTime = %d\n", nTriggerEpochTime);
 
     // max of this...
     int nValidMNCount = (int)deterministicMNManager->GetListAtChainTip().GetValidMNsCount();
-    LogPrint("gobject", "NGM nValidMNCount = %d\n", nValidMNCount);
+    LogPrint(BCLog::GOBJECT, "NGM nValidMNCount = %d\n", nValidMNCount);
 
     // ... or this
     int nMinQuorum = Params().GetConsensus().nGovernanceMinQuorum;
-    LogPrint("gobject", "NGM nMinQuorum = %d\n", nMinQuorum);
+    LogPrint(BCLog::GOBJECT, "NGM nMinQuorum = %d\n", nMinQuorum);
 
     int nGovQuorum = std::max(nMinQuorum, (nValidMNCount / 10));
-    LogPrint("gobject", "NGM nGovQuorum = %d\n", nGovQuorum);
+    LogPrint(BCLog::GOBJECT, "NGM nGovQuorum = %d\n", nGovQuorum);
 
     // Get all governance objects in memory
     // std::vector<const CGovernanceObject*>
     auto objs = GetAllNewerThan(0);
-    LogPrint("gobject", "NGM got %d govObjs\n", objs.size());
+    LogPrint(BCLog::GOBJECT, "NGM got %d govObjs\n", objs.size());
 
     // Construct a list of proposals to consider for SuperBlock trigger
     // Keep triggers also for voting later
     std::vector<const CGovernanceObject*> vProposals;
     std::map<uint256, const CGovernanceObject*> mapTriggerFingerprints;
     for (const auto& pGovObj : objs) {
-        LogPrint("gobject", "NGM pass 1: analyzing gobject %s, funding votes: %d\n", pGovObj->GetHash().ToString(), pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING));
+        LogPrint(BCLog::GOBJECT, "NGM pass 1: analyzing gobject %s, funding votes: %d\n", pGovObj->GetHash().ToString(), pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING));
 
         // Get trigger payload hashes for voting later
         if (pGovObj->GetObjectType() == GOVERNANCE_OBJECT_TRIGGER) {
@@ -633,7 +633,7 @@ bool CGovernanceManager::CreateSBTrigger() {
 
         // Skip non-proposals TODO: fix this comment and logic...
         if (pGovObj->GetObjectType() != GOVERNANCE_OBJECT_PROPOSAL) {
-            LogPrint("gobject", "NGM obj not proposal, moving on\n");
+            LogPrint(BCLog::GOBJECT, "NGM obj not proposal, moving on\n");
             continue;
         }
 
@@ -668,30 +668,30 @@ bool CGovernanceManager::CreateSBTrigger() {
 
     std::vector<const CGovernanceObject*> vFinalProposals;
     for (auto pGovObj : vProposals) {
-        LogPrint("gobject", "NGM pass 2: analyzing proposal %s, funding votes: %d\n", pGovObj->GetHash().ToString(), pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING));
+        LogPrint(BCLog::GOBJECT, "NGM pass 2: analyzing proposal %s, funding votes: %d\n", pGovObj->GetHash().ToString(), pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING));
         auto deets = CProposalDetail(pGovObj->GetDataAsHexString());
         if (!deets.DidParse()) {
             // TODO: vote to delete here?
-            LogPrint("gobject", "NGM did NOT get deets, parse error. Moving on.\n");
-            LogPrint("gobject", "NGM Parse errors: %s\n", deets.ErrorMessages());
+            LogPrint(BCLog::GOBJECT, "NGM did NOT get deets, parse error. Moving on.\n");
+            LogPrint(BCLog::GOBJECT, "NGM Parse errors: %s\n", deets.ErrorMessages());
             continue;
         }
 
         // Note: this should be in pass1 TBH...
         if (deets.Amount() > nBudget) {
-            LogPrint("gobject", "NGM Proposal %s ALONE breaks budget, moving on.\n", deets.Name());
+            LogPrint(BCLog::GOBJECT, "NGM Proposal %s ALONE breaks budget, moving on.\n", deets.Name());
             continue;
         }
 
         if ((nBudgetUsed + deets.Amount()) > nBudget) {
-            LogPrint("gobject", "NGM Proposal %s pushes total over budget, moving on.\n", deets.Name());
+            LogPrint(BCLog::GOBJECT, "NGM Proposal %s pushes total over budget, moving on.\n", deets.Name());
             continue;
         }
 
         // Add.
-        LogPrint("gobject", "NGM Proposal %s is ok, adding to candidate SB.\n", deets.Name());
+        LogPrint(BCLog::GOBJECT, "NGM Proposal %s is ok, adding to candidate SB.\n", deets.Name());
         nBudgetUsed += deets.Amount();
-        LogPrint("gobject", "NGM nBudgetUsed = %lld, total = %lld\n", nBudgetUsed, nBudget);
+        LogPrint(BCLog::GOBJECT, "NGM nBudgetUsed = %lld, total = %lld\n", nBudgetUsed, nBudget);
 
         vFinalProposals.push_back(pGovObj);
 
@@ -711,12 +711,12 @@ bool CGovernanceManager::CreateSBTrigger() {
 
     auto triggerDetail = CTriggerDetail(nNextSB, vFinalProposals);
     std::string strHexValue = triggerDetail.GetDataHexStr();
-    LogPrint("gobject", "NGM Hex Trigger = '%s'\n", strHexValue);
+    LogPrint(BCLog::GOBJECT, "NGM Hex Trigger = '%s'\n", strHexValue);
 
     // Create trigger govobj
     CGovernanceObject trigger(uint256(), 1, GetAdjustedTime(), uint256(), strHexValue);
     uint256 payloadHash = trigger.GetPayloadDataHash();
-    LogPrint("gobject", "NGM trigger payloadHash = '%s'\n", payloadHash.ToString());
+    LogPrint(BCLog::GOBJECT, "NGM trigger payloadHash = '%s'\n", payloadHash.ToString());
 
     // Hash the payload, see if any other triggers which match this exist... if so,
     // vote on that... if not, try and submit this one (if we're the winner?)
@@ -731,78 +731,78 @@ bool CGovernanceManager::CreateSBTrigger() {
     // hash the object contents at any rate, disregarding the serialization
     // implementation.
 
-    LogPrint("gobject", "NGM activeMasternodeInfo.outpoint = %s\n", activeMasternodeInfo.outpoint.ToStringShort());
-    LogPrint("gobject", "NGM dmn->collateralOutpoint = %s\n", dmn->collateralOutpoint.ToStringShort());
+    LogPrint(BCLog::GOBJECT, "NGM activeMasternodeInfo.outpoint = %s\n", activeMasternodeInfo.outpoint.ToStringShort());
+    LogPrint(BCLog::GOBJECT, "NGM dmn->collateralOutpoint = %s\n", dmn->collateralOutpoint.ToStringShort());
 
     auto it = mapTriggerFingerprints.find(payloadHash);
     if (it == mapTriggerFingerprints.end()) {
-        LogPrint("gobject", "NGM Did NOT find GovObj w/payloadHash - sign and relay\n");
+        LogPrint(BCLog::GOBJECT, "NGM Did NOT find GovObj w/payloadHash - sign and relay\n");
         // Not found, so let's sign and relay our own...
         trigger.SetMasternodeOutpoint(dmn->collateralOutpoint);
         bool fSignedTrigger = trigger.Sign(*activeMasternodeInfo.blsKeyOperator);
-        LogPrint("gobject", "fSignedTrigger : %s\n", (fSignedTrigger ? "true" : "false"));
-        LogPrint("gobject", "NGM signed trigger hash : %s\n", trigger.GetHash().ToString());
+        LogPrint(BCLog::GOBJECT, "fSignedTrigger : %s\n", (fSignedTrigger ? "true" : "false"));
+        LogPrint(BCLog::GOBJECT, "NGM signed trigger hash : %s\n", trigger.GetHash().ToString());
 
         std::string strError;
         bool fMissingMasternode, fMissingConfirmations;
         if (!trigger.IsValidLocally(strError, fMissingMasternode, fMissingConfirmations, true) && !fMissingConfirmations) {
-            LogPrint("gobject", "NGM -- Trigger submission rejected because object is not valid - hash = %s, strError = %s\n", trigger.GetHash().ToString(), strError);
+            LogPrint(BCLog::GOBJECT, "NGM -- Trigger submission rejected because object is not valid - hash = %s, strError = %s\n", trigger.GetHash().ToString(), strError);
         }
 
         // RELAY THIS OBJECT
         //  Reject if rate check fails but don't update buffer
         if (!governance.MasternodeRateCheck(trigger)) {
-            LogPrint("gobject", "NGM -- Trigger submission rejected because of rate check failture - hash = %s\n", trigger.GetHash().ToString());
+            LogPrint(BCLog::GOBJECT, "NGM -- Trigger submission rejected because of rate check failture - hash = %s\n", trigger.GetHash().ToString());
             return false;
         }
 
-        LogPrint("gobject", "NGM -- Adding locally created Trigger object - %s\n", trigger.GetHash().ToString());
+        LogPrint(BCLog::GOBJECT, "NGM -- Adding locally created Trigger object - %s\n", trigger.GetHash().ToString());
 
         // Now relay this Trigger
         if (fMissingConfirmations) {
-            LogPrint("gobject", "NGM Missing confirmations, postpone / relay\n");
+            LogPrint(BCLog::GOBJECT, "NGM Missing confirmations, postpone / relay\n");
             governance.AddPostponedObject(trigger);
             trigger.Relay(*g_connman);
         } else {
-            LogPrint("gobject", "NGM not missing confs, Add Governance Object\n");
+            LogPrint(BCLog::GOBJECT, "NGM not missing confs, Add Governance Object\n");
             governance.AddGovernanceObject(trigger, *g_connman);
         }
 
     }
     // TODO: Could possibly make everything after here use the loop below and remove the 'else' branch... since all triggers should be voted for anyway.
     else {
-        LogPrint("gobject", "NGM Did find GovObj w/payloadHash - check vote\n");
+        LogPrint(BCLog::GOBJECT, "NGM Did find GovObj w/payloadHash - check vote\n");
         // This is the correct govobj.
         // Vote on it (if not already voted for), and vote down the others
         // (also if not already voted for)
         vote_rec_t voteRecord;
         if (it->second->GetCurrentMNVotes(activeMasternodeInfo.outpoint, voteRecord)) {
             // We DID vote for this...
-            LogPrint("gobject", "NGM We did already vote for it\n");
+            LogPrint(BCLog::GOBJECT, "NGM We did already vote for it\n");
         } else {
             // We didn't vote for this yet, so vote for it
-            LogPrint("gobject", "NGM Still need to vote for it\n");
+            LogPrint(BCLog::GOBJECT, "NGM Still need to vote for it\n");
             CGovernanceVote vote(dmn->collateralOutpoint, it->second->GetHash(), VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_YES);
-            LogPrint("gobject", "NGM created vote object: %s\n", vote.GetHash().ToString());
+            LogPrint(BCLog::GOBJECT, "NGM created vote object: %s\n", vote.GetHash().ToString());
             bool fSignSuccess = false;
             if (activeMasternodeInfo.blsKeyOperator) {
-                LogPrint("gobject", "NGM attempting to sign vote object...\n");
+                LogPrint(BCLog::GOBJECT, "NGM attempting to sign vote object...\n");
                 fSignSuccess = vote.Sign(*activeMasternodeInfo.blsKeyOperator);
-                LogPrint("gobject", "fSignSuccess : %s\n", (fSignSuccess ? "true" : "false"));
+                LogPrint(BCLog::GOBJECT, "fSignSuccess : %s\n", (fSignSuccess ? "true" : "false"));
             }
-            LogPrint("gobject", "NGM vote object hash post-sig: %s\n", vote.GetHash().ToString());
+            LogPrint(BCLog::GOBJECT, "NGM vote object hash post-sig: %s\n", vote.GetHash().ToString());
 
             CGovernanceException exception;
             if (governance.ProcessVoteAndRelay(vote, exception, *g_connman)) {
-                LogPrint("gobject", "NGM vote object hash post-sig: %s\n", vote.GetHash().ToString());
+                LogPrint(BCLog::GOBJECT, "NGM vote object hash post-sig: %s\n", vote.GetHash().ToString());
                 return true;
             } else {
-                LogPrint("gobject", "NGM vote object hash post-sig: %s\n", exception.GetMessage());
+                LogPrint(BCLog::GOBJECT, "NGM vote object hash post-sig: %s\n", exception.GetMessage());
                 return false;
             }
 
         }
-        // LogPrint("gobject", "NGM Found GovObj w/payloadHash - vote for this one and all others down");
+        // LogPrint(BCLog::GOBJECT, "NGM Found GovObj w/payloadHash - vote for this one and all others down");
     }
 
 //    for (const auto& pairFpGovobj : mapTriggerFingerprints) {
@@ -819,13 +819,13 @@ bool CGovernanceManager::CreateSBTrigger() {
 
 int CGovernanceManager::EstimateFutureBlockTime(int nFutureBlockHeight, int nCurrentBlockHeight) {
     double dFutureSeconds = (nFutureBlockHeight - nCurrentBlockHeight) * 2.62 * 60;
-    LogPrint("gobject", "NGM func = %s\n", __func__);
-    LogPrint("gobject", "NGM nCurrentBlockHeight = %d\n", nCurrentBlockHeight);
-    LogPrint("gobject", "NGM nFutureBlockHeight = %d\n", nFutureBlockHeight);
-    LogPrint("gobject", "NGM dFutureSeconds = %.2f\n", dFutureSeconds);
+    LogPrint(BCLog::GOBJECT, "NGM func = %s\n", __func__);
+    LogPrint(BCLog::GOBJECT, "NGM nCurrentBlockHeight = %d\n", nCurrentBlockHeight);
+    LogPrint(BCLog::GOBJECT, "NGM nFutureBlockHeight = %d\n", nFutureBlockHeight);
+    LogPrint(BCLog::GOBJECT, "NGM dFutureSeconds = %.2f\n", dFutureSeconds);
 
     int result = int(GetAdjustedTime() + dFutureSeconds);
-    LogPrint("gobject", "NGM result: %d\n", result);
+    LogPrint(BCLog::GOBJECT, "NGM result: %d\n", result);
 
     return result;
 }

@@ -780,10 +780,10 @@ void CProposalDetail::ParseStrDataHex(const std::string& strDataHex)
 
         fParsedOK = true;
     } catch (std::exception& e) {
-        LogPrint("gobject", "NGM shoot, failed: %s\n", std::string(e.what()));
+        LogPrint(BCLog::GOBJECT, "NGM shoot, failed: %s\n", std::string(e.what()));
         vecStrErrMessages.emplace_back(std::string(e.what()));
     } catch (...) {
-        LogPrint("gobject", "NGM shoot, unknown exception\n");
+        LogPrint(BCLog::GOBJECT, "NGM shoot, unknown exception\n");
         vecStrErrMessages.emplace_back("Unknown exception");
     }
 }
@@ -899,7 +899,7 @@ void CTriggerDetail::ParseStrDataHex(const std::string& strDataHex)
             if (!fSameSize) {
                 std::ostringstream ostr;
                 ostr << __func__ << " - Mismatched payments, amounts, and/or proposal hashes";
-                LogPrint("gobject", "%s\n", ostr.str());
+                LogPrint(BCLog::GOBJECT, "%s\n", ostr.str());
                 throw std::runtime_error(ostr.str());
             }
 
@@ -916,10 +916,10 @@ void CTriggerDetail::ParseStrDataHex(const std::string& strDataHex)
 
         fParsedOK = true;
     } catch (std::exception& e) {
-        LogPrint("gobject", "NGM shoot, failed: %s\n", std::string(e.what()));
+        LogPrint(BCLog::GOBJECT, "NGM shoot, failed: %s\n", std::string(e.what()));
         vecStrErrMessages.emplace_back(std::string(e.what()));
     } catch (...) {
-        LogPrint("gobject", "NGM shoot, unknown exception\n");
+        LogPrint(BCLog::GOBJECT, "NGM shoot, unknown exception\n");
         vecStrErrMessages.emplace_back("Unknown exception");
     }
 }
