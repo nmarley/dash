@@ -162,7 +162,7 @@ private:
     int nEndHeight;
 
     CAmount nPaymentAmount;
-    CBitcoinAddress payeeAddr;
+    CTxDestination payoutDest;
 
     // deprecated
     int nStartEpoch;
@@ -184,7 +184,7 @@ public:
     // Accessors
     std::string Name() const { return strName; }
     CAmount Amount() const { return nPaymentAmount; }
-    CBitcoinAddress Address() const { return payeeAddr; }
+    CTxDestination PayoutDest() const { return payoutDest; }
     int startHeight() const { return nStartHeight; }
     int endHeight() const { return nEndHeight; }
 
@@ -194,10 +194,10 @@ public:
 // CPayment represents a Dash superblock payment for a single proposal.
 class CPayment {
 public:
-    CPayment(const uint256& nProposalHash, CBitcoinAddress address, CAmount nAmount);
+    CPayment(const uint256& nProposalHash, CTxDestination dest, CAmount nAmount);
 
     uint256 nProposalHash;
-    CBitcoinAddress address;
+    CTxDestination dest;
     CAmount nAmount;
 
     bool operator<(const CPayment& other) const
@@ -209,7 +209,7 @@ public:
     {
         return (
             (nProposalHash == other.nProposalHash) &&
-            (address == other.address) &&
+            (dest == other.dest) &&
             (nAmount == other.nAmount)
         );
     }
@@ -220,7 +220,7 @@ public:
     inline void SerializationOp(Stream& s, Operation ser_action)
     {
         READWRITE(nProposalHash);
-        READWRITE(address.ToString());
+        READWRITE(EncodeDestination(dest));
         READWRITE(nAmount);
     }
 };

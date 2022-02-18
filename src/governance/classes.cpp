@@ -538,12 +538,7 @@ void CSuperblock::ParsePaymentSchedule(const std::string& strPaymentAddresses, c
             LogPrintf("%s\n", ostr.str());
             throw std::runtime_error(ostr.str());
         }
-        /*
-            TODO
 
-            - There might be an issue with multisig in the coinbase on mainnet, we will add support for it in a future release.
-            - Post 12.3+ (test multisig coinbase transaction)
-        */
         const CScriptID *scriptID = boost::get<CScriptID>(&dest);
         if (scriptID) {
             std::ostringstream ostr;
@@ -768,7 +763,7 @@ void CProposalDetail::ParseStrDataHex(const std::string& strDataHex)
             nEndEpoch = obj["endHeight"].get_int();
             strName = obj["name"].get_str();
             strURL = obj["url"].get_str();
-            payeeAddr = CBitcoinAddress(obj["payment_address"].get_str());
+            payoutDest = DecodeDestination(obj["payment_address"].get_str());
             // This new format is already in Satoshis
             nPaymentAmount = int64_t(obj["payment_amount"].get_int64());
         } else if (hasKey("start_epoch")) {
@@ -777,7 +772,7 @@ void CProposalDetail::ParseStrDataHex(const std::string& strDataHex)
             nEndEpoch = obj["end_epoch"].get_int();
             strName = obj["name"].get_str();
             strURL = obj["url"].get_str();
-            payeeAddr = CBitcoinAddress(obj["payment_address"].get_str());
+            payoutDest = DecodeDestination(obj["payment_address"].get_str());
             // This old format is in COIN - convert to Satoshis
             nPaymentAmount = int64_t(obj["payment_amount"].get_real() * COIN);
             fOldFormat = true;
