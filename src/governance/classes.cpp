@@ -833,7 +833,7 @@ CTriggerDetail::CTriggerDetail(int nHeight, const std::vector<const CGovernanceO
             vecStrErrMessages.emplace_back(detail.ErrorMessages());
             return;
         }
-        vecPayments.push_back(CPayment(hash, detail.Address(), detail.Amount()));
+        vecPayments.push_back(CPayment(hash, detail.PayoutDest(), detail.Amount()));
     }
 
     // Order payments once loaded, sorted by proposal hash descending
@@ -874,10 +874,10 @@ void CTriggerDetail::ParseStrDataHex(const std::string& strDataHex)
             const UniValue& payments = obj["payments"].get_array();
             for (size_t i = 0; i < payments.size(); ++i) {
                 const UniValue& pymtObj = payments[i];
-                CBitcoinAddress address(pymtObj["address"].get_str());
+                CTxDestination dest = DecodeDestination(pymtObj["address"].get_str());
                 CAmount nAmount(pymtObj["amount"].get_int64());
                 uint256 hash = uint256S(pymtObj["propHash"].get_str());
-                vecPayments.push_back(CPayment(hash, address, nAmount));
+                vecPayments.push_back(CPayment(hash, dest, nAmount));
             }
         } else {
             // Do it the less civilized way.
@@ -904,10 +904,10 @@ void CTriggerDetail::ParseStrDataHex(const std::string& strDataHex)
             }
 
             for (int q = 0; q < (int)vecAddrs.size(); ++q) {
-                CBitcoinAddress address(vecAddrs[q]);
+                CTxDestination dest = DecodeDestination(vecAddrs[q]);
                 CAmount nAmount = ParsePaymentAmount(vecAmts[q]);
                 uint256 hash = uint256S(vecHashes[q]);
-                vecPayments.push_back(CPayment(hash, address, nAmount));
+                vecPayments.push_back(CPayment(hash, dest, nAmount));
             }
         }
 
@@ -971,8 +971,8 @@ std::string CTriggerDetail::GetDataHexStr() const
     return strHexValue;
 }
 
-CPayment::CPayment(const uint256& nProposalHash, CBitcoinAddress address, CAmount nAmount) :
+CPayment::CPayment(const uint256& nProposalHash, CTxDestination dest, CAmount nAmount) :
     nProposalHash(nProposalHash),
-    address(address),
+    dest(dest),
     nAmount(nAmount)
 { }
