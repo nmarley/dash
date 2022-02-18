@@ -8,6 +8,7 @@
 #include <chainparams.h>
 #include <core_io.h>
 #include <evo/deterministicmns.h>
+#include <governance/classes.h>
 #include <governance/governance.h>
 #include <governance/validators.h>
 #include <masternode/meta.h>
