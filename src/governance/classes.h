@@ -161,8 +161,7 @@ private:
     int nEndHeight;
 
     CAmount nPaymentAmount;
-    CTxDestination* payoutDest;
-    // CScript payoutDest;
+    CScript script;
 
     // deprecated
     int nStartEpoch;
@@ -177,6 +176,9 @@ private:
 
 public:
     explicit CProposalDetail(const std::string& strDataHex);
+    // CProposalDetail(
+    //     const CTxDestination& destIn, CAmount nAmountIn
+    // );
 
     // Parsing
     std::string ErrorMessages() const;
@@ -185,7 +187,7 @@ public:
     // Accessors
     std::string Name() const { return strName; }
     CAmount Amount() const { return nPaymentAmount; }
-    // CTxDestination PayoutDest() const { return payoutDest; }
+    CScript Script() const { return script; }
     int startHeight() const { return nStartHeight; }
     int endHeight() const { return nEndHeight; }
 
@@ -195,10 +197,11 @@ public:
 // CPayment represents a Dash superblock payment for a single proposal.
 class CPayment {
 public:
-    CPayment(const uint256& nProposalHash, CTxDestination dest, CAmount nAmount);
+    CPayment(const uint256& nProposalHash, CTxDestination* dest, CAmount nAmount);
 
     uint256 nProposalHash;
-    // CTxDestination dest;
+    CTxDestination* dest;
+    CScript script;
     CAmount nAmount;
 
     bool operator<(const CPayment& other) const
@@ -210,15 +213,14 @@ public:
     {
         return (
             (nProposalHash == other.nProposalHash) &&
-            // (dest == other.dest) &&
+            (*dest == *(other.dest)) &&
             (nAmount == other.nAmount)
         );
     }
 
     SERIALIZE_METHODS(CPayment, obj)
     {
-        // READWRITE(obj.nProposalHash, EncodeDestination(obj.dest), obj.nAmount);
-        READWRITE(obj.nProposalHash, obj.nAmount);
+        READWRITE(obj.nProposalHash, obj.script), obj.nAmount);
     }
 };
 

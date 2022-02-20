@@ -700,7 +700,9 @@ bool CGovernanceManager::CreateSBTrigger() {
         // HERE
 
         if (!strPaymentAddresses.empty()) strPaymentAddresses += "|";
-        // strPaymentAddresses += EncodeDestination(deets.PayoutDest());
+        CTxDestination dest;
+        ExtractDestination(dest, deets.Script());
+        strPaymentAddresses += EncodeDestination(dest);
 
         if (!strPaymentAmounts.empty()) strPaymentAmounts += "|";
         char buffer[50];
