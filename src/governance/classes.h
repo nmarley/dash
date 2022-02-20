@@ -176,9 +176,6 @@ private:
 
 public:
     explicit CProposalDetail(const std::string& strDataHex);
-    // CProposalDetail(
-    //     const CTxDestination& destIn, CAmount nAmountIn
-    // );
 
     // Parsing
     std::string ErrorMessages() const;
