@@ -729,6 +729,7 @@ CProposalDetail::CProposalDetail(const std::string& strDataHex):
     nStartHeight(0),
     nEndHeight(0),
     nPaymentAmount(0),
+    payoutDest(nullptr),
     fOldFormat(false),
     fParsedOK(false)
 {

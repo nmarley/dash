@@ -161,7 +161,7 @@ private:
     int nEndHeight;
 
     CAmount nPaymentAmount;
-    // CTxDestination payoutDest;
+    CTxDestination* payoutDest;
     // CScript payoutDest;
 
     // deprecated
