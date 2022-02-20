@@ -164,7 +164,7 @@ public:
 
     CGovernanceObject(const CGovernanceObject& other);
 
-    CGovernanceObject& operator=(CGovernanceObject&&) = default;
+    // CGovernanceObject& operator=(CGovernanceObject&&) = default;
 
     // Public Getter methods
 

@@ -621,7 +621,7 @@ bool CGovernanceManager::CreateSBTrigger() {
 
     // Construct a list of proposals to consider for SuperBlock trigger
     // Keep triggers also for voting later
-    std::vector<CGovernanceObject> vProposals;
+    std::vector<const CGovernanceObject&> vProposals;
     std::map<uint256, CGovernanceObject> mapTriggerFingerprints;
     for (const auto& pGovObj : objs) {
         LogPrint(BCLog::GOBJECT, "NGM pass 1: analyzing gobject %s, funding votes: %d\n", pGovObj.GetHash().ToString(), pGovObj.GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING));
@@ -649,12 +649,12 @@ bool CGovernanceManager::CreateSBTrigger() {
         if (pGovObj.GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING) < nGovQuorum) continue;
 
         // Add pGovObj to the list to be sorted by votes.
-        vProposals.push_back(pGovObj);
+        vProposals.push_back(&pGovObj);
     }
 
     // Sort by Absolute Yes Count (using lambda expression)
-    std::sort(vProposals.begin(), vProposals.end(), [](CGovernanceObject a, CGovernanceObject b) {
-        return a.GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING) > b.GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
+    std::sort(vProposals.begin(), vProposals.end(), [](const CGovernanceObject& a, const CGovernanceObject& b) {
+        return a->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING) > b->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
     });
 
     // Do a final pass post-vote-sort to ensure we don't exceed the budget
