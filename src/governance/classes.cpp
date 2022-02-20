@@ -991,7 +991,7 @@ CPayment::CPayment(const uint256& nProposalHash, CTxDestination& dest, CAmount n
     nAmount(nAmount)
 {
     try {
-        script = GetScriptForDestination(dest);    
+        script = GetScriptForDestination(dest);
     } catch (std::exception& e) {
         LogPrintf("CPayment Payment not valid: dest = %s, nAmount = %d, what = %s\n",
                   EncodeDestination(dest), nAmount, e.what());
