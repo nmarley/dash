@@ -197,10 +197,9 @@ public:
 // CPayment represents a Dash superblock payment for a single proposal.
 class CPayment {
 public:
-    CPayment(const uint256& nProposalHash, CTxDestination* dest, CAmount nAmount);
+    CPayment(const uint256& nProposalHash, CTxDestination& dest, CAmount nAmount);
 
     uint256 nProposalHash;
-    CTxDestination* dest;
     CScript script;
     CAmount nAmount;
 
@@ -213,14 +212,14 @@ public:
     {
         return (
             (nProposalHash == other.nProposalHash) &&
-            (*dest == *(other.dest)) &&
+            (script == other.script) &&
             (nAmount == other.nAmount)
         );
     }
 
     SERIALIZE_METHODS(CPayment, obj)
     {
-        READWRITE(obj.nProposalHash, obj.script), obj.nAmount);
+        READWRITE(obj.nProposalHash, obj.script, obj.nAmount);
     }
 };
 

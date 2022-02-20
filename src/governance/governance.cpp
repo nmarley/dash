@@ -701,7 +701,7 @@ bool CGovernanceManager::CreateSBTrigger() {
 
         if (!strPaymentAddresses.empty()) strPaymentAddresses += "|";
         CTxDestination dest;
-        ExtractDestination(dest, deets.Script());
+        ExtractDestination(deets.Script(), dest);
         strPaymentAddresses += EncodeDestination(dest);
 
         if (!strPaymentAmounts.empty()) strPaymentAmounts += "|";

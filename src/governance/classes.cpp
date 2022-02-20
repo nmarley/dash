@@ -842,7 +842,7 @@ CTriggerDetail::CTriggerDetail(int nHeight, const std::vector<const CGovernanceO
         }
 
         CTxDestination dest;
-        ExtractDestination(dest, detail.Script());
+        ExtractDestination(detail.Script(), dest);
 
         vecPayments.push_back(CPayment(hash, dest, detail.Amount()));
     }
@@ -969,7 +969,7 @@ std::string CTriggerDetail::GetDataHexStr() const
         UniValue objPayment(UniValue::VOBJ);
 
         CTxDestination dest;
-        ExtractDestination(dest, p.script);
+        ExtractDestination(p.script, dest);
 
         objPayment.pushKV("address", EncodeDestination(dest));
         objPayment.pushKV("amount", p.nAmount);
@@ -994,7 +994,7 @@ CPayment::CPayment(const uint256& nProposalHash, CTxDestination& dest, CAmount n
         script = GetScriptForDestination(dest);    
     } catch (std::exception& e) {
         LogPrintf("CPayment Payment not valid: dest = %s, nAmount = %d, what = %s\n",
-                  EncodeDestination(dest), nAmountIn, e.what());
+                  EncodeDestination(dest), nAmount, e.what());
     } catch (...) {
         LogPrintf("CPayment Payment not valid: dest = %s, nAmountIn = %d\n",
                   EncodeDestination(dest), nAmount);
