@@ -234,7 +234,7 @@ private:
 public:
     explicit CTriggerDetail(const std::string& strDataHex);
 
-    CTriggerDetail(int nHeight, const std::vector<const CGovernanceObject *>& vecProposals);
+    CTriggerDetail(int nHeight, const std::vector<CGovernanceObject>& vecProposals);
 
     std::string GetDataHexStr() const;
     uint256 GetHash() const;

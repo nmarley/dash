@@ -828,14 +828,14 @@ CTriggerDetail::CTriggerDetail(const std::string& strDataHex):
     }
 }
 
-CTriggerDetail::CTriggerDetail(int nHeight, const std::vector<const CGovernanceObject *>& vecProposals):
+CTriggerDetail::CTriggerDetail(int nHeight, const std::vector<CGovernanceObject>& vecProposals):
     nHeight(nHeight),
     fParsedOK(false)
 {
     for (const auto& pGovObj : vecProposals) {
-        uint256 hash = pGovObj->GetHash();
+        uint256 hash = pGovObj.GetHash();
 
-        auto detail = CProposalDetail(pGovObj->GetDataAsHexString());
+        auto detail = CProposalDetail(pGovObj.GetDataAsHexString());
         if (!detail.DidParse()) {
             vecStrErrMessages.emplace_back(detail.ErrorMessages());
             return;
