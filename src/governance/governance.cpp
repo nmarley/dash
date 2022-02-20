@@ -622,34 +622,34 @@ bool CGovernanceManager::CreateSBTrigger() {
     // Construct a list of proposals to consider for SuperBlock trigger
     // Keep triggers also for voting later
     std::vector<const CGovernanceObject*> vProposals;
-    std::map<uint256, const CGovernanceObject*> mapTriggerFingerprints;
+    std::map<uint256, CGovernanceObject> mapTriggerFingerprints;
     for (const auto& pGovObj : objs) {
-        LogPrint(BCLog::GOBJECT, "NGM pass 1: analyzing gobject %s, funding votes: %d\n", pGovObj->GetHash().ToString(), pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING));
+        LogPrint(BCLog::GOBJECT, "NGM pass 1: analyzing gobject %s, funding votes: %d\n", pGovObj.GetHash().ToString(), pGovObj.GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING));
 
         // Get trigger payload hashes for voting later
-        if (pGovObj->GetObjectType() == GOVERNANCE_OBJECT_TRIGGER) {
+        if (pGovObj.GetObjectType() == GOVERNANCE_OBJECT_TRIGGER) {
             // TODO: Should we only consider Triggers for this voting cycle (SB Height)?
-            mapTriggerFingerprints.emplace(pGovObj->GetPayloadDataHash(), pGovObj);
+            mapTriggerFingerprints.emplace(pGovObj.GetPayloadDataHash(), pGovObj);
         }
 
         // Skip non-proposals TODO: fix this comment and logic...
-        if (pGovObj->GetObjectType() != GOVERNANCE_OBJECT_PROPOSAL) {
+        if (pGovObj.GetObjectType() != GOVERNANCE_OBJECT_PROPOSAL) {
             LogPrint(BCLog::GOBJECT, "NGM obj not proposal, moving on\n");
             continue;
         }
 
         // Skip proposals which are not set to be funded
-        if (!pGovObj->IsSetCachedFunding()) continue;
+        if (!pGovObj.IsSetCachedFunding()) continue;
 
         // TODO?
-        // pGovObj->IsValidLocally(std::string& strError, bool fCheckCollateral)
+        // pGovObj.IsValidLocally(std::string& strError, bool fCheckCollateral)
 
         // Skip it if the funding votes are less than nGovQuorum (10% of valid MNs)
         // This might not be necessary due to the isSetCachedFunding check above...
-        if (pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING) < nGovQuorum) continue;
+        if (pGovObj.GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING) < nGovQuorum) continue;
 
         // Add pGovObj to the list to be sorted by votes.
-        vProposals.push_back(pGovObj);
+        vProposals.push_back(&pGovObj);
     }
 
     // Sort by Absolute Yes Count (using lambda expression)
@@ -667,7 +667,7 @@ bool CGovernanceManager::CreateSBTrigger() {
     std::string strPaymentAmounts;
     std::string strProposalHashes;
 
-    std::vector<const CGovernanceObject*> vFinalProposals;
+    std::vector<CGovernanceObject> vFinalProposals;
     for (auto pGovObj : vProposals) {
         LogPrint(BCLog::GOBJECT, "NGM pass 2: analyzing proposal %s, funding votes: %d\n", pGovObj->GetHash().ToString(), pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING));
         auto deets = CProposalDetail(pGovObj->GetDataAsHexString());
@@ -694,7 +694,7 @@ bool CGovernanceManager::CreateSBTrigger() {
         nBudgetUsed += deets.Amount();
         LogPrint(BCLog::GOBJECT, "NGM nBudgetUsed = %lld, total = %lld\n", nBudgetUsed, nBudget);
 
-        vFinalProposals.push_back(pGovObj);
+        vFinalProposals.push_back(*pGovObj);
 
         // HERE
 
@@ -779,13 +779,13 @@ bool CGovernanceManager::CreateSBTrigger() {
         // Vote on it (if not already voted for), and vote down the others
         // (also if not already voted for)
         vote_rec_t voteRecord;
-        if (it->second->GetCurrentMNVotes(activeMasternodeInfo.outpoint, voteRecord)) {
+        if (it->second.GetCurrentMNVotes(activeMasternodeInfo.outpoint, voteRecord)) {
             // We DID vote for this...
             LogPrint(BCLog::GOBJECT, "NGM We did already vote for it\n");
         } else {
             // We didn't vote for this yet, so vote for it
             LogPrint(BCLog::GOBJECT, "NGM Still need to vote for it\n");
-            CGovernanceVote vote(dmn->collateralOutpoint, it->second->GetHash(), VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_YES);
+            CGovernanceVote vote(dmn->collateralOutpoint, it->second.GetHash(), VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_YES);
             LogPrint(BCLog::GOBJECT, "NGM created vote object: %s\n", vote.GetHash().ToString());
             bool fSignSuccess = false;
             if (activeMasternodeInfo.blsKeyOperator) {
