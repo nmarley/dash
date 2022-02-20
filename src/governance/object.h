@@ -9,6 +9,7 @@
 #include <governance/vote.h>
 #include <governance/votedb.h>
 #include <logging.h>
+#include <string_view>
 #include <sync.h>
 
 #include <univalue.h>
@@ -162,6 +163,8 @@ public:
     CGovernanceObject(const uint256& nHashParentIn, int nRevisionIn, int64_t nTime, const uint256& nCollateralHashIn, const std::string& strDataHexIn);
 
     CGovernanceObject(const CGovernanceObject& other);
+
+    CGovernanceObject& operator=(CGovernanceObject&&) = default;
 
     // Public Getter methods
 
