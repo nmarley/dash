@@ -621,7 +621,7 @@ bool CGovernanceManager::CreateSBTrigger() {
 
     // Construct a list of proposals to consider for SuperBlock trigger
     // Keep triggers also for voting later
-    std::vector<const CGovernanceObject&> vProposals;
+    std::vector<const CGovernanceObject*> vProposals;
     std::map<uint256, CGovernanceObject> mapTriggerFingerprints;
     for (const auto& pGovObj : objs) {
         LogPrint(BCLog::GOBJECT, "NGM pass 1: analyzing gobject %s, funding votes: %d\n", pGovObj.GetHash().ToString(), pGovObj.GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING));
@@ -653,7 +653,7 @@ bool CGovernanceManager::CreateSBTrigger() {
     }
 
     // Sort by Absolute Yes Count (using lambda expression)
-    std::sort(vProposals.begin(), vProposals.end(), [](const CGovernanceObject& a, const CGovernanceObject& b) {
+    std::sort(vProposals.begin(), vProposals.end(), [](const CGovernanceObject* a, const CGovernanceObject* b) {
         return a->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING) > b->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
     });
 
@@ -669,8 +669,8 @@ bool CGovernanceManager::CreateSBTrigger() {
 
     std::vector<CGovernanceObject> vFinalProposals;
     for (auto pGovObj : vProposals) {
-        LogPrint(BCLog::GOBJECT, "NGM pass 2: analyzing proposal %s, funding votes: %d\n", pGovObj.GetHash().ToString(), pGovObj.GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING));
-        auto deets = CProposalDetail(pGovObj.GetDataAsHexString());
+        LogPrint(BCLog::GOBJECT, "NGM pass 2: analyzing proposal %s, funding votes: %d\n", pGovObj->GetHash().ToString(), pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING));
+        auto deets = CProposalDetail(pGovObj->GetDataAsHexString());
         if (!deets.DidParse()) {
             // TODO: vote to delete here?
             LogPrint(BCLog::GOBJECT, "NGM did NOT get deets, parse error. Moving on.\n");
@@ -694,7 +694,7 @@ bool CGovernanceManager::CreateSBTrigger() {
         nBudgetUsed += deets.Amount();
         LogPrint(BCLog::GOBJECT, "NGM nBudgetUsed = %lld, total = %lld\n", nBudgetUsed, nBudget);
 
-        vFinalProposals.push_back(pGovObj);
+        vFinalProposals.push_back(*pGovObj);
 
         // HERE
 
@@ -709,7 +709,7 @@ bool CGovernanceManager::CreateSBTrigger() {
         strPaymentAmounts += buffer;
 
         if (!strProposalHashes.empty()) strProposalHashes += "|";
-        strProposalHashes += pGovObj.GetHash().ToString();
+        strProposalHashes += pGovObj->GetHash().ToString();
     }
 
     auto triggerDetail = CTriggerDetail(nNextSB, vFinalProposals);
