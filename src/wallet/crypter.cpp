@@ -246,7 +246,7 @@ bool CCryptoKeyStore::Unlock(const CKeyingMaterial& vMasterKeyIn, bool fForMixin
         if (!SetCrypted())
             return false;
 
-        bool keyPass = mapCryptedKeys.empty(); // Always pass when there are no encrypted keys
+        bool keyPass = false;
         bool keyFail = false;
         CryptedKeyMap::const_iterator mi = mapCryptedKeys.begin();
         for (; mi != mapCryptedKeys.end(); ++mi)
