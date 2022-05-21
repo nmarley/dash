@@ -761,9 +761,9 @@ void CProposalDetail::ParseStrDataHex(const std::string& strDataHex)
         CTxDestination dest;
 
         // Parse proposal details
-        if (hasKey("startHeight")) {
-            nStartHeight = obj["startHeight"].get_int();
-            nEndEpoch = obj["endHeight"].get_int();
+        if (hasKey("start_height")) {
+            nStartHeight = obj["start_height"].get_int();
+            nEndHeight = obj["end_height"].get_int();
             strName = obj["name"].get_str();
             strURL = obj["url"].get_str();
 
