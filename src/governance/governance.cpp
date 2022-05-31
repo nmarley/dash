@@ -511,6 +511,7 @@ void CGovernanceManager::DoMaintenance(CConnman& connman)
 {
     LogPrintf("NGM CGovernanceManager::%s\n", __func__);
     if (fDisableGovernance || !masternodeSync.IsSynced() || ShutdownRequested()) return;
+    LogPrintf("NGM Am i HERE?::%s\n", __func__);
 
     // NGM BEGIN
 
