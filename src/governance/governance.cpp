@@ -536,9 +536,12 @@ void CGovernanceManager::DoMaintenance(CConnman& connman)
 bool CGovernanceManager::CreateSBTrigger() {
     // do not request objects until it's time to sync
     // if (!masternodeSync.IsBlockchainSynced()) return false;
+    LogPrintf("NGM in CreateSBTrigger::%s\n", __func__);
 
     int64_t nNow = GetAdjustedTime();
+    LogPrintf("NGM nNow =%ld\n", nNow);
     int nCurrentHeight = pindexBestHeader->nHeight;
+    LogPrintf("NGM nCurrentHeight =%d\n", nCurrentHeight);
     // or should chainActive be used?
 
     LogPrint(BCLog::GOBJECT, "NGM CGovernanceManager::%s nNow = %lld, nCurrentHeight = %d\n", __func__, nNow, nCurrentHeight);
