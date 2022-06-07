@@ -235,7 +235,7 @@ public:
     void ProcessMessage(CNode* pfrom, const std::string& msg_type, CDataStream& vRecv, CConnman& connman, bool enable_bip61);
 
     void DoMaintenance(CConnman& connman);
-    bool CreateSBTrigger();
+    bool CreateSBTrigger(CConnman& connman);
     int EstimateFutureBlockTime(int nFutureBlockHeight, int nNextSBHeight);
 
     CGovernanceObject* FindGovernanceObject(const uint256& nHash);
