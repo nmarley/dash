@@ -517,7 +517,7 @@ void CGovernanceManager::DoMaintenance(CConnman& connman)
 
 //    if (fMasternodeMode) {
         // If this is a masternode, try and create a SB trigger
-        CreateSBTrigger();
+        CreateSBTrigger(connman);
 //    }
 
     // NGM END
@@ -533,7 +533,7 @@ void CGovernanceManager::DoMaintenance(CConnman& connman)
     UpdateCachesAndClean();
 }
 
-bool CGovernanceManager::CreateSBTrigger() {
+bool CGovernanceManager::CreateSBTrigger(CConnman& connman) {
     // do not request objects until it's time to sync
     // if (!masternodeSync.IsBlockchainSynced()) return false;
     LogPrintf("NGM in CreateSBTrigger::%s\n", __func__);
@@ -740,10 +740,10 @@ bool CGovernanceManager::CreateSBTrigger() {
         if (fMissingConfirmations) {
             LogPrint(BCLog::GOBJECT, "NGM Missing confirmations, postpone / relay\n");
             governance.AddPostponedObject(trigger);
-            trigger.Relay(*g_connman);
+            trigger.Relay(connman);
         } else {
             LogPrint(BCLog::GOBJECT, "NGM not missing confs, Add Governance Object\n");
-            governance.AddGovernanceObject(trigger, *g_connman);
+            governance.AddGovernanceObject(trigger, connman);
         }
 
     }
@@ -771,7 +771,7 @@ bool CGovernanceManager::CreateSBTrigger() {
             LogPrint(BCLog::GOBJECT, "NGM vote object hash post-sig: %s\n", vote.GetHash().ToString());
 
             CGovernanceException exception;
-            if (governance.ProcessVoteAndRelay(vote, exception, *g_connman)) {
+            if (governance.ProcessVoteAndRelay(vote, exception, connman)) {
                 LogPrint(BCLog::GOBJECT, "NGM vote object hash post-sig: %s\n", vote.GetHash().ToString());
                 return true;
             } else {
