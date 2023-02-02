@@ -432,7 +432,7 @@ CGovernanceObject* CGovernanceManager::FindGovernanceObject(const uint256& nHash
 std::vector<CGovernanceVote> CGovernanceManager::GetCurrentVotes(const uint256& nParentHash, const COutPoint& mnCollateralOutpointFilter) const
 {
     LOCK(cs);
-    std::vector<CGovernanceVote> vecResult;
+    std::vector<std::pair(CGovernanceVote, uint8_t)> vecResult;
 
     // Find the governance object or short-circuit.
     auto it = mapObjects.find(nParentHash);
@@ -463,10 +463,20 @@ std::vector<CGovernanceVote> CGovernanceManager::GetCurrentVotes(const uint256& 
             int outcome = voteInstancePair.second.eOutcome;
             int64_t nCreationTime = voteInstancePair.second.nCreationTime;
 
+            // 4x times vote weight for HPMN owners
+            //
+            // No need to check if v19 is active since no HPMN are allowed to
+            // register before v19
+            Coin coin;
+            uint8_t voteWeight = 1;
+            if (!GetUTXOCoin(votepair.first, coin)) && (coin.out.nValue == HPMNCollateralAmount) {
+                voteWeight = 4;
+            }
+
             CGovernanceVote vote = CGovernanceVote(mnpair.first, nParentHash, (vote_signal_enum_t)signal, (vote_outcome_enum_t)outcome);
             vote.SetTime(nCreationTime);
 
-            vecResult.push_back(vote);
+            vecResult.push_back(std::make_pair(vote, voteWeight));
         }
     }
 

@@ -970,9 +970,11 @@ static UniValue gobject_getcurrentvotes(const JSONRPCRequest& request)
 
     // GET MATCHING VOTES BY HASH, THEN SHOW USERS VOTE INFORMATION
 
-    std::vector<CGovernanceVote> vecVotes = governance->GetCurrentVotes(hash, mnCollateralOutpoint);
-    for (const auto& vote : vecVotes) {
-        bResult.pushKV(vote.GetHash().ToString(),  vote.ToString());
+    std::vector<std::pair(CGovernanceVote, uint8_t)> vecVotes = governance->GetCurrentVotes(hash, mnCollateralOutpoint);
+    for (const auto& votePair : vecVotes) {
+        const CGovernanceVote& vote = votePair.first;
+        const auto& resultStr = vote.ToString() << ":" << votePair.second;
+        bResult.pushKV(vote.GetHash().ToString(), resultStr);
     }
 
     return bResult;

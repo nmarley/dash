@@ -22,6 +22,7 @@ class CSporkManager;
 extern std::unique_ptr<CGovernanceManager> governance;
 
 static constexpr int RATE_BUFFER_SIZE = 5;
+static constexpr CAmount HPMNCollateralAmount = 4000 * COIN;
 
 class CDeterministicMNList;
 using CDeterministicMNListPtr = std::shared_ptr<CDeterministicMNList>;
