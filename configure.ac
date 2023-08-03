@@ -105,8 +105,16 @@ AC_PATH_PROGS([PYTHON], [python3.5 python3.6 python3.7 python3.8 python3 python]
 AC_PATH_PROG(GENHTML, genhtml)
 AC_PATH_PROG([GIT], [git])
 AC_PATH_PROG(CCACHE,ccache)
-AC_PATH_PROG(RUSTC,rustc)
-AC_PATH_PROG(CARGO,cargo)
+dnl AC_PATH_PROG(RUSTC,rustc)
+dnl AC_PATH_PROG(CARGO,cargo)
+AC_CHECK_PROG(CARGO, [cargo], [yes], [no])
+AS_IF(test x$CARGO = xno,
+    AC_MSG_ERROR([cargo is required])
+)
+AC_CHECK_PROG(RUSTC, [rustc], [yes], [no])
+AS_IF(test x$RUSTC = xno,
+    AC_MSG_ERROR([rustc is required])
+)
 AC_PATH_PROG(XGETTEXT,xgettext)
 AC_PATH_PROG(HEXDUMP,hexdump)
 AC_PATH_TOOL(READELF, readelf)

@@ -171,6 +171,20 @@ appbundle: $(OSX_APP_BUILT)
 deploy: $(OSX_DMG)
 endif
 
+## START RUST
+# rustc --crate-type=staticlib --emit=obj  src/double.rs
+
+#rustlib/target/release/librustlib.a:
+#	$(CARGO) build --release qt/$(@F)
+
+# rustlib/target/release/librustlib.a:
+# 	$(CARGO) build --release --manifest-path=rustlib/Cargo.toml
+# your_program: your_program.cpp rustlib/target/release/librustlib.a
+# 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
+
+
+## END RUST
+
 $(BITCOIN_QT_BIN): FORCE
 	$(MAKE) -C src qt/$(@F)
 

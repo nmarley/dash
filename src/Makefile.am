@@ -741,6 +741,10 @@ dash_cli_SOURCES = dash-cli.cpp
 dash_cli_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(EVENT_CFLAGS)
 dash_cli_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 dash_cli_LDFLAGS = $(LDFLAGS_WRAP_EXCEPTIONS) $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
+dash_cli_LDADD = double.o
+
+double.o: double.rs
+	$(RUSTC) --crate-type=staticlib --emit=obj double.rs
 
 if TARGET_WINDOWS
 dash_cli_SOURCES += dash-cli-res.rc
