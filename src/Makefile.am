@@ -737,11 +737,10 @@ dashd_LDADD = \
 dashd_LDADD += $(BACKTRACE_LIB) $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) $(BLS_LIBS) $(GMP_LIBS)
 
 # dash-cli binary #
-dash_cli_SOURCES = dash-cli.cpp
+dash_cli_SOURCES = dash-cli.cpp double.h
 dash_cli_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(EVENT_CFLAGS)
 dash_cli_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 dash_cli_LDFLAGS = $(LDFLAGS_WRAP_EXCEPTIONS) $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
-dash_cli_LDADD = double.o
 
 double.o: double.rs
 	$(RUSTC) --crate-type=staticlib --emit=obj double.rs
@@ -751,6 +750,7 @@ dash_cli_SOURCES += dash-cli-res.rc
 endif
 
 dash_cli_LDADD = \
+  double.o \
   $(LIBBITCOIN_CLI) \
   $(LIBUNIVALUE) \
   $(LIBBITCOIN_UTIL) \

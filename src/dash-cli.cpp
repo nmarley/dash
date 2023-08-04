@@ -25,6 +25,7 @@
 #include <support/events.h>
 
 #include <univalue.h>
+#include "double.h"
 
 const std::function<std::string(const char*)> G_TRANSLATION_FUN = nullptr;
 
@@ -535,10 +536,11 @@ static int CommandLineRPC(int argc, char *argv[])
 int main(int argc, char* argv[])
 {
     int32_t nExample = 20210508;
-    int32_t nDouble = double_num(nExample);
+    // int32_t nDouble = double_int(nExample);
+    rust_function();
 
-    fprintf(stderr, "nDouble: %ld\n", nDouble);
-    return EXIT_FAILURE;
+    // fprintf(stderr, "nDouble: %ld\n", nDouble);
+    // return EXIT_FAILURE;
 
     RegisterPrettyTerminateHander();
     RegisterPrettySignalHandlers();
