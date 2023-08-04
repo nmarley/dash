@@ -536,11 +536,11 @@ static int CommandLineRPC(int argc, char *argv[])
 int main(int argc, char* argv[])
 {
     int32_t nExample = 20210508;
-    // int32_t nDouble = double_int(nExample);
-    rust_function();
+    int32_t nDouble = double_int(nExample);
+    fprintf(stderr, "nDouble: %ld\n", nDouble);
+    return EXIT_FAILURE;
 
-    // fprintf(stderr, "nDouble: %ld\n", nDouble);
-    // return EXIT_FAILURE;
+    // rust_function();
 
     RegisterPrettyTerminateHander();
     RegisterPrettySignalHandlers();
