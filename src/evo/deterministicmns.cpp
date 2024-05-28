@@ -1232,7 +1232,7 @@ bool CDeterministicMNManager::MigrateDBIfNeeded()
     // then we must assume that the upgrade process was already running before but was interrupted.
     if (m_chainstate.m_chain.Height() > 1 && !m_evoDb.GetRawDB().Exists(DB_OLD_BEST_BLOCK)) {
         LogPrintf("CDeterministicMNManager::%s -- previous migration attempt failed.\n", __func__);
-        return false;
+        // return false;
     }
     m_evoDb.GetRawDB().Erase(DB_OLD_BEST_BLOCK);
 
@@ -1343,7 +1343,7 @@ bool CDeterministicMNManager::MigrateDBIfNeeded2()
     // then we must assume that the upgrade process was already running before but was interrupted.
     if (m_chainstate.m_chain.Height() > 1 && !m_evoDb.GetRawDB().Exists(DB_OLD_BEST_BLOCK)) {
         LogPrintf("CDeterministicMNManager::%s -- previous migration attempt failed.\n", __func__);
-        return false;
+        // return false;
     }
     m_evoDb.GetRawDB().Erase(DB_OLD_BEST_BLOCK);
 
