@@ -1,0 +1,29 @@
+{
+  "description": "Golden test vectors from real Dash Core transactions and blocks",
+  "transactions": {
+    "normal_v2_simple": {
+      "description": "Simple v2 normal transaction with 1 input, 2 outputs",
+      "hex": "0200000001b14bdcbc3e01bdaad36cc08e81e69c82e1060bc14e518db2b49aa43ad90ba26000000000490047304402203f16c6f40162ab686621ef3000b04e75418a0c0cb2d8aebeac894ae360ac1e780220ddc15ecdfc3507ac48e1681a33eb60996631bf6bf5bc0a0682c4db743ce7ca2b01ffffffff0140420f00000000001976a914660d4ef3a743e3e696ad990364e555c271ad504b88ac00000000",
+      "expected": {
+        "version": 2,
+        "tx_type": 0,
+        "inputs": 1,
+        "outputs": 1,
+        "lock_time": 0,
+        "has_extra_payload": false
+      }
+    }
+  },
+  "blocks": {
+    "genesis_header": {
+      "description": "Dash mainnet genesis block header",
+      "hex": "010000000000000000000000000000000000000000000000000000000000000000000000696ad20e2dd4365c7459b4a4a5af743d5e92c6da3229e6532cd605f6533f2a5b24a6a152f0ff0f1e678601000101000000010000000000000000000000000000000000000000000000000000000000000000ffffffff62044ffff001d0104404e592054696d65732030352f4f63742f32303131205374657665204a6f62732c204170706c65e280997320566973696f6e6172792c2044696573206174203536ffffffff010040cfc44f5b0000232102aa970c592640d19de03ff6f329d6fd2eecb023263b9ba5d1b81c29b523da8b21ac00000000",
+      "expected": {
+        "version": 1,
+        "time": 1317972665,
+        "bits": 504365040,
+        "nonce": 99943
+      }
+    }
+  }
+}
