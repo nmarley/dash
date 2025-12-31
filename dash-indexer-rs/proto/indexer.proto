@@ -1,0 +1,85 @@
+syntax = "proto3";
+
+package dash.indexer.v1;
+
+// Indexer service for querying Dash blockchain data
+service IndexerService {
+  // Get transaction by hash
+  rpc GetTransaction(GetTransactionRequest) returns (GetTransactionResponse);
+
+  // Get block by hash or height
+  rpc GetBlock(GetBlockRequest) returns (GetBlockResponse);
+
+  // Get sync status
+  rpc GetSyncStatus(GetSyncStatusRequest) returns (GetSyncStatusResponse);
+}
+
+// Transaction request
+message GetTransactionRequest {
+  bytes txid = 1;  // 32-byte transaction hash
+}
+
+// Transaction response
+message GetTransactionResponse {
+  Transaction transaction = 1;
+}
+
+// Block request (by hash or height)
+message GetBlockRequest {
+  oneof identifier {
+    bytes hash = 1;     // 32-byte block hash
+    uint32 height = 2;  // Block height
+  }
+}
+
+// Block response
+message GetBlockResponse {
+  Block block = 1;
+}
+
+// Sync status request
+message GetSyncStatusRequest {}
+
+// Sync status response
+message GetSyncStatusResponse {
+  uint32 current_height = 1;
+  uint32 target_height = 2;
+  bool syncing = 3;
+  double sync_progress = 4;  // 0.0 to 1.0
+}
+
+// Transaction message
+message Transaction {
+  bytes txid = 1;
+  bytes raw_tx = 2;
+  uint32 height = 3;
+  bytes block_hash = 4;
+  uint32 tx_index = 5;
+  DashTxType tx_type = 6;
+  bytes extra_payload = 7;  // For special transactions
+  uint32 confirmations = 8;
+}
+
+// Block message
+message Block {
+  bytes hash = 1;
+  uint32 height = 2;
+  bytes raw_header = 3;
+  repeated bytes tx_ids = 4;
+  uint32 tx_count = 5;
+  uint32 timestamp = 6;
+}
+
+// Dash transaction types
+enum DashTxType {
+  NORMAL = 0;
+  PROVIDER_REGISTER = 1;
+  PROVIDER_UPDATE_SERVICE = 2;
+  PROVIDER_UPDATE_REGISTRAR = 3;
+  PROVIDER_UPDATE_REVOKE = 4;
+  COINBASE = 5;
+  QUORUM_COMMITMENT = 6;
+  MNHF_SIGNAL = 7;
+  ASSET_LOCK = 8;
+  ASSET_UNLOCK = 9;
+}
