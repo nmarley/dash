@@ -1,6 +1,3 @@
-// Copyright (c) 2025 The Dash Core developers
-// Distributed under the MIT software license
-
 //! # librustdash
 //!
 //! Rust primitives library for Dash blockchain data structures.

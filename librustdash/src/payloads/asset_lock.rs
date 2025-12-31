@@ -1,6 +1,3 @@
-// Copyright (c) 2025 The Dash Core developers
-// Distributed under the MIT software license
-
 //! Asset lock/unlock transaction payloads
 
 use crate::error::Result;

@@ -1,6 +1,3 @@
-// Copyright (c) 2025 The Dash Core developers
-// Distributed under the MIT software license
-
 //! Transaction types and serialization
 
 use crate::error::Result;
@@ -135,7 +132,7 @@ impl Transaction {
     /// - 4 bytes: combined version and type (type << 16 | version)
     /// - varint: input count
     /// - inputs
-    /// - varint: output count  
+    /// - varint: output count
     /// - outputs
     /// - 4 bytes: lock time
     /// - optional: extra payload (if version >= 3 && type != NORMAL)
