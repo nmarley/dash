@@ -8,11 +8,13 @@
 //! This library provides types and serialization for Dash blocks, transactions,
 //! and special transaction payloads, with byte-for-byte compatibility with Dash Core.
 
+pub mod block;
 pub mod error;
 pub mod serialize;
 pub mod transaction;
 pub mod tx_type;
 
+pub use block::{Block, BlockHeader};
 pub use error::{DashError, Result};
 pub use transaction::{OutPoint, TxIn, TxOut, Transaction};
 pub use tx_type::DashTxType;
