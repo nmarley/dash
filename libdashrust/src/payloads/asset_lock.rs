@@ -25,7 +25,7 @@ impl AssetLockPayload {
         let mut buf = Vec::new();
 
         buf.write_u8(self.version)?;
-        
+
         // Serialize credit outputs
         write_compact_size(&mut buf, self.credit_outputs.len() as u64)?;
         for output in &self.credit_outputs {
@@ -39,7 +39,7 @@ impl AssetLockPayload {
         let mut cursor = std::io::Cursor::new(data);
 
         let version = cursor.read_u8()?;
-        
+
         let output_count = read_compact_size(&mut cursor)?;
         let mut credit_outputs = Vec::with_capacity(output_count as usize);
         for _ in 0..output_count {
@@ -81,7 +81,7 @@ impl AssetUnlockPayload {
         buf.write_u32::<LittleEndian>(self.fee)?;
         buf.write_u32::<LittleEndian>(self.requested_height)?;
         buf.write_all(&self.quorum_hash)?;
-        
+
         // BLS signatures are 96 bytes
         if self.quorum_sig.len() != 96 {
             return Err(crate::error::DashError::InvalidBlsSignature);
@@ -98,10 +98,10 @@ impl AssetUnlockPayload {
         let index = cursor.read_u64::<LittleEndian>()?;
         let fee = cursor.read_u32::<LittleEndian>()?;
         let requested_height = cursor.read_u32::<LittleEndian>()?;
-        
+
         let mut quorum_hash = [0u8; 32];
         cursor.read_exact(&mut quorum_hash)?;
-        
+
         let mut quorum_sig = vec![0u8; 96];
         cursor.read_exact(&mut quorum_sig)?;
 

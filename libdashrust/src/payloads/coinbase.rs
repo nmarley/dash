@@ -62,7 +62,7 @@ impl CbTx {
                         "CbTx v3+ requires best_cl_signature".to_string(),
                     )
                 })?;
-                
+
                 // BLS signatures are 96 bytes
                 if signature.len() != 96 {
                     return Err(crate::error::DashError::InvalidBlsSignature);

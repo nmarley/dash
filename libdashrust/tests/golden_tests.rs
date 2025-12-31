@@ -33,19 +33,29 @@ fn test_normal_transaction_v2_roundtrip() {
 fn test_version_type_decoding() {
     // Test version=2, type=0 (normal tx)
     let combined_bytes = vec![0x02, 0x00, 0x00, 0x00]; // 0x00000002 in little-endian
-    let combined = u32::from_le_bytes([combined_bytes[0], combined_bytes[1], combined_bytes[2], combined_bytes[3]]);
+    let combined = u32::from_le_bytes([
+        combined_bytes[0],
+        combined_bytes[1],
+        combined_bytes[2],
+        combined_bytes[3],
+    ]);
     let version = (combined & 0xFFFF) as i16;
     let tx_type = ((combined >> 16) & 0xFFFF) as u16;
-    
+
     assert_eq!(version, 2);
     assert_eq!(tx_type, 0);
 
     // Test version=3, type=1 (special tx)
     let combined_bytes = vec![0x03, 0x00, 0x01, 0x00]; // 0x00010003 in little-endian
-    let combined = u32::from_le_bytes([combined_bytes[0], combined_bytes[1], combined_bytes[2], combined_bytes[3]]);
+    let combined = u32::from_le_bytes([
+        combined_bytes[0],
+        combined_bytes[1],
+        combined_bytes[2],
+        combined_bytes[3],
+    ]);
     let version = (combined & 0xFFFF) as i16;
     let tx_type = ((combined >> 16) & 0xFFFF) as u16;
-    
+
     assert_eq!(version, 3);
     assert_eq!(tx_type, 1);
 }

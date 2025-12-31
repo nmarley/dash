@@ -18,5 +18,5 @@ pub mod tx_type;
 pub use block::{Block, BlockHeader};
 pub use error::{DashError, Result};
 pub use payloads::{AssetLockPayload, AssetUnlockPayload, CbTx};
-pub use transaction::{OutPoint, TxIn, TxOut, Transaction};
+pub use transaction::{OutPoint, Transaction, TxIn, TxOut};
 pub use tx_type::DashTxType;

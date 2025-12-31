@@ -78,10 +78,13 @@ mod tests {
     #[test]
     fn test_dash_tx_type_from_u16() {
         assert_eq!(DashTxType::try_from(0).unwrap(), DashTxType::Normal);
-        assert_eq!(DashTxType::try_from(1).unwrap(), DashTxType::ProviderRegister);
+        assert_eq!(
+            DashTxType::try_from(1).unwrap(),
+            DashTxType::ProviderRegister
+        );
         assert_eq!(DashTxType::try_from(5).unwrap(), DashTxType::Coinbase);
         assert_eq!(DashTxType::try_from(9).unwrap(), DashTxType::AssetUnlock);
-        
+
         assert!(DashTxType::try_from(999).is_err());
         assert!(DashTxType::try_from(10).is_err());
     }
@@ -97,7 +100,10 @@ mod tests {
     fn test_dash_tx_type_display() {
         assert_eq!(format!("{}", DashTxType::Normal), "Normal");
         assert_eq!(format!("{}", DashTxType::Coinbase), "Coinbase");
-        assert_eq!(format!("{}", DashTxType::ProviderRegister), "ProviderRegister");
+        assert_eq!(
+            format!("{}", DashTxType::ProviderRegister),
+            "ProviderRegister"
+        );
     }
 
     #[test]

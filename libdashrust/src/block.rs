@@ -58,13 +58,13 @@ impl BlockHeader {
         let mut cursor = std::io::Cursor::new(data);
 
         let version = cursor.read_i32::<LittleEndian>()?;
-        
+
         let mut prev_blockhash = [0u8; 32];
         cursor.read_exact(&mut prev_blockhash)?;
-        
+
         let mut merkle_root = [0u8; 32];
         cursor.read_exact(&mut merkle_root)?;
-        
+
         let time = cursor.read_u32::<LittleEndian>()?;
         let bits = cursor.read_u32::<LittleEndian>()?;
         let nonce = cursor.read_u32::<LittleEndian>()?;
@@ -131,14 +131,14 @@ impl Block {
             let remaining = data.len() - cursor.position() as usize;
             let mut temp_buf = vec![0u8; remaining];
             cursor.read_exact(&mut temp_buf)?;
-            
+
             // Try to deserialize transaction
             let tx = Transaction::deserialize(&temp_buf)?;
-            
+
             // Calculate how many bytes were consumed
             let tx_bytes = tx.serialize()?;
             cursor.set_position(cursor.position() - (remaining - tx_bytes.len()) as u64);
-            
+
             transactions.push(tx);
         }
 
@@ -199,26 +199,24 @@ mod tests {
             nonce: 0,
         };
 
-        let transactions = vec![
-            Transaction {
-                version: 2,
-                tx_type: DashTxType::Normal,
-                inputs: vec![TxIn {
-                    previous_output: OutPoint {
-                        hash: [0u8; 32],
-                        n: u32::MAX,
-                    },
-                    script_sig: vec![0x01, 0x02, 0x03],
-                    sequence: 0xFFFFFFFF,
-                }],
-                outputs: vec![TxOut {
-                    value: 5000000000,
-                    script_pubkey: vec![0x76, 0xa9],
-                }],
-                lock_time: 0,
-                extra_payload: None,
-            },
-        ];
+        let transactions = vec![Transaction {
+            version: 2,
+            tx_type: DashTxType::Normal,
+            inputs: vec![TxIn {
+                previous_output: OutPoint {
+                    hash: [0u8; 32],
+                    n: u32::MAX,
+                },
+                script_sig: vec![0x01, 0x02, 0x03],
+                sequence: 0xFFFFFFFF,
+            }],
+            outputs: vec![TxOut {
+                value: 5000000000,
+                script_pubkey: vec![0x76, 0xa9],
+            }],
+            lock_time: 0,
+            extra_payload: None,
+        }];
 
         let block = Block {
             header,

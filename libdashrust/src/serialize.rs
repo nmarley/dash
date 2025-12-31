@@ -38,7 +38,7 @@ pub fn write_compact_size<W: Write>(writer: &mut W, value: u64) -> Result<()> {
 /// Read a CompactSize value
 pub fn read_compact_size<R: Read>(reader: &mut R) -> Result<u64> {
     let first_byte = reader.read_u8()?;
-    
+
     match first_byte {
         0..=252 => Ok(first_byte as u64),
         0xFD => Ok(reader.read_u16::<LittleEndian>()? as u64),
@@ -80,17 +80,7 @@ mod tests {
     fn test_compact_size_edge_cases() {
         // Test boundary values
         let boundaries = vec![
-            0u64,
-            1,
-            252,
-            253,
-            254,
-            255,
-            256,
-            65534,
-            65535,
-            65536,
-            0xFFFFFFFF,
+            0u64, 1, 252, 253, 254, 255, 256, 65534, 65535, 65536, 0xFFFFFFFF,
         ];
 
         for value in boundaries {
