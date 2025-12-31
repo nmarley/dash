@@ -1,8 +1,8 @@
 # librustdash Phase 1 Implementation Plan - Test-Driven Development
 
-**Document Version:** 2.0  
-**Date:** December 31, 2025  
-**Status:** Ready to Implement  
+**Document Version:** 2.0
+**Date:** December 31, 2025
+**Status:** Ready to Implement
 **Estimated Duration:** 3-4 weeks
 
 ---
@@ -59,7 +59,7 @@ constexpr int BLS_CURVE_SIG_SIZE{96};
 
 ```toml
 [package]
-name = "libdashrust"
+name = "librustdash"
 version = "0.1.0"
 edition = "2021"
 

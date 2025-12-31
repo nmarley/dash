@@ -18,7 +18,7 @@ librustdash provides types and serialization for Dash blocks, transactions, and 
 ## Usage
 
 ```rust
-use libdashrust::{Transaction, DashTxType, Block};
+use librustdash::{Transaction, DashTxType, Block};
 
 // Deserialize a transaction
 let tx_bytes = hex::decode("0200000001...").unwrap();
@@ -57,7 +57,7 @@ Supported Dash transaction types:
 ### CbTx (Coinbase)
 
 ```rust
-use libdashrust::CbTx;
+use librustdash::CbTx;
 
 let cbtx = CbTx {
     version: 3,
@@ -75,7 +75,7 @@ let bytes = cbtx.serialize().unwrap();
 ### AssetLock / AssetUnlock
 
 ```rust
-use libdashrust::{AssetLockPayload, AssetUnlockPayload, TxOut};
+use librustdash::{AssetLockPayload, AssetUnlockPayload, TxOut};
 
 // Asset lock
 let lock = AssetLockPayload {

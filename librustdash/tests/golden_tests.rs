@@ -3,7 +3,7 @@
 
 //! Golden tests using real Dash Core transaction and block data
 
-use libdashrust::{DashTxType, Transaction};
+use librustdash::{DashTxType, Transaction};
 
 #[test]
 fn test_normal_transaction_v2_roundtrip() {
