@@ -94,7 +94,7 @@ impl TryFrom<u16> for RevocationReason {
 ///
 /// # Example
 ///
-/// ```rust,ignore
+/// ```
 /// use librustdash::{ProUpRevTx, RevocationReason, BlsSignature};
 ///
 /// let revoke_tx = ProUpRevTx {
@@ -105,8 +105,9 @@ impl TryFrom<u16> for RevocationReason {
 ///     sig: BlsSignature { data: vec![0xCC; 96] },
 /// };
 ///
-/// let bytes = revoke_tx.serialize()?;
-/// let decoded = ProUpRevTx::deserialize(&bytes)?;
+/// let bytes = revoke_tx.serialize().unwrap();
+/// let decoded = ProUpRevTx::deserialize(&bytes).unwrap();
+/// assert_eq!(revoke_tx, decoded);
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProUpRevTx {
