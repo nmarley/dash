@@ -21,7 +21,7 @@ pub use bls::{BlsPublicKey, BlsSignature};
 pub use error::{DashError, Result};
 pub use network_info::ServiceAddress;
 pub use payloads::{
-    AssetLockPayload, AssetUnlockPayload, CbTx, MasternodeType, ProUpRegTx, ProUpRevTx,
+    AssetLockPayload, AssetUnlockPayload, CbTx, MasternodeType, ProRegTx, ProUpRegTx, ProUpRevTx,
     ProUpServTx, RevocationReason,
 };
 pub use transaction::{OutPoint, Transaction, TxIn, TxOut};
