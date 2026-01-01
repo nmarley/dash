@@ -8,12 +8,12 @@ librustdash provides types and serialization for Dash blocks, transactions, and 
 
 ## Features
 
-- ✅ **Transaction Types**: Full support for Dash transaction serialization including version/type encoding
-- ✅ **Block Support**: BlockHeader and Block types with 80-byte header serialization
-- ✅ **Special Transactions**: CbTx (Coinbase), AssetLock, AssetUnlock payloads
-- ✅ **Type Safety**: Rust enums for transaction types with compile-time guarantees
-- ✅ **Test Coverage**: 26 tests including roundtrip and golden tests
-- ✅ **Dash Core Compatible**: Byte-for-byte serialization match
+- **Transaction Types**: Full support for Dash transaction serialization including version/type encoding
+- **Block Support**: BlockHeader and Block types with 80-byte header serialization
+- **Special Transactions**: CbTx (Coinbase), AssetLock, AssetUnlock payloads
+- **Type Safety**: Rust enums for transaction types with compile-time guarantees
+- **Test Coverage**: 26 tests including roundtrip and golden tests
+- **Dash Core Compatible**: Byte-for-byte serialization match
 
 ## Usage
 
@@ -129,7 +129,7 @@ The library includes comprehensive tests:
 
 ## Implementation Status
 
-### Phase 1: Primitives ✅ COMPLETE
+### Phase 1: Primitives COMPLETE
 
 - [x] Error types
 - [x] CompactSize serialization
@@ -169,4 +169,4 @@ Contributions welcome! Please ensure:
 
 ---
 
-**Status**: Phase 1 Complete - 26 tests passing ✅
+**Status**: Phase 1 Complete - 26 tests passing

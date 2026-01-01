@@ -500,15 +500,15 @@ if count > 0xFFFFFFFF {
 ### 1. Byte Order
 
 ```
-❌ WRONG: Writing 0x12345678 directly
-✅ RIGHT: Write as little-endian: 78 56 34 12
+WRONG: Writing 0x12345678 directly
+RIGHT: Write as little-endian: 78 56 34 12
 ```
 
 ### 2. Hash Display vs Storage
 
 ```
-❌ WRONG: Storing displayed hash as-is
-✅ RIGHT: Reverse bytes for storage/comparison
+WRONG: Storing displayed hash as-is
+RIGHT: Reverse bytes for storage/comparison
 
 // Example txid display: "abc123..."
 // Actual bytes: reverse of display
@@ -517,8 +517,8 @@ if count > 0xFFFFFFFF {
 ### 3. Version/Type Encoding
 
 ```
-❌ WRONG: Writing version then type separately
-✅ RIGHT: Combine first, then write as uint32
+WRONG: Writing version then type separately
+RIGHT: Combine first, then write as uint32
 
 let combined = ((type as u32) << 16) | version as u32;
 writer.write_u32(combined)?;
@@ -527,8 +527,8 @@ writer.write_u32(combined)?;
 ### 4. Optional Payload
 
 ```
-❌ WRONG: Always writing extra_payload
-✅ RIGHT: Check version and type first
+WRONG: Always writing extra_payload
+RIGHT: Check version and type first
 
 if version >= 3 && tx_type != NORMAL {
     writer.write_payload(&extra_payload)?;
@@ -538,8 +538,8 @@ if version >= 3 && tx_type != NORMAL {
 ### 5. BLS Scheme Differences
 
 ```
-❌ WRONG: Treating Legacy and Basic BLS identically
-✅ RIGHT: Track which scheme is active
+WRONG: Treating Legacy and Basic BLS identically
+RIGHT: Track which scheme is active
 
 match protx.version {
     ProTxVersion::LegacyBLS => use_legacy_bls(),

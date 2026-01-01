@@ -304,22 +304,22 @@ While the main phases progress, these can happen in parallel:
 ## Success Metrics
 
 ### Short-term (Phase 0-1, Year 1)
-- ✅ librustdash released
-- ✅ dash-indexer in production
-- 🎯 2+ projects using librustdash
-- 🎯 Community engagement (GitHub stars, contributors)
+- librustdash released
+- dash-indexer in production
+- 2+ projects using librustdash
+- Community engagement (GitHub stars, contributors)
 
 ### Mid-term (Phase 2-3, Year 2-3)
-- 🎯 Wallet functionality in Rust
-- 🎯 Consensus library validated
-- 🎯 Performance benchmarks published
-- 🎯 Mobile SDK adoption
+- Wallet functionality in Rust
+- Consensus library validated
+- Performance benchmarks published
+- Mobile SDK adoption
 
 ### Long-term (Phase 4-5, Year 3-5)
-- 🎯 Full validator node operational
-- 🎯 50%+ network on Rust stack
-- 🎯 Dashd deprecated
-- 🎯 Dash recognized for modern infrastructure
+- Full validator node operational
+- 50%+ network on Rust stack
+- Dashd deprecated
+- Dash recognized for modern infrastructure
 
 ## Community Engagement
 

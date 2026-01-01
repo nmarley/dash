@@ -7,7 +7,7 @@
 
 ---
 
-## 🎯 Executive Summary
+## Executive Summary
 
 This document outlines the test-driven development (TDD) approach for implementing Phase 1 of librustdash - the foundational Rust primitives library for Dash blockchain data structures.
 
@@ -55,7 +55,7 @@ constexpr int BLS_CURVE_SIG_SIZE{96};
 
 ---
 
-## 📦 Dependencies (Cargo.toml)
+## Dependencies (Cargo.toml)
 
 ```toml
 [package]
@@ -77,7 +77,7 @@ serde_json = "1.0"
 
 ---
 
-## 🗂️ Project Structure
+## Project Structure
 
 ```
 src/
@@ -110,7 +110,7 @@ examples/
 
 ---
 
-## 📅 Implementation Schedule
+## Implementation Schedule
 
 ### Week 1: Foundation
 
@@ -168,7 +168,7 @@ examples/
 
 ---
 
-## 🧪 Test-Driven Development Workflow
+## Test-Driven Development Workflow
 
 ### For EVERY Component:
 
@@ -181,32 +181,32 @@ examples/
 ### Test Requirements
 
 Every component must have:
-- ✅ Unit tests
-- ✅ At least one golden test (real Dash data)
-- ✅ Round-trip test (serialize → deserialize → serialize)
-- ✅ Property-based test (if applicable)
-- ✅ Error case tests
+- Unit tests
+- At least one golden test (real Dash data)
+- Round-trip test (serialize → deserialize → serialize)
+- Property-based test (if applicable)
+- Error case tests
 
 ---
 
-## 🎯 Success Criteria
+## Success Criteria
 
 Phase 1 is **DONE** when:
 
-1. ✅ Can deserialize 100% of normal transactions
-2. ✅ Can deserialize CbTx (v1, v2, v3) from Dash Core
-3. ✅ Can deserialize AssetLock/AssetUnlock
-4. ✅ Can deserialize block headers
-5. ✅ All round-trip tests pass (byte-for-byte match)
-6. ✅ Test coverage > 80%
-7. ✅ Zero clippy warnings
-8. ✅ Documentation complete
-9. ✅ Examples work
-10. ✅ README explains usage
+1. Can deserialize 100% of normal transactions
+2. Can deserialize CbTx (v1, v2, v3) from Dash Core
+3. Can deserialize AssetLock/AssetUnlock
+4. Can deserialize block headers
+5. All round-trip tests pass (byte-for-byte match)
+6. Test coverage > 80%
+7. Zero clippy warnings
+8. Documentation complete
+9. Examples work
+10. README explains usage
 
 ---
 
-## 📝 Key Implementation Details
+## Key Implementation Details
 
 ### Version/Type Encoding
 ```rust
@@ -237,7 +237,7 @@ pub struct BlsPublicKey(pub Vec<u8>); // 48 bytes
 
 ---
 
-## 🚀 Daily Checklist
+## Daily Checklist
 
 ```bash
 # Run tests
@@ -258,24 +258,24 @@ cargo run --example parse_transaction
 
 ---
 
-## ✅ Definition of Done
+## Definition of Done
 
 A component is "done" when:
 
-1. ✅ Tests written FIRST (TDD)
-2. ✅ All tests pass
-3. ✅ At least one golden test
-4. ✅ Round-trip test passes
-5. ✅ Rustdoc comments on all public items
-6. ✅ Example code works
-7. ✅ No compiler warnings
-8. ✅ Coverage meets target
-9. ✅ Code reviewed (self or peer)
-10. ✅ Git committed with clear message
+1. Tests written FIRST (TDD)
+2. All tests pass
+3. At least one golden test
+4. Round-trip test passes
+5. Rustdoc comments on all public items
+6. Example code works
+7. No compiler warnings
+8. Coverage meets target
+9. Code reviewed (self or peer)
+10. Git committed with clear message
 
 ---
 
-## 🔗 References
+## References
 
 - Dash Core Source: `../src/`
 - Transaction Header: `../src/primitives/transaction.h`
@@ -288,4 +288,4 @@ A component is "done" when:
 
 ---
 
-**Let's build this! 🚀**
+**Let's build this!**

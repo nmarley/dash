@@ -739,16 +739,16 @@ criterion_main!(benches);
 ## Success Metrics
 
 **Phase 1:**
-- ✅ Can parse 100% of mainnet blocks
-- ✅ Can parse 100% of special transaction types
-- ✅ Round-trip serialization matches byte-for-byte
-- ✅ Test coverage > 80%
+- Can parse 100% of mainnet blocks
+- Can parse 100% of special transaction types
+- Round-trip serialization matches byte-for-byte
+- Test coverage > 80%
 
 **Phase 2:**
-- 🎯 Used by dash-indexer successfully
-- 🎯 Used by at least one other project (wallet, explorer, etc.)
-- 🎯 Zero serialization bugs reported
-- 🎯 Performance within 10% of C++ (deserialization)
+- Used by dash-indexer successfully
+- Used by at least one other project (wallet, explorer, etc.)
+- Zero serialization bugs reported
+- Performance within 10% of C++ (deserialization)
 
 ## Open Questions
 
