@@ -3,13 +3,16 @@
 //! Reads blocks from Dash Core's block files (blk00000.dat, etc.)
 
 use anyhow::{Context, Result};
-use byteorder::{LittleEndian, ReadBytesExt};
+use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
 use librustdash::Block;
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::Path;
 
 /// Network magic bytes for identifying blocks
+///
+/// These magic bytes are stored in big-endian (network byte order) in the block files.
+/// They correspond to the pchMessageStart values in Dash Core's chainparams.cpp.
 #[derive(Debug, Clone, Copy)]
 pub enum Network {
     Mainnet,
@@ -19,6 +22,11 @@ pub enum Network {
 
 impl Network {
     /// Get the magic bytes for this network
+    ///
+    /// Note: These are the big-endian values as they appear in the file.
+    /// - Mainnet: 0xBF0C6BBD (on disk: bf 0c 6b bd)
+    /// - Testnet: 0xFFCAE2CE (on disk: ff ca e2 ce)
+    /// - Regtest: 0xFCB7B3DD (on disk: fc b7 b3 dd)
     pub fn magic_bytes(&self) -> u32 {
         match self {
             Network::Mainnet => 0xBF0C6BBD,
@@ -51,8 +59,8 @@ impl BlockFileReader {
 
     /// Read the next block from the file
     pub fn read_next_block(&mut self) -> Result<Option<Block>> {
-        // Try to read magic bytes
-        let magic = match self.reader.read_u32::<LittleEndian>() {
+        // Try to read magic bytes (stored in big-endian/network byte order)
+        let magic = match self.reader.read_u32::<BigEndian>() {
             Ok(m) => m,
             Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
                 return Ok(None); // End of file
