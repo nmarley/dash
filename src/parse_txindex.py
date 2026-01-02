@@ -4,8 +4,8 @@ import struct
 DB_PATH = "/app/data/indexes/txindex"
 
 
-def read_varint(data, offset=0):
-    """Read a Bitcoin-style CompactSize/varint from bytes."""
+def read_compactsize(data, offset=0):
+    """Read a CompactSize value from bytes (used for vectors/strings in network protocol)."""
     n = data[offset]
     offset += 1
 
@@ -19,6 +19,37 @@ def read_varint(data, offset=0):
         return struct.unpack("<Q", data[offset : offset + 8])[0], offset + 8
 
 
+def read_varint(data, offset=0):
+    """
+    Read internal VarInt encoding from bytes.
+
+    Uses 7 bits per byte for data, with MSB as continuation flag.
+    This is the encoding used internally in LevelDB storage, not the network CompactSize.
+
+    Algorithm from src/serialize.h:ReadVarInt():
+    - Each byte has 7 bits of data (bits 0-6) and 1 continuation bit (bit 7)
+    - If bit 7 is set (0x80), more bytes follow and we add 1 to accumulator
+    - Bytes are in reverse order (first byte is most significant)
+    """
+    n = 0
+    while True:
+        if offset >= len(data):
+            raise ValueError("VarInt extends beyond data")
+
+        ch_data = data[offset]
+        offset += 1
+
+        # Shift accumulator left by 7 bits and OR with lower 7 bits of current byte
+        n = (n << 7) | (ch_data & 0x7F)
+
+        # If continuation bit is set, increment and continue
+        if ch_data & 0x80:
+            n += 1
+        else:
+            # No continuation bit, we're done
+            return n, offset
+
+
 def parse_block_locator(data):
     """Parse CBlockLocator from bytes."""
     offset = 0
@@ -27,8 +58,8 @@ def parse_block_locator(data):
     version = struct.unpack("<i", data[offset : offset + 4])[0]
     offset += 4
 
-    # Read vector size
-    num_hashes, offset = read_varint(data, offset)
+    # Read vector size (uses CompactSize for vector length)
+    num_hashes, offset = read_compactsize(data, offset)
 
     # Read block hashes
     hashes = []
@@ -41,16 +72,25 @@ def parse_block_locator(data):
 
 
 def parse_disk_tx_pos(data):
-    """Parse CDiskTxPos from bytes (FlatFilePos + nTxOffset)."""
+    """
+    Parse CDiskTxPos from bytes (FlatFilePos + nTxOffset).
+
+    From src/index/disktxpos.h and src/flatfile.h:
+    - nFile (int) - serialized as VARINT_MODE(NONNEGATIVE_SIGNED)
+    - nPos (unsigned int) - serialized as VARINT
+    - nTxOffset (unsigned int) - serialized as VARINT
+
+    All use internal VarInt encoding, not CompactSize.
+    """
     offset = 0
 
-    # Read nFile (varint with NONNEGATIVE_SIGNED mode)
+    # Read nFile (VarInt with NONNEGATIVE_SIGNED mode)
     n_file, offset = read_varint(data, offset)
 
-    # Read nPos (varint)
+    # Read nPos (VarInt DEFAULT mode)
     n_pos, offset = read_varint(data, offset)
 
-    # Read nTxOffset (varint)
+    # Read nTxOffset (VarInt DEFAULT mode)
     n_tx_offset, offset = read_varint(data, offset)
 
     return {"file": n_file, "pos": n_pos, "tx_offset": n_tx_offset}
