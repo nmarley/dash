@@ -8,12 +8,17 @@ A quick reference guide to understanding the files and directories in a Dash Cor
 
 ### `blk*.dat` files
 - **What**: Raw blockchain data files containing actual blocks
-- **Format**: Sequential blocks with magic bytes + size + block data
+- **Format**: Sequential blocks with magic bytes (4 bytes, big-endian) + size (4 bytes, little-endian) + block data
+- **Magic bytes**:
+  - Mainnet: `0xBF0C6BBD` (bytes on disk: `bf 0c 6b bd`)
+  - Testnet: `0xFFCAE2CE` (bytes on disk: `ff ca e2 ce`)
+  - Regtest: `0xFCB7B3DD` (bytes on disk: `fc b7 b3 dd`)
 - **Size**: Each file is ~128 MB (Dash Core splits blocks across multiple files)
 - **Contents**: Complete blocks including all transactions
 - **Example**: `blk00000.dat` contains the genesis block and early blocks
 - **Sequential**: `blk00000.dat` → `blk00001.dat` → ... → `blk00291.dat`
 - **Used by**: Block explorers, indexers, full nodes
+- **Note**: Magic bytes are in big-endian (network byte order), size is little-endian
 
 ### `rev*.dat` files
 - **What**: "Undo" data for blocks (reorg/rollback support)
