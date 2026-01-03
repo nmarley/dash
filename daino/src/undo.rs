@@ -295,21 +295,21 @@ mod tests {
     fn test_read_varint() {
         // VarInt encoding uses 7-bit chunks with continuation bit
         // Single byte values (0-127)
-        let data = vec![0x00];
+        let data = [0x00];
         assert_eq!(read_varint(&mut &data[..]).unwrap(), 0);
 
-        let data = vec![0x7F];
+        let data = [0x7F];
         assert_eq!(read_varint(&mut &data[..]).unwrap(), 127);
 
         // Two byte value: 128 = 0x80 0x00
         // First byte: 0x80 (continuation bit set, value 0)
         // Second byte: 0x00 (no continuation, value 0)
         // Result: ((0 << 7) | 0) + 1 = 1, then (1 << 7) | 0 = 128
-        let data = vec![0x80, 0x00];
+        let data = [0x80, 0x00];
         assert_eq!(read_varint(&mut &data[..]).unwrap(), 128);
 
         // 252 = 0x80 0x7C
-        let data = vec![0x80, 0x7C];
+        let data = [0x80, 0x7C];
         assert_eq!(read_varint(&mut &data[..]).unwrap(), 252);
     }
 

@@ -91,11 +91,11 @@ impl UndoFileReader {
         if let Some(prev_hash) = prev_block_hash {
             // Compute checksum: SHA256(prevBlockHash + CBlockUndo)
             let mut hasher = Sha256::new();
-            hasher.update(&prev_hash);
+            hasher.update(prev_hash);
             hasher.update(&undo_data);
             let computed_hash = hasher.finalize();
 
-            if computed_hash.as_slice() != &stored_hash {
+            if computed_hash.as_slice() != stored_hash {
                 anyhow::bail!(
                     "Checksum mismatch at position {}: expected {}, got {}",
                     self.last_undo_start,
