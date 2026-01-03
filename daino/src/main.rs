@@ -25,6 +25,10 @@ struct Cli {
     /// Show coinbase message (useful for genesis block)
     #[arg(long)]
     show_coinbase_message: bool,
+
+    /// Show raw block header bytes (for POW verification)
+    #[arg(long)]
+    show_raw_block: bool,
 }
 
 fn main() -> Result<()> {
@@ -89,6 +93,14 @@ fn main() -> Result<()> {
                         }
                     }
                 }
+
+                // Show raw block header if requested
+                if cli.show_raw_block {
+                    let header_bytes = block.header.serialize()?;
+                    println!("  Raw block header (80 bytes):");
+                    println!("    {}", hex::encode(&header_bytes));
+                }
+
                 println!();
             }
             None => {
