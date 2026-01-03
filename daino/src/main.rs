@@ -151,13 +151,14 @@ fn read_block_file(cli: &Cli, network: Network) -> Result<()> {
                     }
 
                     // Show coinbase message if requested
-                    if cli.show_coinbase_message && !coinbase.inputs.is_empty()
+                    if cli.show_coinbase_message
+                        && !coinbase.inputs.is_empty()
                         && let Some(message) =
                             extract_coinbase_message(&coinbase.inputs[0].script_sig)
-                        {
-                            println!("  Coinbase message:");
-                            println!("    \"{}\"", message);
-                        }
+                    {
+                        println!("  Coinbase message:");
+                        println!("    \"{}\"", message);
+                    }
                 }
 
                 // Show raw block header if requested
@@ -235,11 +236,14 @@ fn extract_coinbase_message(script_sig: &[u8]) -> Option<String> {
             let printable_count = data.iter().filter(|&&b| (0x20..=0x7e).contains(&b)).count();
 
             // If at least 80% is printable and it's reasonably long, consider it a message
-            if data_len > best_len && printable_count * 100 / data_len >= 80 && data_len >= 10
-                && let Ok(msg) = String::from_utf8(data.to_vec()) {
-                    best_len = data_len;
-                    best_message = Some(msg);
-                }
+            if data_len > best_len
+                && printable_count * 100 / data_len >= 80
+                && data_len >= 10
+                && let Ok(msg) = String::from_utf8(data.to_vec())
+            {
+                best_len = data_len;
+                best_message = Some(msg);
+            }
         } else {
             break;
         }
