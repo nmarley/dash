@@ -239,6 +239,7 @@ dependencies = [
  "clap",
  "hex",
  "librustdash",
+ "sha2",
 ]
 
 [[package]]

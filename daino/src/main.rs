@@ -1,32 +1,39 @@
 mod block_reader;
+mod undo;
+mod undo_reader;
 
 use anyhow::Result;
 use clap::Parser;
 use std::path::PathBuf;
 
 use block_reader::{BlockFileReader, Network};
+use undo_reader::UndoFileReader;
 
 #[derive(Parser)]
 #[command(name = "daino")]
-#[command(about = "Dash blockchain block file reader", long_about = None)]
+#[command(about = "Dash blockchain block and undo file reader", long_about = None)]
 struct Cli {
-    /// Path to the block file (e.g., blk00000.dat)
-    #[arg(value_name = "BLOCK_FILE")]
-    block_file: PathBuf,
+    /// Path to the file (e.g., blk00000.dat or rev00000.dat)
+    #[arg(value_name = "FILE")]
+    file: PathBuf,
 
     /// Network type (mainnet, testnet, regtest)
     #[arg(short, long, default_value = "mainnet")]
     network: String,
 
-    /// Number of blocks to read (default: 1)
+    /// Number of blocks/undo records to read (default: 1)
     #[arg(short, long, default_value = "1")]
     count: usize,
 
-    /// Show coinbase message (useful for genesis block)
+    /// Read undo file (rev*.dat) instead of block file
+    #[arg(short, long)]
+    undo: bool,
+
+    /// Show coinbase message (useful for genesis block) - block files only
     #[arg(long)]
     show_coinbase_message: bool,
 
-    /// Show raw block header bytes (for POW verification)
+    /// Show raw block header bytes (for POW verification) - block files only
     #[arg(long)]
     show_raw_block: bool,
 }
@@ -42,13 +49,73 @@ fn main() -> Result<()> {
         _ => anyhow::bail!("Invalid network: {}", cli.network),
     };
 
-    println!("Reading blocks from: {:?}", cli.block_file);
+    if cli.undo {
+        read_undo_file(&cli, network)
+    } else {
+        read_block_file(&cli, network)
+    }
+}
+
+fn read_undo_file(cli: &Cli, network: Network) -> Result<()> {
+    println!("Reading undo data from: {:?}", cli.file);
+    println!("Network: {:?}", network);
+    println!("Magic bytes: 0x{:08X}", network.magic_bytes());
+    println!();
+
+    // Create undo reader
+    let mut reader = UndoFileReader::new(&cli.file, network)?;
+
+    // Read undo blocks
+    for i in 0..cli.count {
+        // Note: We skip checksum verification since we don't have block data
+        match reader.read_next_undo(None)? {
+            Some(block_undo) => {
+                println!("=== Undo Block {} ===", i);
+                println!("  Position in file: {} bytes", reader.last_undo_start());
+                println!("  Transaction undo count: {}", block_undo.vtxundo.len());
+
+                // Show details of each transaction's undo data
+                for (tx_idx, tx_undo) in block_undo.vtxundo.iter().enumerate() {
+                    println!("  Transaction {} (non-coinbase):", tx_idx + 1);
+                    println!("    Spent outputs count: {}", tx_undo.vprevout.len());
+
+                    // Show details of each spent output
+                    for (out_idx, coin) in tx_undo.vprevout.iter().enumerate() {
+                        println!("      Output {}:", out_idx);
+                        println!("        Value: {} satoshis", coin.txout.value);
+                        println!(
+                            "        ScriptPubKey: {} bytes",
+                            coin.txout.script_pubkey.len()
+                        );
+                        println!(
+                            "        ScriptPubKey (hex): {}",
+                            hex::encode(&coin.txout.script_pubkey)
+                        );
+                        println!("        Height: {}", coin.height);
+                        println!("        Is coinbase: {}", coin.is_coinbase);
+                    }
+                }
+
+                println!();
+            }
+            None => {
+                println!("Reached end of file after {} undo blocks", i);
+                break;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn read_block_file(cli: &Cli, network: Network) -> Result<()> {
+    println!("Reading blocks from: {:?}", cli.file);
     println!("Network: {:?}", network);
     println!("Magic bytes: 0x{:08X}", network.magic_bytes());
     println!();
 
     // Create block reader
-    let mut reader = BlockFileReader::new(&cli.block_file, network)?;
+    let mut reader = BlockFileReader::new(&cli.file, network)?;
 
     // Read blocks
     for i in 0..cli.count {
