@@ -187,23 +187,29 @@ fn read_compact_size<R: Read>(reader: &mut R) -> Result<u64> {
 
 /// Decompress an amount value
 ///
-/// From Dash Core's AmountCompression (compressor.h)
+/// From Dash Core's DecompressAmount (compressor.cpp)
+/// Format: x = 0 OR x = 1+10*(9*n + d - 1) + e OR x = 1+10*(n - 1) + 9
 fn decompress_amount(x: u64) -> i64 {
     if x == 0 {
         return 0;
     }
 
     let mut x = x - 1;
+    // x = 10*(9*n + d - 1) + e
     let e = x % 10;
     x /= 10;
 
     let mut n = if e < 9 {
+        // x = 9*n + d - 1
         let d = (x % 9) + 1;
-        d
+        x /= 9;
+        // x = n
+        x * 10 + d
     } else {
         x + 1
     };
 
+    // Multiply by 10^e
     for _ in 0..e {
         n *= 10;
     }
@@ -287,20 +293,40 @@ mod tests {
 
     #[test]
     fn test_read_varint() {
-        let data = vec![0xfc];
+        // VarInt encoding uses 7-bit chunks with continuation bit
+        // Single byte values (0-127)
+        let data = vec![0x00];
+        assert_eq!(read_varint(&mut &data[..]).unwrap(), 0);
+
+        let data = vec![0x7F];
+        assert_eq!(read_varint(&mut &data[..]).unwrap(), 127);
+
+        // Two byte value: 128 = 0x80 0x00
+        // First byte: 0x80 (continuation bit set, value 0)
+        // Second byte: 0x00 (no continuation, value 0)
+        // Result: ((0 << 7) | 0) + 1 = 1, then (1 << 7) | 0 = 128
+        let data = vec![0x80, 0x00];
+        assert_eq!(read_varint(&mut &data[..]).unwrap(), 128);
+
+        // 252 = 0x80 0x7C
+        let data = vec![0x80, 0x7C];
         assert_eq!(read_varint(&mut &data[..]).unwrap(), 252);
-
-        let data = vec![0xfd, 0xfd, 0x00];
-        assert_eq!(read_varint(&mut &data[..]).unwrap(), 253);
-
-        let data = vec![0xfe, 0x00, 0x00, 0x01, 0x00];
-        assert_eq!(read_varint(&mut &data[..]).unwrap(), 65536);
     }
 
     #[test]
     fn test_decompress_amount() {
+        // Test basic cases
         assert_eq!(decompress_amount(0), 0);
         assert_eq!(decompress_amount(1), 1);
-        assert_eq!(decompress_amount(10), 10);
+
+        // Test the decompression algorithm
+        // x=1: x-1=0, e=0, x=0, e<9: d=1, x=0, n=0*10+1=1, e=0 so no multiplication
+        assert_eq!(decompress_amount(1), 1);
+
+        // x=2: x-1=1, e=1, x=0, e<9: d=1, x=0, n=0*10+1=1, then n*=10 once = 10
+        assert_eq!(decompress_amount(2), 10);
+
+        // x=10: x-1=9, e=9, x=0, e==9: n=0+1=1, then n*=10 nine times = 1,000,000,000
+        assert_eq!(decompress_amount(10), 1_000_000_000);
     }
 }
