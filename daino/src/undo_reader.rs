@@ -117,6 +117,7 @@ impl UndoFileReader {
     }
 
     /// Get current position in the file (after last read)
+    #[allow(dead_code)]
     pub fn position(&self) -> u64 {
         self.position
     }
