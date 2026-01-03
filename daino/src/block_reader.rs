@@ -41,6 +41,7 @@ pub struct BlockFileReader {
     reader: BufReader<File>,
     magic_bytes: u32,
     position: u64,
+    last_block_start: u64,
 }
 
 impl BlockFileReader {
@@ -54,11 +55,15 @@ impl BlockFileReader {
             reader,
             magic_bytes: network.magic_bytes(),
             position: 0,
+            last_block_start: 0,
         })
     }
 
     /// Read the next block from the file
     pub fn read_next_block(&mut self) -> Result<Option<Block>> {
+        // Record the start position of this block
+        self.last_block_start = self.position;
+
         // Try to read magic bytes (stored in big-endian/network byte order)
         let magic = match self.reader.read_u32::<BigEndian>() {
             Ok(m) => m,
@@ -71,7 +76,7 @@ impl BlockFileReader {
         if magic != self.magic_bytes {
             anyhow::bail!(
                 "Invalid magic bytes at position {}: expected 0x{:08X}, found 0x{:08X}",
-                self.position,
+                self.last_block_start,
                 self.magic_bytes,
                 magic
             );
@@ -95,14 +100,22 @@ impl BlockFileReader {
 
         // Deserialize using librustdash
         let block = Block::deserialize(&block_data).with_context(|| {
-            format!("Failed to deserialize block at position {}", self.position)
+            format!(
+                "Failed to deserialize block at position {}",
+                self.last_block_start
+            )
         })?;
 
         Ok(Some(block))
     }
 
-    /// Get current position in the file
+    /// Get current position in the file (after last read)
     pub fn position(&self) -> u64 {
         self.position
+    }
+
+    /// Get the start position of the last block read
+    pub fn last_block_start(&self) -> u64 {
+        self.last_block_start
     }
 }

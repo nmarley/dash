@@ -51,13 +51,17 @@ fn main() -> Result<()> {
         match reader.read_next_block()? {
             Some(block) => {
                 println!("=== Block {} ===", i);
-                println!("  Position in file: {} bytes", reader.position());
+                println!("  Position in file: {} bytes", reader.last_block_start());
                 println!("  Version: {}", block.header.version);
-                println!(
-                    "  Previous block: {}",
-                    hex::encode(block.header.prev_blockhash)
-                );
-                println!("  Merkle root: {}", hex::encode(block.header.merkle_root));
+
+                // Reverse byte order for display (internal -> RPC byte order)
+                let mut prev_hash_reversed = block.header.prev_blockhash;
+                prev_hash_reversed.reverse();
+                println!("  Previous block: {}", hex::encode(prev_hash_reversed));
+
+                let mut merkle_root_reversed = block.header.merkle_root;
+                merkle_root_reversed.reverse();
+                println!("  Merkle root: {}", hex::encode(merkle_root_reversed));
                 println!("  Timestamp: {}", block.header.time);
                 println!("  Bits: 0x{:08X}", block.header.bits);
                 println!("  Nonce: {}", block.header.nonce);
