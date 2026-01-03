@@ -12,6 +12,7 @@ daino is a minimal tool to read and parse Dash block files (blk*.dat) using the 
 - Support for mainnet, testnet, and regtest networks
 - Parse and display block header information
 - Show coinbase transaction details
+- Extract and display coinbase messages (e.g., the genesis block message)
 - Read multiple blocks sequentially
 
 ## Usage
@@ -28,6 +29,9 @@ daino -n testnet /path/to/.dashcore/testnet3/blocks/blk00000.dat
 
 # Read from regtest
 daino -n regtest /path/to/.dashcore/regtest/blocks/blk00000.dat
+
+# Show coinbase message (useful for viewing the genesis block message)
+daino --show-coinbase-message /path/to/.dashcore/blocks/blk00000.dat
 ```
 
 ## Example Output
@@ -48,9 +52,18 @@ Magic bytes: 0xBF0C6BBD
   Transaction count: 1
   Coinbase tx:
     Version: 1
-    Type: Classical
+    Type: Normal
     Inputs: 1
     Outputs: 1
+```
+
+With `--show-coinbase-message` on the genesis block:
+
+```
+=== Block 0 ===
+  ...
+  Coinbase message:
+    "Wired 09/Jan/2014 The Grand Experiment Goes Live: Overstock.com Is Now Accepting Bitcoins"
 ```
 
 ## Building
