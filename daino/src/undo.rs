@@ -92,8 +92,8 @@ pub struct CTxUndo {
 impl CTxUndo {
     /// Deserialize a CTxUndo from undo data
     pub fn deserialize<R: Read>(reader: &mut R) -> Result<Self> {
-        // Read vector of Coins
-        let count = read_varint(reader).context("Failed to read CTxUndo coin count")?;
+        // Read vector of Coins - vectors use CompactSize, not VarInt!
+        let count = read_compact_size(reader).context("Failed to read CTxUndo coin count")?;
 
         let mut vprevout = Vec::with_capacity(count.min(10000) as usize);
         for i in 0..count {
@@ -119,8 +119,8 @@ pub struct CBlockUndo {
 impl CBlockUndo {
     /// Deserialize a CBlockUndo from undo data
     pub fn deserialize<R: Read>(reader: &mut R) -> Result<Self> {
-        // Read vector of CTxUndo
-        let count = read_varint(reader).context("Failed to read CBlockUndo tx count")?;
+        // Read vector of CTxUndo - vectors use CompactSize, not VarInt!
+        let count = read_compact_size(reader).context("Failed to read CBlockUndo tx count")?;
 
         let mut vtxundo = Vec::with_capacity(count.min(10000) as usize);
         for i in 0..count {
@@ -165,13 +165,12 @@ fn read_varint<R: Read>(reader: &mut R) -> Result<u64> {
 
 /// Read a CompactSize variable-length integer
 ///
-/// This is different from VARINT! Used in some places.
+/// This is different from VARINT! Used for vector sizes.
 /// Format from Bitcoin/Dash protocol:
 /// - < 0xfd: 1 byte
 /// - 0xfd: next 2 bytes (little-endian)
 /// - 0xfe: next 4 bytes (little-endian)
 /// - 0xff: next 8 bytes (little-endian)
-#[allow(dead_code)]
 fn read_compact_size<R: Read>(reader: &mut R) -> Result<u64> {
     let first_byte = reader
         .read_u8()
@@ -276,10 +275,26 @@ fn decompress_script<R: Read>(reader: &mut R) -> Result<Vec<u8>> {
         // Other scripts: nSize >= 6 means raw script data
         // Actual script size is (nSize - nSpecialScripts)
         _ if n_size >= N_SPECIAL_SCRIPTS => {
-            let size = (n_size - N_SPECIAL_SCRIPTS) as usize;
-            let mut script = vec![0u8; size];
-            reader.read_exact(&mut script)?;
-            Ok(script)
+            const MAX_SCRIPT_SIZE: u64 = 10000;
+            let size = n_size - N_SPECIAL_SCRIPTS;
+
+            if size > MAX_SCRIPT_SIZE {
+                // Overly long script, replace with OP_RETURN and skip the data
+                // This matches Dash Core behavior in compressor.h
+                let mut discard = vec![0u8; size.min(65536) as usize]; // Read in chunks if huge
+                let mut remaining = size;
+                while remaining > 0 {
+                    let chunk_size = remaining.min(65536) as usize;
+                    reader.read_exact(&mut discard[..chunk_size])?;
+                    remaining -= chunk_size as u64;
+                }
+                // Return OP_RETURN script
+                Ok(vec![0x6a]) // OP_RETURN
+            } else {
+                let mut script = vec![0u8; size as usize];
+                reader.read_exact(&mut script)?;
+                Ok(script)
+            }
         }
         _ => {
             anyhow::bail!("Invalid script compression size: {}", n_size);
