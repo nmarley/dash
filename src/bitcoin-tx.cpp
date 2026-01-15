@@ -104,9 +104,7 @@ static int AppInitRawTx(int argc, char* argv[])
         // First part of help message is specific to this utility
         std::string strUsage = PACKAGE_NAME " dash-tx utility version " + FormatFullVersion() + "\n";
 
-        if (gArgs.IsArgSet("-version")) {
-            strUsage += FormatParagraph(LicenseInfo());
-        } else {
+        if (!gArgs.IsArgSet("-version")) {
             strUsage += "\n"
                 "Usage:  dash-tx [options] <hex-tx> [commands]  Update hex-encoded dash transaction\n"
                 "or:     dash-tx [options] -create [commands]   Create hex-encoded dash transaction\n"
