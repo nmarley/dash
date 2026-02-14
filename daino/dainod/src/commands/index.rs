@@ -1,23 +1,36 @@
 //! The `index` subcommand -- read block files and index them into LMDB.
+//!
+//! Uses a two-pass architecture for correct chain ordering:
+//! - Pass 1: Scan all block headers to build a block_hash -> file location map
+//! - Chain walk: Follow prev_hash links from genesis to derive correct heights
+//! - Pass 2: Re-read full blocks in chain order and index them
 
+use std::collections::HashMap;
 use std::path::Path;
 use std::time::Instant;
 
 use anyhow::{Context, Result};
 
-use daino_core::{BlockFileReader, Network};
+use daino_core::{BlockFileReader, Network, ScannedHeader};
 use daino_state::db::{
     AddrTxRef, BlockBatch, BlockRecord, DainoDB, SpentOutpoint, TxRecord, UtxoEntry,
 };
 use librustdash::script::analyze_script;
 
+/// Location of a block within the blk file set.
+#[derive(Debug, Clone)]
+struct BlockLocation {
+    file_num: u32,
+    file_offset: u64,
+    block_size: u32,
+}
+
 /// Index block files into the database.
 ///
-/// Reads blk00000.dat, blk00001.dat, etc. sequentially and stores
-/// block headers, transactions, address index, and UTXO set in LMDB.
-///
-/// Uses batched writes (configurable via `batch_size`) to minimize
-/// fsync overhead -- the main bottleneck during bulk indexing.
+/// Two-pass architecture:
+/// 1. Scan all headers to discover blocks and their prev_hash links
+/// 2. Walk the chain from genesis to assign correct heights
+/// 3. Re-read full blocks in chain order and index into LMDB
 pub fn index_blocks(
     datadir: &Path,
     dbdir: &Path,
@@ -47,186 +60,310 @@ pub fn index_blocks(
         }
     };
 
+    // ── Pass 1: Scan all block headers ──────────────────────────────
+
+    let t_start = Instant::now();
+    println!("Pass 1: Scanning block headers...");
+
+    let mut all_headers: Vec<(ScannedHeader, u32)> = Vec::new(); // (header, file_num)
+    let mut file_num = 0u32;
+
+    loop {
+        let block_file = datadir.join(format!("blk{:05}.dat", file_num));
+        if !block_file.exists() {
+            break;
+        }
+
+        let mut reader = BlockFileReader::new(&block_file, network)
+            .with_context(|| format!("Failed to open {:?}", block_file))?;
+
+        match reader.scan_headers() {
+            Ok(headers) => {
+                let count = headers.len();
+                for h in headers {
+                    all_headers.push((h, file_num));
+                }
+                println!("  blk{:05}.dat: {} blocks", file_num, count,);
+            }
+            Err(e) => {
+                eprintln!("  blk{:05}.dat: error scanning headers: {}", file_num, e);
+                // Continue to next file; partial scans from this file
+                // are already in all_headers from before the error
+            }
+        }
+
+        file_num += 1;
+    }
+
+    let t_scan = t_start.elapsed();
+    println!(
+        "Scanned {} blocks from {} files in {:.1}s",
+        all_headers.len(),
+        file_num,
+        t_scan.as_secs_f64(),
+    );
+
+    if all_headers.is_empty() {
+        println!("No blocks found.");
+        return Ok(());
+    }
+
+    // ── Chain walk: derive height assignments ────────────────────────
+
+    println!("Building chain order...");
+
+    // Build lookup: block_hash -> (index into all_headers)
+    let mut hash_to_idx: HashMap<[u8; 32], usize> = HashMap::with_capacity(all_headers.len());
+    for (i, (header, _file_num)) in all_headers.iter().enumerate() {
+        hash_to_idx.insert(header.block_hash, i);
+    }
+
+    // Find genesis: the block whose prev_hash is all zeros
+    let genesis_hash = {
+        let zero_prev = [0u8; 32];
+        let mut genesis = None;
+        for (header, _) in &all_headers {
+            if header.prev_hash == zero_prev {
+                genesis = Some(header.block_hash);
+                break;
+            }
+        }
+        genesis.ok_or_else(|| {
+            anyhow::anyhow!("No genesis block found (no block with prev_hash = 0)")
+        })?
+    };
+
+    // Build forward links: prev_hash -> Vec<child_hash>
+    // (Vec because there can be forks)
+    let mut children: HashMap<[u8; 32], Vec<[u8; 32]>> = HashMap::with_capacity(all_headers.len());
+    for (header, _) in &all_headers {
+        children
+            .entry(header.prev_hash)
+            .or_default()
+            .push(header.block_hash);
+    }
+
+    // Walk the longest chain from genesis using iterative DFS.
+    // At each fork, we pick the branch with the most descendants
+    // (simple longest-chain rule).
+    let chain_hashes = {
+        let mut chain = Vec::with_capacity(all_headers.len());
+        let mut current = genesis_hash;
+
+        loop {
+            chain.push(current);
+
+            match children.get(&current) {
+                None => break, // tip of chain
+                Some(kids) if kids.is_empty() => break,
+                Some(kids) if kids.len() == 1 => {
+                    current = kids[0];
+                }
+                Some(kids) => {
+                    // Fork: pick the child that leads to the longest chain.
+                    // We do a simple count of descendants for each child.
+                    let mut best = kids[0];
+                    let mut best_len = count_chain_length(&children, kids[0]);
+                    for &kid in &kids[1..] {
+                        let len = count_chain_length(&children, kid);
+                        if len > best_len {
+                            best = kid;
+                            best_len = len;
+                        }
+                    }
+                    current = best;
+                }
+            }
+        }
+
+        chain
+    };
+
+    println!(
+        "Chain: {} blocks (genesis to height {})",
+        chain_hashes.len(),
+        chain_hashes.len() - 1,
+    );
+
+    let orphan_count = all_headers.len() - chain_hashes.len();
+    if orphan_count > 0 {
+        println!("Skipping {} orphan/stale blocks", orphan_count);
+    }
+
+    // Build the location map: for each block hash in chain order,
+    // record which file and offset to read from
+    let chain_locations: Vec<BlockLocation> = chain_hashes
+        .iter()
+        .map(|hash| {
+            let idx = hash_to_idx[hash];
+            let (header, fnum) = &all_headers[idx];
+            BlockLocation {
+                file_num: *fnum,
+                file_offset: header.file_offset,
+                block_size: header.block_size,
+            }
+        })
+        .collect();
+
+    // ── Pass 2: Read full blocks in chain order and index ────────────
+
     let limit = if max_blocks == 0 {
         usize::MAX
     } else {
         max_blocks
     };
 
-    let mut current_height = start_height;
-    let mut total_txs: u64 = 0;
-    let mut file_num = 0u32;
+    // Determine the range of heights to index
+    let end_height = std::cmp::min(chain_hashes.len() as u32, start_height + limit as u32);
 
-    // Batching state
+    if start_height as usize >= chain_hashes.len() {
+        println!("Already fully indexed up to height {}.", start_height - 1);
+        print_summary(&db, t_start)?;
+        return Ok(());
+    }
+
+    println!(
+        "Pass 2: Indexing blocks {} to {} ...",
+        start_height,
+        end_height - 1,
+    );
+
+    // Cache open file readers by file_num to avoid reopening files
+    let mut readers: HashMap<u32, BlockFileReader> = HashMap::new();
+
     let mut batch: Vec<BlockBatch> = Vec::with_capacity(batch_size);
+    let mut total_txs: u64 = 0;
+    let t_pass2 = Instant::now();
+    let mut t_last_report = t_pass2;
 
-    // Timing
-    let t_start = Instant::now();
-    let mut t_last_report = t_start;
+    for height in start_height..end_height {
+        let loc = &chain_locations[height as usize];
 
-    // For resumption: skip already-indexed blocks
-    let mut blocks_skipped: u32 = 0;
+        // Get or open the reader for this file
+        let reader = if let Some(r) = readers.get_mut(&loc.file_num) {
+            r
+        } else {
+            let path = datadir.join(format!("blk{:05}.dat", loc.file_num));
+            let r = BlockFileReader::new(&path, network)
+                .with_context(|| format!("Failed to open {:?}", path))?;
+            readers.entry(loc.file_num).or_insert(r)
+        };
 
-    loop {
-        let block_file = datadir.join(format!("blk{:05}.dat", file_num));
-        if !block_file.exists() {
-            println!("No more block files (stopped at blk{:05}.dat)", file_num);
-            break;
-        }
+        let block = reader
+            .read_block_at(loc.file_offset)
+            .with_context(|| format!("Failed to read block at height {}", height))?;
 
-        println!("Reading {:?}", block_file);
-        let mut reader = BlockFileReader::new(&block_file, network)
-            .with_context(|| format!("Failed to open {:?}", block_file))?;
+        // Compute block hash using X11
+        let block_hash = block.header.block_hash()?;
+        let block_size = (loc.block_size + 8) as u32; // +8 for magic + size prefix
 
-        loop {
-            let block = match reader.read_next_block() {
-                Ok(Some(b)) => b,
-                Ok(None) => break, // End of file
-                Err(e) => {
-                    eprintln!(
-                        "  Error reading block at offset {}: {}",
-                        reader.last_block_start(),
-                        e
-                    );
-                    break;
-                }
-            };
+        let block_record = BlockRecord {
+            height,
+            hash: block_hash,
+            prev_hash: block.header.prev_blockhash,
+            merkle_root: block.header.merkle_root,
+            time: block.header.time,
+            bits: block.header.bits,
+            nonce: block.header.nonce,
+            tx_count: block.transactions.len() as u32,
+            size: block_size,
+        };
 
-            // Skip blocks we've already indexed
-            if blocks_skipped < start_height {
-                blocks_skipped += 1;
-                continue;
-            }
+        // Build transaction records, address index, and UTXO updates
+        let mut tx_records = Vec::with_capacity(block.transactions.len());
+        let mut addr_refs: Vec<([u8; 20], AddrTxRef)> = Vec::new();
+        let mut new_utxos: Vec<UtxoEntry> = Vec::new();
+        let mut spent: Vec<SpentOutpoint> = Vec::new();
 
-            let indexed = (current_height - start_height) as usize;
-            if indexed >= limit {
-                // Flush remaining batch
-                if !batch.is_empty() {
-                    db.put_batch(&batch)?;
-                    batch.clear();
-                }
-                println!("Reached block limit ({})", limit);
-                print_summary(&db, t_start)?;
-                return Ok(());
-            }
+        for (tx_idx, tx) in block.transactions.iter().enumerate() {
+            let txid = tx.txid()?;
+            let value_out: i64 = tx.outputs.iter().map(|o| o.value).sum();
 
-            // Compute block hash using X11
-            let block_hash = block.header.block_hash()?;
-            let block_size = block.serialize()?.len() as u32;
+            tx_records.push(TxRecord {
+                txid,
+                block_height: height,
+                tx_index: tx_idx as u32,
+                version: tx.version,
+                tx_type: tx.tx_type as u16,
+                lock_time: tx.lock_time,
+                value_out,
+                input_count: tx.inputs.len() as u32,
+                output_count: tx.outputs.len() as u32,
+            });
 
-            let block_record = BlockRecord {
-                height: current_height,
-                hash: block_hash,
-                prev_hash: block.header.prev_blockhash,
-                merkle_root: block.header.merkle_root,
-                time: block.header.time,
-                bits: block.header.bits,
-                nonce: block.header.nonce,
-                tx_count: block.transactions.len() as u32,
-                size: block_size,
-            };
-
-            // Build transaction records, address index, and UTXO updates
-            let mut tx_records = Vec::with_capacity(block.transactions.len());
-            let mut addr_refs: Vec<([u8; 20], AddrTxRef)> = Vec::new();
-            let mut new_utxos: Vec<UtxoEntry> = Vec::new();
-            let mut spent: Vec<SpentOutpoint> = Vec::new();
-
-            for (tx_idx, tx) in block.transactions.iter().enumerate() {
-                let txid = tx.txid()?;
-                let value_out: i64 = tx.outputs.iter().map(|o| o.value).sum();
-
-                tx_records.push(TxRecord {
-                    txid,
-                    block_height: current_height,
-                    tx_index: tx_idx as u32,
-                    version: tx.version,
-                    tx_type: tx.tx_type as u16,
-                    lock_time: tx.lock_time,
-                    value_out,
-                    input_count: tx.inputs.len() as u32,
-                    output_count: tx.outputs.len() as u32,
-                });
-
-                // Collect spent outpoints from inputs (skip coinbase)
-                if !tx.is_coinbase() {
-                    for input in &tx.inputs {
-                        spent.push(SpentOutpoint {
-                            txid: input.previous_output.hash,
-                            vout: input.previous_output.n,
-                        });
-                    }
-                }
-
-                // Extract address hashes from outputs for address + UTXO indexing
-                for (vout, output) in tx.outputs.iter().enumerate() {
-                    let info = analyze_script(&output.script_pubkey);
-                    let addr_hash = info.address_hash;
-
-                    if let Some(ah) = addr_hash {
-                        addr_refs.push((
-                            ah,
-                            AddrTxRef {
-                                block_height: current_height,
-                                txid,
-                            },
-                        ));
-                    }
-
-                    new_utxos.push(UtxoEntry {
-                        txid,
-                        vout: vout as u32,
-                        value: output.value,
-                        block_height: current_height,
-                        addr_hash,
+            // Collect spent outpoints from inputs (skip coinbase)
+            if !tx.is_coinbase() {
+                for input in &tx.inputs {
+                    spent.push(SpentOutpoint {
+                        txid: input.previous_output.hash,
+                        vout: input.previous_output.n,
                     });
                 }
             }
 
-            total_txs += tx_records.len() as u64;
+            // Extract address hashes from outputs for address + UTXO indexing
+            for (vout, output) in tx.outputs.iter().enumerate() {
+                let info = analyze_script(&output.script_pubkey);
+                let addr_hash = info.address_hash;
 
-            batch.push(BlockBatch {
-                block: block_record,
-                txs: tx_records,
-                addr_refs,
-                new_utxos,
-                spent,
-            });
+                if let Some(ah) = addr_hash {
+                    addr_refs.push((
+                        ah,
+                        AddrTxRef {
+                            block_height: height,
+                            txid,
+                        },
+                    ));
+                }
 
-            // Flush batch when full
-            if batch.len() >= batch_size {
-                db.put_batch(&batch)?;
-                batch.clear();
+                new_utxos.push(UtxoEntry {
+                    txid,
+                    vout: vout as u32,
+                    value: output.value,
+                    block_height: height,
+                    addr_hash,
+                });
             }
-
-            // Progress reporting every 1000 blocks
-            if current_height % 1000 == 0 && current_height > start_height {
-                let now = Instant::now();
-                let elapsed = now.duration_since(t_start).as_secs_f64();
-                let _interval = now.duration_since(t_last_report).as_secs_f64();
-                let total_blocks = (current_height - start_height) as f64;
-                let blk_per_sec = if elapsed > 0.0 {
-                    total_blocks / elapsed
-                } else {
-                    0.0
-                };
-                let tx_per_sec = if elapsed > 0.0 {
-                    total_txs as f64 / elapsed
-                } else {
-                    0.0
-                };
-
-                println!(
-                    "  height={} txs={} | {:.0} blk/s {:.0} tx/s | {:.1}s elapsed (blk{:05}.dat)",
-                    current_height, total_txs, blk_per_sec, tx_per_sec, elapsed, file_num,
-                );
-                t_last_report = now;
-            }
-
-            current_height += 1;
         }
 
-        file_num += 1;
+        total_txs += tx_records.len() as u64;
+
+        batch.push(BlockBatch {
+            block: block_record,
+            txs: tx_records,
+            addr_refs,
+            new_utxos,
+            spent,
+        });
+
+        // Flush batch when full
+        if batch.len() >= batch_size {
+            db.put_batch(&batch)?;
+            batch.clear();
+        }
+
+        // Progress reporting every 1000 blocks
+        if height % 1000 == 0 && height > start_height {
+            let now = Instant::now();
+            let elapsed = now.duration_since(t_pass2).as_secs_f64();
+            let total_blocks = (height - start_height) as f64;
+            let blk_per_sec = if elapsed > 0.0 {
+                total_blocks / elapsed
+            } else {
+                0.0
+            };
+            let tx_per_sec = if elapsed > 0.0 {
+                total_txs as f64 / elapsed
+            } else {
+                0.0
+            };
+
+            println!(
+                "  height={} txs={} | {:.0} blk/s {:.0} tx/s | {:.1}s elapsed",
+                height, total_txs, blk_per_sec, tx_per_sec, elapsed,
+            );
+            t_last_report = now;
+        }
     }
 
     // Flush remaining batch
@@ -234,8 +371,28 @@ pub fn index_blocks(
         db.put_batch(&batch)?;
     }
 
+    // Suppress unused variable warning
+    let _ = t_last_report;
+
     print_summary(&db, t_start)?;
     Ok(())
+}
+
+/// Count how many blocks follow `start` in the chain (for fork resolution).
+fn count_chain_length(children: &HashMap<[u8; 32], Vec<[u8; 32]>>, start: [u8; 32]) -> usize {
+    let mut len = 1;
+    let mut current = start;
+    loop {
+        match children.get(&current) {
+            Some(kids) if !kids.is_empty() => {
+                // Follow the first child (we just need a length estimate)
+                current = kids[0];
+                len += 1;
+            }
+            _ => break,
+        }
+    }
+    len
 }
 
 fn print_summary(db: &DainoDB, t_start: Instant) -> Result<()> {
