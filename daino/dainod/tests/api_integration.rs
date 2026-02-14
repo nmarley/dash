@@ -245,6 +245,51 @@ async fn test_query_not_found() {
     assert_eq!(resp.status(), 404);
 }
 
+/// Regression test: calling `index_blocks()` a second time (resume) must
+/// actually index the new blocks. Previously, `start_height + usize::MAX`
+/// overflowed u32, producing an end_height < start_height and indexing zero
+/// blocks on resume.
+#[tokio::test]
+async fn test_index_resume_adds_new_blocks() {
+    use daino_core::Network;
+
+    let dir = tempfile::tempdir().unwrap();
+    let dbdir = dir.path().join("db");
+
+    let datadir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../data");
+    if !datadir.join("blk00000.dat").exists() {
+        panic!("Test data not found at {:?}", datadir);
+    }
+
+    // First run: index 50 blocks
+    dainod::commands::index::index_blocks(&datadir, &dbdir, Network::Mainnet, 50, 100).unwrap();
+
+    {
+        let db = DainoDB::open(&dbdir).unwrap();
+        let meta = db.get_meta().unwrap().unwrap();
+        assert_eq!(meta.tip_height, 49, "First run should index blocks 0-49");
+        assert_eq!(meta.block_count, 50);
+    }
+
+    // Second run: no limit -- should resume from 50 and index more
+    dainod::commands::index::index_blocks(&datadir, &dbdir, Network::Mainnet, 0, 100).unwrap();
+
+    {
+        let db = DainoDB::open(&dbdir).unwrap();
+        let meta = db.get_meta().unwrap().unwrap();
+        assert!(
+            meta.tip_height > 49,
+            "Resume run should have indexed beyond height 49, got {}",
+            meta.tip_height,
+        );
+        assert!(
+            meta.block_count > 50,
+            "Resume run should have more than 50 blocks, got {}",
+            meta.block_count,
+        );
+    }
+}
+
 #[tokio::test]
 async fn test_dashd_endpoints_unavailable_without_rpc() {
     let dir = tempfile::tempdir().unwrap();
