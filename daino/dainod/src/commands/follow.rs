@@ -15,10 +15,10 @@ use std::time::Duration;
 use anyhow::{Context, Result};
 
 use daino_fetch::rpc::DashdRpc;
-use daino_fetch::{catch_up, poll_loop, FetchedBlock};
+use daino_fetch::{FetchedBlock, catch_up, poll_loop};
 use daino_state::db::{AddrTxRef, BlockRecord, DainoDB, SpentOutpoint, TxRecord, UtxoEntry};
-use librustdash::script::analyze_script;
 use librustdash::Block;
+use librustdash::script::analyze_script;
 
 /// Follow a running dashd instance and continuously index new blocks.
 pub async fn follow_dashd(
@@ -68,7 +68,10 @@ pub async fn follow_dashd(
     }
 
     println!();
-    println!("Caught up to tip {}. Entering follow mode (poll every {}s)...", dashd_tip, poll_interval);
+    println!(
+        "Caught up to tip {}. Entering follow mode (poll every {}s)...",
+        dashd_tip, poll_interval
+    );
     println!("Press Ctrl-C to stop.");
 
     // Enter follow mode
@@ -128,12 +131,12 @@ fn index_fetched_block(db: &DainoDB, fetched: &FetchedBlock) -> Result<()> {
 
         // Collect spent outpoints from inputs (skip coinbase)
         if !tx.is_coinbase() {
-                    for input in &tx.inputs {
-                        spent.push(SpentOutpoint {
-                            txid: input.previous_output.hash,
-                            vout: input.previous_output.n,
-                        });
-                    }
+            for input in &tx.inputs {
+                spent.push(SpentOutpoint {
+                    txid: input.previous_output.hash,
+                    vout: input.previous_output.n,
+                });
+            }
         }
 
         // Extract address hashes from outputs for address + UTXO indexing
@@ -164,7 +167,7 @@ fn index_fetched_block(db: &DainoDB, fetched: &FetchedBlock) -> Result<()> {
     db.put_block(&block_record, &tx_records, &addr_refs, &new_utxos, &spent)?;
 
     // Progress reporting
-    if fetched.height % 100 == 0 {
+    if fetched.height.is_multiple_of(100) {
         let cl = if fetched.chainlocked { " [CL]" } else { "" };
         println!(
             "  height={} hash={} txs={}{cl}",

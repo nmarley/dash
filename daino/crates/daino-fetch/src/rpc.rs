@@ -9,7 +9,7 @@
 
 use anyhow::{Context, Result};
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 /// A JSON-RPC client connected to a dashd instance.
 pub struct DashdRpc {
@@ -158,9 +158,7 @@ impl DashdRpc {
 
     /// Send a raw JSON-RPC request and return the result field.
     async fn call(&self, method: &str, params: &[Value]) -> Result<Value> {
-        let id = self
-            .id
-            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let id = self.id.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
         let body = json!({
             "jsonrpc": "1.0",
@@ -186,23 +184,33 @@ impl DashdRpc {
             .await
             .with_context(|| format!("Failed to read RPC response for {}", method))?;
 
-        let parsed: Value = serde_json::from_str(&text)
-            .with_context(|| format!("Invalid JSON from {}: {}", method, &text[..text.len().min(200)]))?;
+        let parsed: Value = serde_json::from_str(&text).with_context(|| {
+            format!(
+                "Invalid JSON from {}: {}",
+                method,
+                &text[..text.len().min(200)]
+            )
+        })?;
 
         // Check for JSON-RPC error
-        if let Some(err) = parsed.get("error") {
-            if !err.is_null() {
-                let msg = err
-                    .get("message")
-                    .and_then(|m| m.as_str())
-                    .unwrap_or("Unknown RPC error");
-                let code = err.get("code").and_then(|c| c.as_i64()).unwrap_or(-1);
-                anyhow::bail!("RPC error {} (code {}): {}", method, code, msg);
-            }
+        if let Some(err) = parsed.get("error")
+            && !err.is_null()
+        {
+            let msg = err
+                .get("message")
+                .and_then(|m| m.as_str())
+                .unwrap_or("Unknown RPC error");
+            let code = err.get("code").and_then(|c| c.as_i64()).unwrap_or(-1);
+            anyhow::bail!("RPC error {} (code {}): {}", method, code, msg);
         }
 
         if !status.is_success() {
-            anyhow::bail!("RPC {} returned HTTP {}: {}", method, status, &text[..text.len().min(200)]);
+            anyhow::bail!(
+                "RPC {} returned HTTP {}: {}",
+                method,
+                status,
+                &text[..text.len().min(200)]
+            );
         }
 
         parsed

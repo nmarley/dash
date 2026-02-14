@@ -11,6 +11,6 @@ pub mod follower;
 pub mod rpc;
 pub mod zmq;
 
-pub use follower::{catch_up, poll_loop, FetchedBlock, FollowerConfig};
+pub use follower::{FetchedBlock, FollowerConfig, catch_up, poll_loop};
 pub use rpc::DashdRpc;
 pub use zmq::{ZmqConfig, ZmqEvent, ZmqSubscriber};

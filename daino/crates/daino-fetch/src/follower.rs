@@ -87,8 +87,8 @@ where
             .await
             .with_context(|| format!("Failed to get raw block {}", hash))?;
 
-        let raw = hex::decode(&raw_hex)
-            .with_context(|| format!("Invalid hex in raw block {}", hash))?;
+        let raw =
+            hex::decode(&raw_hex).with_context(|| format!("Invalid hex in raw block {}", hash))?;
 
         // Check ChainLock status via the verbose getblock call
         let block_info = rpc.get_block(&hash).await.ok();
@@ -106,7 +106,7 @@ where
 
         count += 1;
 
-        if count % 100 == 0 {
+        if count.is_multiple_of(100) {
             println!("  fetched {} / {} blocks (height {})", count, total, height);
         }
     }

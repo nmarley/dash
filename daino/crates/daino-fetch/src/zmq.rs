@@ -104,9 +104,7 @@ impl ZmqSubscriber {
     ///
     /// Returns the subscriber handle and a receiver channel for events.
     /// The subscriber runs in background tasks until dropped.
-    pub async fn start(
-        config: ZmqConfig,
-    ) -> Result<(Self, mpsc::Receiver<ZmqEvent>)> {
+    pub async fn start(config: ZmqConfig) -> Result<(Self, mpsc::Receiver<ZmqEvent>)> {
         let (tx, rx) = mpsc::channel(256);
         let mut handles = Vec::new();
 
@@ -167,11 +165,7 @@ impl ZmqSubscriber {
 /// interface and event types so the rest of the system can be wired up.
 /// The actual ZMQ socket handling will be added when we integrate with
 /// a running dashd instance.
-async fn subscribe_loop(
-    endpoint: &str,
-    topic: &str,
-    _tx: mpsc::Sender<ZmqEvent>,
-) -> Result<()> {
+async fn subscribe_loop(endpoint: &str, topic: &str, _tx: mpsc::Sender<ZmqEvent>) -> Result<()> {
     // TODO: Replace with actual ZMQ subscription using zeromq or tmq crate.
     // For now, log that we would connect and return.
     //

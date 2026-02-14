@@ -3,8 +3,8 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use axum::routing::get;
 use axum::Router;
+use axum::routing::get;
 use tower_http::cors::CorsLayer;
 
 use daino_fetch::rpc::DashdRpc;
@@ -43,7 +43,9 @@ pub async fn start_server(
                     "WARNING: Could not connect to dashd at {}: {}",
                     config.url, e
                 );
-                eprintln!("         Live endpoints (chainlock, sporks, governance) will be unavailable.");
+                eprintln!(
+                    "         Live endpoints (chainlock, sporks, governance) will be unavailable."
+                );
                 None
             }
         }

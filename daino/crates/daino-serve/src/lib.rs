@@ -7,4 +7,4 @@
 pub mod api;
 pub mod server;
 
-pub use server::{start_server, RpcConfig};
+pub use server::{RpcConfig, start_server};

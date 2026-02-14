@@ -5,8 +5,8 @@
 
 use std::sync::Arc;
 
-use axum::routing::get;
 use axum::Router;
+use axum::routing::get;
 use tower_http::cors::CorsLayer;
 
 use daino_core::{BlockFileReader, Network};
@@ -16,8 +16,7 @@ use librustdash::script::analyze_script;
 
 /// Index N blocks from the test data into a temp database.
 fn index_test_blocks(db: &DainoDB, n: usize) -> Vec<[u8; 32]> {
-    let block_file = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../data/blk00000.dat");
+    let block_file = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../data/blk00000.dat");
 
     if !block_file.exists() {
         panic!(
@@ -104,7 +103,8 @@ fn index_test_blocks(db: &DainoDB, n: usize) -> Vec<[u8; 32]> {
             }
         }
 
-        db.put_block(&block_record, &tx_records, &addr_refs, &new_utxos, &spent).unwrap();
+        db.put_block(&block_record, &tx_records, &addr_refs, &new_utxos, &spent)
+            .unwrap();
         block_hashes.push(block_hash);
     }
 

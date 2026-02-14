@@ -493,14 +493,17 @@ pub async fn get_sporks(
         )
     })?;
 
-    let sporks = rpc.call_raw("spork", &[serde_json::json!("show")]).await.map_err(|e| {
-        (
-            StatusCode::BAD_GATEWAY,
-            Json(ErrorResponse {
-                error: format!("dashd error: {}", e),
-            }),
-        )
-    })?;
+    let sporks = rpc
+        .call_raw("spork", &[serde_json::json!("show")])
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::BAD_GATEWAY,
+                Json(ErrorResponse {
+                    error: format!("dashd error: {}", e),
+                }),
+            )
+        })?;
 
     Ok(Json(SporkResponse { sporks }))
 }
@@ -521,7 +524,14 @@ pub async fn get_governance_list(
     })?;
 
     let proposals = rpc
-        .call_raw("gobject", &[serde_json::json!("list"), serde_json::json!("valid"), serde_json::json!("proposals")])
+        .call_raw(
+            "gobject",
+            &[
+                serde_json::json!("list"),
+                serde_json::json!("valid"),
+                serde_json::json!("proposals"),
+            ],
+        )
         .await
         .map_err(|e| {
             (

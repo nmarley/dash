@@ -261,13 +261,12 @@ impl DainoDB {
         for outpoint in spent {
             let key = make_outpoint_key(&outpoint.txid, outpoint.vout);
             // Look up the UTXO to find its address for addr_utxos cleanup
-            if let Some(utxo_bytes) = self.utxos.get(&wtxn, &key)? {
-                if let Ok(utxo) = bincode::deserialize::<UtxoEntry>(utxo_bytes) {
-                    if let Some(addr_hash) = &utxo.addr_hash {
-                        let addr_key = make_addr_utxo_key(addr_hash, &outpoint.txid, outpoint.vout);
-                        self.addr_utxos.delete(&mut wtxn, &addr_key)?;
-                    }
-                }
+            if let Some(utxo_bytes) = self.utxos.get(&wtxn, &key)?
+                && let Ok(utxo) = bincode::deserialize::<UtxoEntry>(utxo_bytes)
+                && let Some(addr_hash) = &utxo.addr_hash
+            {
+                let addr_key = make_addr_utxo_key(addr_hash, &outpoint.txid, outpoint.vout);
+                self.addr_utxos.delete(&mut wtxn, &addr_key)?;
             }
             self.utxos.delete(&mut wtxn, &key)?;
         }
@@ -381,10 +380,10 @@ impl DainoDB {
             let vout = u32::from_be_bytes(vout_bytes);
 
             let outpoint_key = make_outpoint_key(&txid, vout);
-            if let Some(utxo_bytes) = self.utxos.get(&rtxn, &outpoint_key)? {
-                if let Ok(utxo) = bincode::deserialize::<UtxoEntry>(utxo_bytes) {
-                    results.push(utxo);
-                }
+            if let Some(utxo_bytes) = self.utxos.get(&rtxn, &outpoint_key)?
+                && let Ok(utxo) = bincode::deserialize::<UtxoEntry>(utxo_bytes)
+            {
+                results.push(utxo);
             }
         }
 
@@ -478,7 +477,8 @@ mod tests {
             output_count: 1,
         };
 
-        db.put_block(&block, &[tx.clone()], &[], &[], &[]).unwrap();
+        db.put_block(&block, std::slice::from_ref(&tx), &[], &[], &[])
+            .unwrap();
 
         let got = db.get_block_by_height(0).unwrap().unwrap();
         assert_eq!(got.height, 0);
