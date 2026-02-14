@@ -10,7 +10,7 @@
 
 use std::path::Path;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use heed::types::*;
 use heed::{CompactionOption, Database, Env, EnvOpenOptions};
 use librustdash::hash::hash_to_display;
@@ -260,7 +260,7 @@ impl DainoDB {
     ///
     /// Batching many blocks into one write transaction avoids per-block
     /// fsync overhead, which is the main bottleneck during bulk indexing.
-
+    ///
     /// Store a single block (convenience wrapper around `put_batch`).
     pub fn put_block(
         &self,
@@ -327,8 +327,7 @@ impl DainoDB {
                     && let Ok(val) = bincode::deserialize::<UtxoValue>(val_bytes)
                     && let Some(addr_hash) = &val.addr_hash
                 {
-                    let addr_key =
-                        make_addr_utxo_key(addr_hash, &outpoint.txid, outpoint.vout);
+                    let addr_key = make_addr_utxo_key(addr_hash, &outpoint.txid, outpoint.vout);
                     self.addr_utxos.delete(&mut wtxn, &addr_key)?;
                 }
                 self.utxos.delete(&mut wtxn, &key)?;
@@ -535,9 +534,7 @@ impl DainoDB {
         }
         self.env
             .copy_to_file(dest, CompactionOption::Enabled)
-            .with_context(|| {
-                format!("Failed to compact database to {:?}", dest)
-            })?;
+            .with_context(|| format!("Failed to compact database to {:?}", dest))?;
         Ok(())
     }
 }
