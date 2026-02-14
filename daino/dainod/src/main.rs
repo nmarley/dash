@@ -55,6 +55,10 @@ enum Commands {
         /// Maximum number of blocks to index (0 = all)
         #[arg(short, long, default_value = "0")]
         max_blocks: usize,
+
+        /// Number of blocks per LMDB write transaction (higher = faster, more RAM)
+        #[arg(short, long, default_value = "500")]
+        batch_size: usize,
     },
 
     /// Show database status
@@ -149,7 +153,8 @@ async fn main() -> Result<()> {
             datadir,
             dbdir,
             max_blocks,
-        } => commands::index::index_blocks(&datadir, &dbdir, network, max_blocks),
+            batch_size,
+        } => commands::index::index_blocks(&datadir, &dbdir, network, max_blocks, batch_size),
         Commands::Status { dbdir } => commands::status::show_status(&dbdir),
         Commands::Serve {
             dbdir,

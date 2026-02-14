@@ -148,6 +148,16 @@ fn parse_addr_key(key: &[u8]) -> Option<([u8; 20], AddrTxRef)> {
     ))
 }
 
+/// A batch of data for one block, used with `DainoDB::put_batch()`.
+#[derive(Debug, Clone)]
+pub struct BlockBatch {
+    pub block: BlockRecord,
+    pub txs: Vec<TxRecord>,
+    pub addr_refs: Vec<([u8; 20], AddrTxRef)>,
+    pub new_utxos: Vec<UtxoEntry>,
+    pub spent: Vec<SpentOutpoint>,
+}
+
 /// Chain metadata stored in the meta database.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ChainMeta {
@@ -224,7 +234,12 @@ impl DainoDB {
         })
     }
 
-    /// Store a block record, its transactions, address index entries, and UTXO updates.
+    /// A batch of block data to write in a single LMDB transaction.
+    ///
+    /// Batching many blocks into one write transaction avoids per-block
+    /// fsync overhead, which is the main bottleneck during bulk indexing.
+
+    /// Store a single block (convenience wrapper around `put_batch`).
     pub fn put_block(
         &self,
         block: &BlockRecord,
@@ -233,57 +248,87 @@ impl DainoDB {
         new_utxos: &[UtxoEntry],
         spent: &[SpentOutpoint],
     ) -> Result<()> {
+        self.put_batch(&[BlockBatch {
+            block: block.clone(),
+            txs: txs.to_vec(),
+            addr_refs: addr_refs.to_vec(),
+            new_utxos: new_utxos.to_vec(),
+            spent: spent.to_vec(),
+        }])
+    }
+
+    /// Store multiple blocks in a single LMDB write transaction.
+    ///
+    /// This is the primary write method for bulk indexing. Writing N blocks
+    /// in one transaction means only one fsync instead of N, which can be
+    /// 10-50x faster for large batches.
+    ///
+    /// Blocks must be provided in height order.
+    pub fn put_batch(&self, blocks: &[BlockBatch]) -> Result<()> {
+        if blocks.is_empty() {
+            return Ok(());
+        }
+
         let mut wtxn = self.env.write_txn()?;
 
-        // Block by height
-        let height_key = block.height.to_be_bytes();
-        let block_bytes = bincode::serialize(block)?;
-        self.blocks_by_height
-            .put(&mut wtxn, &height_key, &block_bytes)?;
+        let mut total_new_txs: u64 = 0;
 
-        // Hash -> height
-        self.hash_to_height
-            .put(&mut wtxn, &block.hash, &height_key)?;
+        for batch in blocks {
+            let block = &batch.block;
 
-        // Transactions
-        for tx in txs {
-            let tx_bytes = bincode::serialize(tx)?;
-            self.txs_by_id.put(&mut wtxn, &tx.txid, &tx_bytes)?;
-        }
+            // Block by height
+            let height_key = block.height.to_be_bytes();
+            let block_bytes = bincode::serialize(block)?;
+            self.blocks_by_height
+                .put(&mut wtxn, &height_key, &block_bytes)?;
 
-        // Address index: compound key = addr(20) + height(4) + txid(32)
-        for (addr_hash, tx_ref) in addr_refs {
-            let key = make_addr_key(addr_hash, tx_ref.block_height, &tx_ref.txid);
-            self.addr_to_txs.put(&mut wtxn, &key, &[])?;
-        }
+            // Hash -> height
+            self.hash_to_height
+                .put(&mut wtxn, &block.hash, &height_key)?;
 
-        // Remove spent UTXOs
-        for outpoint in spent {
-            let key = make_outpoint_key(&outpoint.txid, outpoint.vout);
-            // Look up the UTXO to find its address for addr_utxos cleanup
-            if let Some(utxo_bytes) = self.utxos.get(&wtxn, &key)?
-                && let Ok(utxo) = bincode::deserialize::<UtxoEntry>(utxo_bytes)
-                && let Some(addr_hash) = &utxo.addr_hash
-            {
-                let addr_key = make_addr_utxo_key(addr_hash, &outpoint.txid, outpoint.vout);
-                self.addr_utxos.delete(&mut wtxn, &addr_key)?;
+            // Transactions
+            for tx in &batch.txs {
+                let tx_bytes = bincode::serialize(tx)?;
+                self.txs_by_id.put(&mut wtxn, &tx.txid, &tx_bytes)?;
             }
-            self.utxos.delete(&mut wtxn, &key)?;
-        }
 
-        // Add new UTXOs
-        for utxo in new_utxos {
-            let key = make_outpoint_key(&utxo.txid, utxo.vout);
-            let utxo_bytes = bincode::serialize(utxo)?;
-            self.utxos.put(&mut wtxn, &key, &utxo_bytes)?;
-
-            if let Some(addr_hash) = &utxo.addr_hash {
-                let addr_key = make_addr_utxo_key(addr_hash, &utxo.txid, utxo.vout);
-                self.addr_utxos.put(&mut wtxn, &addr_key, &[])?;
+            // Address index
+            for (addr_hash, tx_ref) in &batch.addr_refs {
+                let key = make_addr_key(addr_hash, tx_ref.block_height, &tx_ref.txid);
+                self.addr_to_txs.put(&mut wtxn, &key, &[])?;
             }
+
+            // Remove spent UTXOs
+            for outpoint in &batch.spent {
+                let key = make_outpoint_key(&outpoint.txid, outpoint.vout);
+                if let Some(utxo_bytes) = self.utxos.get(&wtxn, &key)?
+                    && let Ok(utxo) = bincode::deserialize::<UtxoEntry>(utxo_bytes)
+                    && let Some(addr_hash) = &utxo.addr_hash
+                {
+                    let addr_key =
+                        make_addr_utxo_key(addr_hash, &outpoint.txid, outpoint.vout);
+                    self.addr_utxos.delete(&mut wtxn, &addr_key)?;
+                }
+                self.utxos.delete(&mut wtxn, &key)?;
+            }
+
+            // Add new UTXOs
+            for utxo in &batch.new_utxos {
+                let key = make_outpoint_key(&utxo.txid, utxo.vout);
+                let utxo_bytes = bincode::serialize(utxo)?;
+                self.utxos.put(&mut wtxn, &key, &utxo_bytes)?;
+
+                if let Some(addr_hash) = &utxo.addr_hash {
+                    let addr_key = make_addr_utxo_key(addr_hash, &utxo.txid, utxo.vout);
+                    self.addr_utxos.put(&mut wtxn, &addr_key, &[])?;
+                }
+            }
+
+            total_new_txs += batch.txs.len() as u64;
         }
 
-        // Update metadata
+        // Update metadata once for the entire batch
+        let last = &blocks[blocks.len() - 1].block;
         let meta = self.get_meta_inner(&wtxn)?.unwrap_or(ChainMeta {
             tip_height: 0,
             tip_hash: [0; 32],
@@ -292,10 +337,10 @@ impl DainoDB {
         });
 
         let new_meta = ChainMeta {
-            tip_height: block.height,
-            tip_hash: block.hash,
-            block_count: meta.block_count + 1,
-            tx_count: meta.tx_count + txs.len() as u64,
+            tip_height: last.height,
+            tip_hash: last.hash,
+            block_count: meta.block_count + blocks.len() as u32,
+            tx_count: meta.tx_count + total_new_txs,
         };
         let meta_bytes = bincode::serialize(&new_meta)?;
         self.meta.put(&mut wtxn, "chain", &meta_bytes)?;

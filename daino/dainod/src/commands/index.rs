@@ -1,27 +1,29 @@
 //! The `index` subcommand -- read block files and index them into LMDB.
 
-use anyhow::{Context, Result};
 use std::path::Path;
+use std::time::Instant;
+
+use anyhow::{Context, Result};
 
 use daino_core::{BlockFileReader, Network};
-use daino_state::db::{AddrTxRef, BlockRecord, DainoDB, SpentOutpoint, TxRecord, UtxoEntry};
+use daino_state::db::{
+    AddrTxRef, BlockBatch, BlockRecord, DainoDB, SpentOutpoint, TxRecord, UtxoEntry,
+};
 use librustdash::script::analyze_script;
 
-/// Index block files from a Dash Core data directory into the database.
+/// Index block files into the database.
 ///
 /// Reads blk00000.dat, blk00001.dat, etc. sequentially and stores
-/// block headers and transaction metadata in LMDB.
+/// block headers, transactions, address index, and UTXO set in LMDB.
 ///
-/// Note: Block files contain blocks in the order they were received by
-/// the node, NOT in chain order. Blocks within a single file are roughly
-/// ordered but may include orphan/stale blocks. For now we assign heights
-/// sequentially (which is correct for blk00000.dat which starts at genesis)
-/// but a proper chain-following implementation will be needed later.
+/// Uses batched writes (configurable via `batch_size`) to minimize
+/// fsync overhead -- the main bottleneck during bulk indexing.
 pub fn index_blocks(
     datadir: &Path,
     dbdir: &Path,
     network: Network,
     max_blocks: usize,
+    batch_size: usize,
 ) -> Result<()> {
     if !datadir.exists() {
         anyhow::bail!(
@@ -55,9 +57,14 @@ pub fn index_blocks(
     let mut total_txs: u64 = 0;
     let mut file_num = 0u32;
 
-    // Calculate which file and position to start from.
-    // For simplicity, we re-scan from file 0 and skip already-indexed blocks.
-    // A production indexer would store file offsets for resumption.
+    // Batching state
+    let mut batch: Vec<BlockBatch> = Vec::with_capacity(batch_size);
+
+    // Timing
+    let t_start = Instant::now();
+    let mut t_last_report = t_start;
+
+    // For resumption: skip already-indexed blocks
     let mut blocks_skipped: u32 = 0;
 
     loop {
@@ -93,14 +100,18 @@ pub fn index_blocks(
 
             let indexed = (current_height - start_height) as usize;
             if indexed >= limit {
+                // Flush remaining batch
+                if !batch.is_empty() {
+                    db.put_batch(&batch)?;
+                    batch.clear();
+                }
                 println!("Reached block limit ({})", limit);
-                print_summary(&db)?;
+                print_summary(&db, t_start)?;
                 return Ok(());
             }
 
-            // Compute block hash using X11 (the real Dash PoW hash)
+            // Compute block hash using X11
             let block_hash = block.header.block_hash()?;
-
             let block_size = block.serialize()?.len() as u32;
 
             let block_record = BlockRecord {
@@ -173,14 +184,43 @@ pub fn index_blocks(
             }
 
             total_txs += tx_records.len() as u64;
-            db.put_block(&block_record, &tx_records, &addr_refs, &new_utxos, &spent)?;
 
-            // Progress reporting
-            if current_height % 1000 == 0 {
+            batch.push(BlockBatch {
+                block: block_record,
+                txs: tx_records,
+                addr_refs,
+                new_utxos,
+                spent,
+            });
+
+            // Flush batch when full
+            if batch.len() >= batch_size {
+                db.put_batch(&batch)?;
+                batch.clear();
+            }
+
+            // Progress reporting every 1000 blocks
+            if current_height % 1000 == 0 && current_height > start_height {
+                let now = Instant::now();
+                let elapsed = now.duration_since(t_start).as_secs_f64();
+                let _interval = now.duration_since(t_last_report).as_secs_f64();
+                let total_blocks = (current_height - start_height) as f64;
+                let blk_per_sec = if elapsed > 0.0 {
+                    total_blocks / elapsed
+                } else {
+                    0.0
+                };
+                let tx_per_sec = if elapsed > 0.0 {
+                    total_txs as f64 / elapsed
+                } else {
+                    0.0
+                };
+
                 println!(
-                    "  height={} txs={} (file blk{:05}.dat)",
-                    current_height, total_txs, file_num,
+                    "  height={} txs={} | {:.0} blk/s {:.0} tx/s | {:.1}s elapsed (blk{:05}.dat)",
+                    current_height, total_txs, blk_per_sec, tx_per_sec, elapsed, file_num,
                 );
+                t_last_report = now;
             }
 
             current_height += 1;
@@ -189,12 +229,50 @@ pub fn index_blocks(
         file_num += 1;
     }
 
-    print_summary(&db)?;
+    // Flush remaining batch
+    if !batch.is_empty() {
+        db.put_batch(&batch)?;
+    }
+
+    print_summary(&db, t_start)?;
     Ok(())
 }
 
-fn print_summary(db: &DainoDB) -> Result<()> {
+fn print_summary(db: &DainoDB, t_start: Instant) -> Result<()> {
+    let elapsed = t_start.elapsed().as_secs_f64();
+    let meta = db.get_meta()?;
+
     println!();
-    println!("Indexing complete: {}", db.status_summary()?);
+    if let Some(m) = meta {
+        let blk_per_sec = if elapsed > 0.0 {
+            m.block_count as f64 / elapsed
+        } else {
+            0.0
+        };
+        let tx_per_sec = if elapsed > 0.0 {
+            m.tx_count as f64 / elapsed
+        } else {
+            0.0
+        };
+
+        let elapsed_fmt = if elapsed >= 60.0 {
+            format!("{}m{:.0}s", (elapsed / 60.0) as u64, elapsed % 60.0)
+        } else {
+            format!("{:.1}s", elapsed)
+        };
+
+        println!(
+            "Indexing complete: {} blocks, {} txs in {} ({:.0} blk/s, {:.0} tx/s)",
+            m.block_count, m.tx_count, elapsed_fmt, blk_per_sec, tx_per_sec,
+        );
+        println!(
+            "Tip: height={} hash={}",
+            m.tip_height,
+            librustdash::hash::hash_to_display(&m.tip_hash),
+        );
+    } else {
+        println!("Indexing complete: empty database");
+    }
+
     Ok(())
 }
