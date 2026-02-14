@@ -59,6 +59,10 @@ enum Commands {
         /// Number of blocks per LMDB write transaction (higher = faster, more RAM)
         #[arg(short, long, default_value = "500")]
         batch_size: usize,
+
+        /// Compact the database after indexing to reclaim dead pages
+        #[arg(long)]
+        compact: bool,
     },
 
     /// Show database status
@@ -89,6 +93,13 @@ enum Commands {
         /// RPC password (required if --rpc-url is set)
         #[arg(long)]
         rpc_password: Option<String>,
+    },
+
+    /// Compact the database to reclaim space from dead pages
+    Compact {
+        /// Database directory
+        #[arg(short = 'D', long, default_value = "daino.db")]
+        dbdir: PathBuf,
     },
 
     /// Follow a running dashd and continuously index new blocks
@@ -154,8 +165,17 @@ async fn main() -> Result<()> {
             dbdir,
             max_blocks,
             batch_size,
-        } => commands::index::index_blocks(&datadir, &dbdir, network, max_blocks, batch_size),
+            compact,
+        } => {
+            commands::index::index_blocks(&datadir, &dbdir, network, max_blocks, batch_size)?;
+            if compact {
+                println!();
+                commands::compact::compact_db(&dbdir)?;
+            }
+            Ok(())
+        }
         Commands::Status { dbdir } => commands::status::show_status(&dbdir),
+        Commands::Compact { dbdir } => commands::compact::compact_db(&dbdir),
         Commands::Serve {
             dbdir,
             listen,

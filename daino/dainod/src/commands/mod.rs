@@ -1,3 +1,4 @@
+pub mod compact;
 pub mod follow;
 pub mod index;
 pub mod read;
