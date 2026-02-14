@@ -279,7 +279,7 @@ pub fn index_blocks(
                 txids.push(tx.txid()?);
             }
 
-            let block_size = loc.block_size + 8; // +8 for magic + size prefix
+            let block_size = loc.block_size;
 
             let read_block = ReadBlock {
                 height,
@@ -318,6 +318,7 @@ pub fn index_blocks(
             hash: block_hash,
             prev_hash: block.header.prev_blockhash,
             merkle_root: block.header.merkle_root,
+            version: block.header.version,
             time: block.header.time,
             bits: block.header.bits,
             nonce: block.header.nonce,

@@ -51,17 +51,22 @@ pub struct ChainInfo {
 #[derive(Serialize)]
 pub struct BlockResponse {
     pub hash: String,
+    pub size: u32,
     pub height: u32,
-    #[serde(rename = "previousblockhash")]
-    pub previous_block_hash: String,
+    pub version: i32,
     #[serde(rename = "merkleroot")]
     pub merkle_root: String,
+    /// Transaction IDs in this block (display-order hex)
+    pub tx: Vec<String>,
     pub time: u32,
-    pub bits: String,
     pub nonce: u32,
-    #[serde(rename = "txcount")]
-    pub tx_count: u32,
-    pub size: u32,
+    pub bits: String,
+    pub confirmations: u32,
+    #[serde(rename = "previousblockhash")]
+    pub previous_block_hash: String,
+    /// Next block hash (omitted if this is the tip)
+    #[serde(rename = "nextblockhash", skip_serializing_if = "Option::is_none")]
+    pub next_block_hash: Option<String>,
     /// ChainLock status (None if dashd not connected)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub chainlock: Option<bool>,
@@ -101,6 +106,15 @@ pub struct TxResponse {
 #[derive(Serialize)]
 pub struct ErrorResponse {
     pub error: String,
+}
+
+fn db_error() -> (StatusCode, Json<ErrorResponse>) {
+    (
+        StatusCode::INTERNAL_SERVER_ERROR,
+        Json(ErrorResponse {
+            error: "Database error".to_string(),
+        }),
+    )
 }
 
 // -- Handlers --
@@ -176,10 +190,43 @@ pub async fn get_block_by_hash(
             )
         })?;
 
+    // Fetch txid list for this block
+    let txids = state
+        .db
+        .get_block_txids(block.height)
+        .map_err(|_| db_error())?
+        .iter()
+        .map(hash_to_display)
+        .collect();
+
+    // Fetch next block hash (height + 1)
+    let next_block_hash = state
+        .db
+        .get_block_by_height(block.height + 1)
+        .ok()
+        .flatten()
+        .map(|b| hash_to_display(&b.hash));
+
+    // Compute confirmations from tip
+    let tip_height = state
+        .db
+        .get_meta()
+        .ok()
+        .flatten()
+        .map(|m| m.tip_height)
+        .unwrap_or(block.height);
+    let confirmations = tip_height - block.height + 1;
+
     // Query dashd for ChainLock status if available
     let chainlock = query_block_chainlock(&state.rpc, &hash_hex).await;
 
-    Ok(Json(block_to_response(&block, chainlock)))
+    Ok(Json(block_to_response(
+        &block,
+        txids,
+        next_block_hash,
+        confirmations,
+        chainlock,
+    )))
 }
 
 /// GET /api/block-index/:height
@@ -568,18 +615,24 @@ async fn query_tx_locks(rpc: &Option<DashdRpc>, txid_hex: &str) -> (Option<bool>
 
 fn block_to_response(
     block: &daino_state::db::BlockRecord,
+    txids: Vec<String>,
+    next_block_hash: Option<String>,
+    confirmations: u32,
     chainlock: Option<bool>,
 ) -> BlockResponse {
     BlockResponse {
         hash: hash_to_display(&block.hash),
-        height: block.height,
-        previous_block_hash: hash_to_display(&block.prev_hash),
-        merkle_root: hash_to_display(&block.merkle_root),
-        time: block.time,
-        bits: format!("{:08x}", block.bits),
-        nonce: block.nonce,
-        tx_count: block.tx_count,
         size: block.size,
+        height: block.height,
+        version: block.version,
+        merkle_root: hash_to_display(&block.merkle_root),
+        tx: txids,
+        time: block.time,
+        nonce: block.nonce,
+        bits: format!("{:08x}", block.bits),
+        confirmations,
+        previous_block_hash: hash_to_display(&block.prev_hash),
+        next_block_hash,
         chainlock,
     }
 }

@@ -26,6 +26,8 @@ pub struct BlockRecord {
     pub prev_hash: [u8; 32],
     /// Merkle root (internal byte order)
     pub merkle_root: [u8; 32],
+    /// Block version
+    pub version: i32,
     /// Block timestamp
     pub time: u32,
     /// Difficulty target (compact)
@@ -34,7 +36,7 @@ pub struct BlockRecord {
     pub nonce: u32,
     /// Number of transactions in the block
     pub tx_count: u32,
-    /// Total block size in bytes
+    /// Total block size in bytes (serialized block, no file envelope)
     pub size: u32,
 }
 
@@ -202,10 +204,12 @@ pub struct DainoDB {
     hash_to_height: Database<Bytes, Bytes>,
     /// txid (32 bytes) -> TxRecord (bincode)
     txs_by_id: Database<Bytes, Bytes>,
+    /// height (4 bytes BE) -> concatenated txids (N * 32 bytes, tx_index order)
+    block_txs: Database<Bytes, Bytes>,
     /// compound key: addr_hash(20)+height(4)+txid(32) -> empty
     /// prefix scan on addr_hash(20) returns all txs for that address
     addr_to_txs: Database<Bytes, Bytes>,
-    /// outpoint key: txid(32)+vout(4) -> UtxoEntry (bincode)
+    /// outpoint key: txid(32)+vout(4) -> UtxoValue (bincode)
     utxos: Database<Bytes, Bytes>,
     /// addr UTXO key: addr_hash(20)+txid(32)+vout(4) -> empty
     /// prefix scan on addr_hash(20) yields all UTXOs for that address
@@ -218,7 +222,7 @@ pub struct DainoDB {
 const MAX_DB_SIZE: usize = 10 * 1024 * 1024 * 1024;
 
 /// Number of named databases we use.
-const MAX_DBS: u32 = 10;
+const MAX_DBS: u32 = 12;
 
 impl DainoDB {
     /// Open or create the database at the given path.
@@ -238,6 +242,7 @@ impl DainoDB {
         let blocks_by_height = env.create_database(&mut wtxn, Some("blocks_by_height"))?;
         let hash_to_height = env.create_database(&mut wtxn, Some("hash_to_height"))?;
         let txs_by_id = env.create_database(&mut wtxn, Some("txs_by_id"))?;
+        let block_txs = env.create_database(&mut wtxn, Some("block_txs"))?;
         let addr_to_txs = env.create_database(&mut wtxn, Some("addr_to_txs"))?;
         let utxos = env.create_database(&mut wtxn, Some("utxos"))?;
         let addr_utxos = env.create_database(&mut wtxn, Some("addr_utxos"))?;
@@ -249,6 +254,7 @@ impl DainoDB {
             blocks_by_height,
             hash_to_height,
             txs_by_id,
+            block_txs,
             addr_to_txs,
             utxos,
             addr_utxos,
@@ -313,6 +319,13 @@ impl DainoDB {
                 let tx_bytes = bincode::serialize(tx)?;
                 self.txs_by_id.put(&mut wtxn, &tx.txid, &tx_bytes)?;
             }
+
+            // Block -> txid list (raw concatenated, 32 bytes each)
+            let mut txid_blob = Vec::with_capacity(batch.txs.len() * 32);
+            for tx in &batch.txs {
+                txid_blob.extend_from_slice(&tx.txid);
+            }
+            self.block_txs.put(&mut wtxn, &height_key, &txid_blob)?;
 
             // Address index
             for (addr_hash, tx_ref) in &batch.addr_refs {
@@ -394,6 +407,27 @@ impl DainoDB {
                 None => Ok(None),
             },
             None => Ok(None),
+        }
+    }
+
+    /// Get all transaction IDs for a block by height.
+    ///
+    /// Returns txids in tx_index order (same order as in the block).
+    /// Each txid is in internal byte order.
+    pub fn get_block_txids(&self, height: u32) -> Result<Vec<[u8; 32]>> {
+        let rtxn = self.env.read_txn()?;
+        let key = height.to_be_bytes();
+        match self.block_txs.get(&rtxn, &key)? {
+            Some(bytes) => {
+                let mut txids = Vec::with_capacity(bytes.len() / 32);
+                for chunk in bytes.chunks_exact(32) {
+                    let mut txid = [0u8; 32];
+                    txid.copy_from_slice(chunk);
+                    txids.push(txid);
+                }
+                Ok(txids)
+            }
+            None => Ok(Vec::new()),
         }
     }
 
@@ -564,6 +598,7 @@ mod tests {
             hash: [0xAA; 32],
             prev_hash: [0x00; 32],
             merkle_root: [0xBB; 32],
+            version: 2,
             time: 1317972665,
             bits: 0x1e0ffff0,
             nonce: 99943,
@@ -623,6 +658,7 @@ mod tests {
                     prev
                 },
                 merkle_root: [0; 32],
+                version: 2,
                 time: 1317972665 + h * 150,
                 bits: 0x1e0ffff0,
                 nonce: h,
@@ -667,6 +703,7 @@ mod tests {
             hash: [0x01; 32],
             prev_hash: [0x00; 32],
             merkle_root: [0; 32],
+            version: 2,
             time: 0,
             bits: 0,
             nonce: 0,
@@ -706,6 +743,7 @@ mod tests {
             hash: [0x02; 32],
             prev_hash: [0x01; 32],
             merkle_root: [0; 32],
+            version: 2,
             time: 0,
             bits: 0,
             nonce: 0,
@@ -757,6 +795,7 @@ mod tests {
             hash: [0x01; 32],
             prev_hash: [0x00; 32],
             merkle_root: [0; 32],
+            version: 2,
             time: 0,
             bits: 0,
             nonce: 0,
@@ -799,6 +838,7 @@ mod tests {
             hash: [0x02; 32],
             prev_hash: [0x01; 32],
             merkle_root: [0; 32],
+            version: 2,
             time: 0,
             bits: 0,
             nonce: 0,

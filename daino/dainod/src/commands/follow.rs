@@ -100,6 +100,7 @@ fn index_fetched_block(db: &DainoDB, fetched: &FetchedBlock) -> Result<()> {
         hash: block_hash,
         prev_hash: block.header.prev_blockhash,
         merkle_root: block.header.merkle_root,
+        version: block.header.version,
         time: block.header.time,
         bits: block.header.bits,
         nonce: block.header.nonce,
