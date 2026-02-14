@@ -44,6 +44,26 @@ impl BlockHeader {
         Ok(buf)
     }
 
+    /// Compute the block hash using X11.
+    ///
+    /// Returns the hash in internal byte order. For display (RPC) order,
+    /// use `hash::reverse_hash()` or `hash::hash_to_display()`.
+    ///
+    /// Requires the `x11` feature flag.
+    #[cfg(feature = "x11")]
+    pub fn block_hash(&self) -> Result<[u8; 32]> {
+        let bytes = self.serialize()?;
+        Ok(crate::hash::x11_hash(&bytes))
+    }
+
+    /// Compute the block hash as a display string (reversed hex, like RPC output).
+    ///
+    /// Requires the `x11` feature flag.
+    #[cfg(feature = "x11")]
+    pub fn block_hash_hex(&self) -> Result<String> {
+        Ok(crate::hash::hash_to_display(&self.block_hash()?))
+    }
+
     /// Deserialize block header from bytes
     pub fn deserialize(data: &[u8]) -> Result<Self> {
         if data.len() < 80 {

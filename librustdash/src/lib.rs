@@ -20,6 +20,8 @@ pub use bitvector::BitVector;
 pub use block::{Block, BlockHeader};
 pub use bls::{BlsPublicKey, BlsSignature};
 pub use error::{DashError, Result};
+#[cfg(feature = "x11")]
+pub use hash::x11_hash;
 pub use hash::{hash_to_display, reverse_hash, sha256d};
 pub use network_info::ServiceAddress;
 pub use payloads::{

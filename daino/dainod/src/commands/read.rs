@@ -76,6 +76,7 @@ pub fn read_block_file(
                 };
 
                 println!("=== Block {} ===", i);
+                println!("  Hash: {}", block.header.block_hash_hex()?);
                 println!("  Position in file: {} bytes", reader.last_block_start());
                 println!("  Version: {}", block.header.version);
 

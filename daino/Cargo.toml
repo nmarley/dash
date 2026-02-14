@@ -12,7 +12,7 @@ version = "0.1.0"
 edition = "2024"
 
 [workspace.dependencies]
-librustdash = { path = "../librustdash" }
+librustdash = { path = "../librustdash", features = ["x11"] }
 daino-core = { path = "crates/daino-core" }
 daino-serve = { path = "crates/daino-serve" }
 daino-state = { path = "crates/daino-state" }

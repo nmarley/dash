@@ -5,7 +5,6 @@ use std::path::Path;
 
 use daino_core::{BlockFileReader, Network};
 use daino_state::db::{BlockRecord, DainoDB, TxRecord};
-use librustdash::hash::sha256d;
 
 /// Index block files from a Dash Core data directory into the database.
 ///
@@ -99,13 +98,8 @@ pub fn index_blocks(
                 return Ok(());
             }
 
-            // Compute block hash from the serialized header.
-            // NOTE: Dash uses X11 for block hashes, not SHA-256d. Since we
-            // don't have an X11 implementation, we use SHA-256d as a
-            // placeholder identifier. For a production indexer, block hashes
-            // should come from dashd's RPC or the LevelDB block index.
-            let header_bytes = block.header.serialize()?;
-            let block_hash = sha256d(&header_bytes);
+            // Compute block hash using X11 (the real Dash PoW hash)
+            let block_hash = block.header.block_hash()?;
 
             let block_size = block.serialize()?.len() as u32;
 
