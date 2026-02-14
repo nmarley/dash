@@ -5,8 +5,8 @@
 
 use anyhow::{Context, Result};
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
-use librustdash::block::BlockHeader;
 use librustdash::Block;
+use librustdash::block::BlockHeader;
 use std::fs::File;
 use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::path::Path;
