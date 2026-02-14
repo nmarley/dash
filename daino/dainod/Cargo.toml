@@ -13,3 +13,10 @@ anyhow = { workspace = true }
 tokio = { workspace = true }
 clap = { version = "4.5", features = ["derive"] }
 hex = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3.17"
+reqwest = { workspace = true }
+serde_json = { workspace = true }
+axum = "0.8"
+tower-http = { version = "0.6", features = ["cors"] }

@@ -397,6 +397,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
+ "daino-fetch",
  "daino-state",
  "hex",
  "librustdash",
@@ -426,6 +427,7 @@ name = "dainod"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "axum",
  "clap",
  "daino-core",
  "daino-fetch",
@@ -433,7 +435,11 @@ dependencies = [
  "daino-state",
  "hex",
  "librustdash",
+ "reqwest",
+ "serde_json",
+ "tempfile",
  "tokio",
+ "tower-http",
 ]
 
 [[package]]

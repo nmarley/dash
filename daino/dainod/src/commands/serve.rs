@@ -3,7 +3,13 @@
 use anyhow::Result;
 use std::path::Path;
 
-pub async fn run_server(dbdir: &Path, listen: &str) -> Result<()> {
+use daino_serve::RpcConfig;
+
+pub async fn run_server(
+    dbdir: &Path,
+    listen: &str,
+    rpc_config: Option<RpcConfig>,
+) -> Result<()> {
     if !dbdir.exists() {
         anyhow::bail!(
             "Database not found at {:?}\nRun `dainod index` first.",
@@ -11,5 +17,5 @@ pub async fn run_server(dbdir: &Path, listen: &str) -> Result<()> {
         );
     }
 
-    daino_serve::start_server(dbdir, listen).await
+    daino_serve::start_server(dbdir, listen, rpc_config).await
 }

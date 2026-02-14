@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 /// For display order, reverse the bytes.
 pub fn sha256d(data: &[u8]) -> [u8; 32] {
     let first = Sha256::digest(data);
-    let second = Sha256::digest(&first);
+    let second = Sha256::digest(first);
     let mut result = [0u8; 32];
     result.copy_from_slice(&second);
     result

@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+daino-fetch = { workspace = true }
 daino-state = { workspace = true }
 librustdash = { workspace = true }
 anyhow = { workspace = true }

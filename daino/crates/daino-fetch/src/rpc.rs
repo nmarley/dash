@@ -279,6 +279,14 @@ impl DashdRpc {
         self.call("getblockchaininfo", &[]).await?;
         Ok(())
     }
+
+    /// Make a raw RPC call and return the result as untyped JSON.
+    ///
+    /// Useful for Dash-specific RPCs (spork, gobject, etc.) where we
+    /// don't need to deserialize into a specific struct.
+    pub async fn call_raw(&self, method: &str, params: &[Value]) -> Result<Value> {
+        self.call(method, params).await
+    }
 }
 
 #[cfg(test)]

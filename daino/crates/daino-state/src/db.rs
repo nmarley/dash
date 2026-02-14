@@ -70,6 +70,52 @@ pub struct AddrTxRef {
     pub txid: [u8; 32],
 }
 
+/// An unspent transaction output.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct UtxoEntry {
+    /// Transaction ID (internal byte order)
+    pub txid: [u8; 32],
+    /// Output index within the transaction
+    pub vout: u32,
+    /// Value in satoshis
+    pub value: i64,
+    /// Block height where this output was created
+    pub block_height: u32,
+    /// The 20-byte address hash (if standard script)
+    pub addr_hash: Option<[u8; 20]>,
+}
+
+/// A spent outpoint (txid + vout) -- used to remove UTXOs when inputs consume them.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SpentOutpoint {
+    /// Transaction ID of the output being spent (internal byte order)
+    pub txid: [u8; 32],
+    /// Output index being spent
+    pub vout: u32,
+}
+
+/// Outpoint key: txid(32) + vout(4 BE) = 36 bytes.
+const OUTPOINT_KEY_LEN: usize = 32 + 4;
+
+fn make_outpoint_key(txid: &[u8; 32], vout: u32) -> [u8; OUTPOINT_KEY_LEN] {
+    let mut key = [0u8; OUTPOINT_KEY_LEN];
+    key[0..32].copy_from_slice(txid);
+    key[32..36].copy_from_slice(&vout.to_be_bytes());
+    key
+}
+
+/// Address UTXO key: addr_hash(20) + txid(32) + vout(4 BE) = 56 bytes.
+/// Prefix scan on addr_hash returns all UTXOs for that address.
+const ADDR_UTXO_KEY_LEN: usize = 20 + 32 + 4;
+
+fn make_addr_utxo_key(addr_hash: &[u8; 20], txid: &[u8; 32], vout: u32) -> [u8; ADDR_UTXO_KEY_LEN] {
+    let mut key = [0u8; ADDR_UTXO_KEY_LEN];
+    key[0..20].copy_from_slice(addr_hash);
+    key[20..52].copy_from_slice(txid);
+    key[52..56].copy_from_slice(&vout.to_be_bytes());
+    key
+}
+
 /// Address index key: addr_hash(20) + block_height(4 BE) + txid(32) = 56 bytes.
 /// This compound key allows prefix scanning by addr_hash to get all txs,
 /// naturally ordered by block height.
@@ -127,6 +173,11 @@ pub struct DainoDB {
     /// compound key: addr_hash(20)+height(4)+txid(32) -> empty
     /// prefix scan on addr_hash(20) returns all txs for that address
     addr_to_txs: Database<Bytes, Bytes>,
+    /// outpoint key: txid(32)+vout(4) -> UtxoEntry (bincode)
+    utxos: Database<Bytes, Bytes>,
+    /// addr UTXO key: addr_hash(20)+txid(32)+vout(4) -> empty
+    /// prefix scan on addr_hash(20) yields all UTXOs for that address
+    addr_utxos: Database<Bytes, Bytes>,
     /// "meta" -> ChainMeta (bincode)
     meta: Database<Str, Bytes>,
 }
@@ -156,6 +207,8 @@ impl DainoDB {
         let hash_to_height = env.create_database(&mut wtxn, Some("hash_to_height"))?;
         let txs_by_id = env.create_database(&mut wtxn, Some("txs_by_id"))?;
         let addr_to_txs = env.create_database(&mut wtxn, Some("addr_to_txs"))?;
+        let utxos = env.create_database(&mut wtxn, Some("utxos"))?;
+        let addr_utxos = env.create_database(&mut wtxn, Some("addr_utxos"))?;
         let meta = env.create_database(&mut wtxn, Some("meta"))?;
         wtxn.commit()?;
 
@@ -165,16 +218,20 @@ impl DainoDB {
             hash_to_height,
             txs_by_id,
             addr_to_txs,
+            utxos,
+            addr_utxos,
             meta,
         })
     }
 
-    /// Store a block record, its transactions, and address index entries.
+    /// Store a block record, its transactions, address index entries, and UTXO updates.
     pub fn put_block(
         &self,
         block: &BlockRecord,
         txs: &[TxRecord],
         addr_refs: &[([u8; 20], AddrTxRef)],
+        new_utxos: &[UtxoEntry],
+        spent: &[SpentOutpoint],
     ) -> Result<()> {
         let mut wtxn = self.env.write_txn()?;
 
@@ -198,6 +255,33 @@ impl DainoDB {
         for (addr_hash, tx_ref) in addr_refs {
             let key = make_addr_key(addr_hash, tx_ref.block_height, &tx_ref.txid);
             self.addr_to_txs.put(&mut wtxn, &key, &[])?;
+        }
+
+        // Remove spent UTXOs
+        for outpoint in spent {
+            let key = make_outpoint_key(&outpoint.txid, outpoint.vout);
+            // Look up the UTXO to find its address for addr_utxos cleanup
+            if let Some(utxo_bytes) = self.utxos.get(&wtxn, &key)? {
+                if let Ok(utxo) = bincode::deserialize::<UtxoEntry>(utxo_bytes) {
+                    if let Some(addr_hash) = &utxo.addr_hash {
+                        let addr_key = make_addr_utxo_key(addr_hash, &outpoint.txid, outpoint.vout);
+                        self.addr_utxos.delete(&mut wtxn, &addr_key)?;
+                    }
+                }
+            }
+            self.utxos.delete(&mut wtxn, &key)?;
+        }
+
+        // Add new UTXOs
+        for utxo in new_utxos {
+            let key = make_outpoint_key(&utxo.txid, utxo.vout);
+            let utxo_bytes = bincode::serialize(utxo)?;
+            self.utxos.put(&mut wtxn, &key, &utxo_bytes)?;
+
+            if let Some(addr_hash) = &utxo.addr_hash {
+                let addr_key = make_addr_utxo_key(addr_hash, &utxo.txid, utxo.vout);
+                self.addr_utxos.put(&mut wtxn, &addr_key, &[])?;
+            }
         }
 
         // Update metadata
@@ -271,6 +355,50 @@ impl DainoDB {
         }
 
         Ok(results)
+    }
+
+    /// Get all unspent outputs for an address (by 20-byte hash).
+    ///
+    /// Returns UTXOs ordered by outpoint (txid + vout).
+    pub fn get_addr_utxos(&self, addr_hash: &[u8; 20]) -> Result<Vec<UtxoEntry>> {
+        let rtxn = self.env.read_txn()?;
+        let mut results = Vec::new();
+
+        // Prefix scan on addr_utxos: keys start with addr_hash(20)
+        let prefix = addr_hash.as_slice();
+        let iter = self.addr_utxos.prefix_iter(&rtxn, prefix)?;
+
+        for item in iter {
+            let (key, _value) = item?;
+            if key.len() < ADDR_UTXO_KEY_LEN {
+                continue;
+            }
+            // Extract txid + vout from the key to look up the UTXO
+            let mut txid = [0u8; 32];
+            txid.copy_from_slice(&key[20..52]);
+            let mut vout_bytes = [0u8; 4];
+            vout_bytes.copy_from_slice(&key[52..56]);
+            let vout = u32::from_be_bytes(vout_bytes);
+
+            let outpoint_key = make_outpoint_key(&txid, vout);
+            if let Some(utxo_bytes) = self.utxos.get(&rtxn, &outpoint_key)? {
+                if let Ok(utxo) = bincode::deserialize::<UtxoEntry>(utxo_bytes) {
+                    results.push(utxo);
+                }
+            }
+        }
+
+        Ok(results)
+    }
+
+    /// Get a single UTXO by outpoint (txid + vout).
+    pub fn get_utxo(&self, txid: &[u8; 32], vout: u32) -> Result<Option<UtxoEntry>> {
+        let rtxn = self.env.read_txn()?;
+        let key = make_outpoint_key(txid, vout);
+        match self.utxos.get(&rtxn, &key)? {
+            Some(bytes) => Ok(Some(bincode::deserialize(bytes)?)),
+            None => Ok(None),
+        }
     }
 
     /// Get the current chain metadata.
@@ -350,7 +478,7 @@ mod tests {
             output_count: 1,
         };
 
-        db.put_block(&block, &[tx.clone()], &[]).unwrap();
+        db.put_block(&block, &[tx.clone()], &[], &[], &[]).unwrap();
 
         let got = db.get_block_by_height(0).unwrap().unwrap();
         assert_eq!(got.height, 0);
@@ -396,7 +524,7 @@ mod tests {
                 size: 286,
             };
 
-            db.put_block(&block, &[], &[]).unwrap();
+            db.put_block(&block, &[], &[], &[], &[]).unwrap();
         }
 
         let meta = db.get_meta().unwrap().unwrap();
@@ -464,7 +592,7 @@ mod tests {
             ),
         ];
 
-        db.put_block(&block, &[], &addr_refs).unwrap();
+        db.put_block(&block, &[], &addr_refs, &[], &[]).unwrap();
 
         // Second block with another tx for the same address
         let block2 = BlockRecord {
@@ -487,7 +615,7 @@ mod tests {
             },
         )];
 
-        db.put_block(&block2, &[], &addr_refs2).unwrap();
+        db.put_block(&block2, &[], &addr_refs2, &[], &[]).unwrap();
 
         // Query: addr should have 3 txs
         let txs = db.get_addr_txs(&addr).unwrap();
@@ -507,5 +635,102 @@ mod tests {
         // Query: unknown address should have 0
         let txs = db.get_addr_txs(&[0xFF; 20]).unwrap();
         assert_eq!(txs.len(), 0);
+    }
+
+    #[test]
+    fn test_utxo_tracking() {
+        let (_dir, db) = temp_db();
+
+        let addr = [0x11u8; 20];
+        let txid1 = [0xAA; 32];
+        let txid2 = [0xBB; 32];
+
+        // Block 1: creates two UTXOs for the same address
+        let block1 = BlockRecord {
+            height: 100,
+            hash: [0x01; 32],
+            prev_hash: [0x00; 32],
+            merkle_root: [0; 32],
+            time: 0,
+            bits: 0,
+            nonce: 0,
+            tx_count: 1,
+            size: 0,
+        };
+
+        let utxos = vec![
+            UtxoEntry {
+                txid: txid1,
+                vout: 0,
+                value: 500_000_000,
+                block_height: 100,
+                addr_hash: Some(addr),
+            },
+            UtxoEntry {
+                txid: txid1,
+                vout: 1,
+                value: 300_000_000,
+                block_height: 100,
+                addr_hash: Some(addr),
+            },
+        ];
+
+        db.put_block(&block1, &[], &[], &utxos, &[]).unwrap();
+
+        // Should have 2 UTXOs
+        let result = db.get_addr_utxos(&addr).unwrap();
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].value, 500_000_000);
+        assert_eq!(result[1].value, 300_000_000);
+
+        // Look up individual UTXO
+        let u = db.get_utxo(&txid1, 0).unwrap().unwrap();
+        assert_eq!(u.value, 500_000_000);
+
+        // Block 2: spends one UTXO (txid1:0) and creates a new one
+        let block2 = BlockRecord {
+            height: 200,
+            hash: [0x02; 32],
+            prev_hash: [0x01; 32],
+            merkle_root: [0; 32],
+            time: 0,
+            bits: 0,
+            nonce: 0,
+            tx_count: 1,
+            size: 0,
+        };
+
+        let new_utxos = vec![UtxoEntry {
+            txid: txid2,
+            vout: 0,
+            value: 400_000_000,
+            block_height: 200,
+            addr_hash: Some(addr),
+        }];
+
+        let spent = vec![SpentOutpoint {
+            txid: txid1,
+            vout: 0,
+        }];
+
+        db.put_block(&block2, &[], &[], &new_utxos, &spent).unwrap();
+
+        // Should now have 2 UTXOs: txid1:1 (unspent) and txid2:0 (new)
+        let result = db.get_addr_utxos(&addr).unwrap();
+        assert_eq!(result.len(), 2);
+
+        // txid1:0 should be gone
+        assert!(db.get_utxo(&txid1, 0).unwrap().is_none());
+
+        // txid1:1 should still be there
+        let u = db.get_utxo(&txid1, 1).unwrap().unwrap();
+        assert_eq!(u.value, 300_000_000);
+
+        // txid2:0 should exist
+        let u = db.get_utxo(&txid2, 0).unwrap().unwrap();
+        assert_eq!(u.value, 400_000_000);
+
+        // Unknown address should have no UTXOs
+        assert_eq!(db.get_addr_utxos(&[0xFF; 20]).unwrap().len(), 0);
     }
 }

@@ -16,7 +16,7 @@ use anyhow::{Context, Result};
 
 use daino_fetch::rpc::DashdRpc;
 use daino_fetch::{catch_up, poll_loop, FetchedBlock};
-use daino_state::db::{AddrTxRef, BlockRecord, DainoDB, TxRecord};
+use daino_state::db::{AddrTxRef, BlockRecord, DainoDB, SpentOutpoint, TxRecord, UtxoEntry};
 use librustdash::script::analyze_script;
 use librustdash::Block;
 
@@ -104,9 +104,11 @@ fn index_fetched_block(db: &DainoDB, fetched: &FetchedBlock) -> Result<()> {
         size: block_size,
     };
 
-    // Build transaction records and address index
+    // Build transaction records, address index, and UTXO updates
     let mut tx_records = Vec::with_capacity(block.transactions.len());
     let mut addr_refs: Vec<([u8; 20], AddrTxRef)> = Vec::new();
+    let mut new_utxos: Vec<UtxoEntry> = Vec::new();
+    let mut spent: Vec<SpentOutpoint> = Vec::new();
 
     for (tx_idx, tx) in block.transactions.iter().enumerate() {
         let txid = tx.txid()?;
@@ -124,22 +126,42 @@ fn index_fetched_block(db: &DainoDB, fetched: &FetchedBlock) -> Result<()> {
             output_count: tx.outputs.len() as u32,
         });
 
-        // Extract address hashes from outputs
-        for output in &tx.outputs {
+        // Collect spent outpoints from inputs (skip coinbase)
+        if !tx.is_coinbase() {
+                    for input in &tx.inputs {
+                        spent.push(SpentOutpoint {
+                            txid: input.previous_output.hash,
+                            vout: input.previous_output.n,
+                        });
+                    }
+        }
+
+        // Extract address hashes from outputs for address + UTXO indexing
+        for (vout, output) in tx.outputs.iter().enumerate() {
             let info = analyze_script(&output.script_pubkey);
-            if let Some(addr_hash) = info.address_hash {
+            let addr_hash = info.address_hash;
+
+            if let Some(ah) = addr_hash {
                 addr_refs.push((
-                    addr_hash,
+                    ah,
                     AddrTxRef {
                         block_height: fetched.height as u32,
                         txid,
                     },
                 ));
             }
+
+            new_utxos.push(UtxoEntry {
+                txid,
+                vout: vout as u32,
+                value: output.value,
+                block_height: fetched.height as u32,
+                addr_hash,
+            });
         }
     }
 
-    db.put_block(&block_record, &tx_records, &addr_refs)?;
+    db.put_block(&block_record, &tx_records, &addr_refs, &new_utxos, &spent)?;
 
     // Progress reporting
     if fetched.height % 100 == 0 {

@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use std::path::Path;
 
 use daino_core::{BlockFileReader, Network};
-use daino_state::db::{AddrTxRef, BlockRecord, DainoDB, TxRecord};
+use daino_state::db::{AddrTxRef, BlockRecord, DainoDB, SpentOutpoint, TxRecord, UtxoEntry};
 use librustdash::script::analyze_script;
 
 /// Index block files from a Dash Core data directory into the database.
@@ -116,9 +116,11 @@ pub fn index_blocks(
                 size: block_size,
             };
 
-            // Build transaction records and address index
+            // Build transaction records, address index, and UTXO updates
             let mut tx_records = Vec::with_capacity(block.transactions.len());
             let mut addr_refs: Vec<([u8; 20], AddrTxRef)> = Vec::new();
+            let mut new_utxos: Vec<UtxoEntry> = Vec::new();
+            let mut spent: Vec<SpentOutpoint> = Vec::new();
 
             for (tx_idx, tx) in block.transactions.iter().enumerate() {
                 let txid = tx.txid()?;
@@ -136,23 +138,43 @@ pub fn index_blocks(
                     output_count: tx.outputs.len() as u32,
                 });
 
-                // Extract address hashes from outputs for address indexing
-                for output in &tx.outputs {
+                // Collect spent outpoints from inputs (skip coinbase)
+                if !tx.is_coinbase() {
+                    for input in &tx.inputs {
+                        spent.push(SpentOutpoint {
+                            txid: input.previous_output.hash,
+                            vout: input.previous_output.n,
+                        });
+                    }
+                }
+
+                // Extract address hashes from outputs for address + UTXO indexing
+                for (vout, output) in tx.outputs.iter().enumerate() {
                     let info = analyze_script(&output.script_pubkey);
-                    if let Some(addr_hash) = info.address_hash {
+                    let addr_hash = info.address_hash;
+
+                    if let Some(ah) = addr_hash {
                         addr_refs.push((
-                            addr_hash,
+                            ah,
                             AddrTxRef {
                                 block_height: current_height,
                                 txid,
                             },
                         ));
                     }
+
+                    new_utxos.push(UtxoEntry {
+                        txid,
+                        vout: vout as u32,
+                        value: output.value,
+                        block_height: current_height,
+                        addr_hash,
+                    });
                 }
             }
 
             total_txs += tx_records.len() as u64;
-            db.put_block(&block_record, &tx_records, &addr_refs)?;
+            db.put_block(&block_record, &tx_records, &addr_refs, &new_utxos, &spent)?;
 
             // Progress reporting
             if current_height % 1000 == 0 {

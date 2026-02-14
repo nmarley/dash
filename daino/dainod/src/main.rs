@@ -73,6 +73,18 @@ enum Commands {
         /// Listen address (host:port)
         #[arg(short, long, default_value = "127.0.0.1:3141")]
         listen: String,
+
+        /// dashd JSON-RPC URL (enables live ChainLock/IS/spork/governance queries)
+        #[arg(long)]
+        rpc_url: Option<String>,
+
+        /// RPC username
+        #[arg(long, default_value = "dashrpc")]
+        rpc_user: String,
+
+        /// RPC password (required if --rpc-url is set)
+        #[arg(long)]
+        rpc_password: Option<String>,
     },
 
     /// Follow a running dashd and continuously index new blocks
@@ -139,7 +151,20 @@ async fn main() -> Result<()> {
             max_blocks,
         } => commands::index::index_blocks(&datadir, &dbdir, network, max_blocks),
         Commands::Status { dbdir } => commands::status::show_status(&dbdir),
-        Commands::Serve { dbdir, listen } => commands::serve::run_server(&dbdir, &listen).await,
+        Commands::Serve {
+            dbdir,
+            listen,
+            rpc_url,
+            rpc_user,
+            rpc_password,
+        } => {
+            let rpc_config = rpc_url.map(|url| daino_serve::RpcConfig {
+                url,
+                user: rpc_user,
+                password: rpc_password.unwrap_or_default(),
+            });
+            commands::serve::run_server(&dbdir, &listen, rpc_config).await
+        }
         Commands::Follow {
             dbdir,
             rpc_url,

@@ -1,10 +1,15 @@
 //! REST API endpoint handlers.
 //!
 //! Modeled after the Insight API:
-//! - GET /api/status           -- chain status
-//! - GET /api/block/:hash      -- block by hash
-//! - GET /api/block-index/:h   -- block hash by height
-//! - GET /api/tx/:txid         -- transaction by txid
+//! - GET /api/status            -- chain status (indexed + optional dashd live)
+//! - GET /api/block/:hash       -- block by hash
+//! - GET /api/block-index/:h    -- block hash by height
+//! - GET /api/tx/:txid          -- transaction by txid
+//! - GET /api/addr/:addr        -- address summary
+//! - GET /api/addr/:addr/txs    -- address transaction history
+//! - GET /api/chainlock         -- best ChainLock (dashd live)
+//! - GET /api/governance/list   -- governance proposals (dashd live)
+//! - GET /api/sporks            -- active sporks (dashd live)
 
 use std::sync::Arc;
 
@@ -13,6 +18,7 @@ use axum::http::StatusCode;
 use axum::response::Json;
 use serde::Serialize;
 
+use daino_fetch::rpc::DashdRpc;
 use daino_state::db::DainoDB;
 use librustdash::hash::{hash_to_display, reverse_hash};
 use librustdash::script::decode_address;
@@ -20,6 +26,9 @@ use librustdash::script::decode_address;
 /// Shared application state passed to all handlers.
 pub struct AppState {
     pub db: DainoDB,
+    /// Optional connection to a running dashd for live queries.
+    /// When None, dashd-backed endpoints return 503 Service Unavailable.
+    pub rpc: Option<DashdRpc>,
 }
 
 // -- Response types --
@@ -53,6 +62,9 @@ pub struct BlockResponse {
     #[serde(rename = "txcount")]
     pub tx_count: u32,
     pub size: u32,
+    /// ChainLock status (None if dashd not connected)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub chainlock: Option<bool>,
 }
 
 #[derive(Serialize)]
@@ -78,6 +90,12 @@ pub struct TxResponse {
     pub input_count: u32,
     #[serde(rename = "outputCount")]
     pub output_count: u32,
+    /// InstantSend lock status (None if dashd not connected)
+    #[serde(rename = "txlock", skip_serializing_if = "Option::is_none")]
+    pub txlock: Option<bool>,
+    /// ChainLock status (None if dashd not connected)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub chainlock: Option<bool>,
 }
 
 #[derive(Serialize)]
@@ -158,7 +176,10 @@ pub async fn get_block_by_hash(
             )
         })?;
 
-    Ok(Json(block_to_response(&block)))
+    // Query dashd for ChainLock status if available
+    let chainlock = query_block_chainlock(&state.rpc, &hash_hex).await;
+
+    Ok(Json(block_to_response(&block, chainlock)))
 }
 
 /// GET /api/block-index/:height
@@ -239,6 +260,9 @@ pub async fn get_tx(
             )
         })?;
 
+    // Query dashd for InstantSend/ChainLock status if available
+    let (txlock, chainlock) = query_tx_locks(&state.rpc, &txid_hex).await;
+
     Ok(Json(TxResponse {
         txid: hash_to_display(&tx.txid),
         block_height: tx.block_height,
@@ -249,6 +273,8 @@ pub async fn get_tx(
         value_out: tx.value_out as f64 / 100_000_000.0,
         input_count: tx.input_count,
         output_count: tx.output_count,
+        txlock,
+        chainlock,
     }))
 }
 
@@ -348,7 +374,192 @@ pub async fn get_addr_txs(
     }))
 }
 
-fn block_to_response(block: &daino_state::db::BlockRecord) -> BlockResponse {
+/// GET /api/addr/:addr/utxo
+///
+/// Returns all unspent transaction outputs for the given Dash address.
+pub async fn get_addr_utxos(
+    State(state): State<Arc<AppState>>,
+    Path(addr_str): Path<String>,
+) -> Result<Json<Vec<UtxoResponse>>, (StatusCode, Json<ErrorResponse>)> {
+    let (_version, addr_hash) = decode_address(&addr_str).ok_or_else(|| {
+        (
+            StatusCode::BAD_REQUEST,
+            Json(ErrorResponse {
+                error: format!("Invalid Dash address: {}", addr_str),
+            }),
+        )
+    })?;
+
+    let utxos = state.db.get_addr_utxos(&addr_hash).map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: "Database error".to_string(),
+            }),
+        )
+    })?;
+
+    let result: Vec<UtxoResponse> = utxos
+        .iter()
+        .map(|u| UtxoResponse {
+            txid: hash_to_display(&u.txid),
+            vout: u.vout,
+            value: u.value,
+            satoshis: u.value,
+            height: u.block_height,
+        })
+        .collect();
+
+    Ok(Json(result))
+}
+
+#[derive(Serialize)]
+pub struct UtxoResponse {
+    pub txid: String,
+    pub vout: u32,
+    /// Value in satoshis
+    pub value: i64,
+    /// Value in satoshis (Insight API compatibility)
+    pub satoshis: i64,
+    /// Block height where this UTXO was created
+    pub height: u32,
+}
+
+// -- Dashd-backed response types --
+
+#[derive(Serialize)]
+pub struct ChainLockResponse {
+    #[serde(rename = "blockhash")]
+    pub block_hash: String,
+    pub height: u64,
+    pub signature: String,
+}
+
+#[derive(Serialize)]
+pub struct SporkResponse {
+    pub sporks: serde_json::Value,
+}
+
+#[derive(Serialize)]
+pub struct GovernanceListResponse {
+    pub proposals: serde_json::Value,
+}
+
+// -- Dashd-backed handlers --
+
+/// GET /api/chainlock
+///
+/// Returns the current best ChainLock from dashd.
+pub async fn get_chainlock(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<ChainLockResponse>, (StatusCode, Json<ErrorResponse>)> {
+    let rpc = state.rpc.as_ref().ok_or_else(|| {
+        (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(ErrorResponse {
+                error: "dashd not connected".to_string(),
+            }),
+        )
+    })?;
+
+    let cl = rpc.get_best_chainlock().await.map_err(|e| {
+        (
+            StatusCode::BAD_GATEWAY,
+            Json(ErrorResponse {
+                error: format!("dashd error: {}", e),
+            }),
+        )
+    })?;
+
+    Ok(Json(ChainLockResponse {
+        block_hash: cl.block_hash,
+        height: cl.height,
+        signature: cl.signature,
+    }))
+}
+
+/// GET /api/sporks
+///
+/// Returns active sporks from dashd.
+pub async fn get_sporks(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<SporkResponse>, (StatusCode, Json<ErrorResponse>)> {
+    let rpc = state.rpc.as_ref().ok_or_else(|| {
+        (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(ErrorResponse {
+                error: "dashd not connected".to_string(),
+            }),
+        )
+    })?;
+
+    let sporks = rpc.call_raw("spork", &[serde_json::json!("show")]).await.map_err(|e| {
+        (
+            StatusCode::BAD_GATEWAY,
+            Json(ErrorResponse {
+                error: format!("dashd error: {}", e),
+            }),
+        )
+    })?;
+
+    Ok(Json(SporkResponse { sporks }))
+}
+
+/// GET /api/governance/list
+///
+/// Returns governance proposals from dashd.
+pub async fn get_governance_list(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<GovernanceListResponse>, (StatusCode, Json<ErrorResponse>)> {
+    let rpc = state.rpc.as_ref().ok_or_else(|| {
+        (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(ErrorResponse {
+                error: "dashd not connected".to_string(),
+            }),
+        )
+    })?;
+
+    let proposals = rpc
+        .call_raw("gobject", &[serde_json::json!("list"), serde_json::json!("valid"), serde_json::json!("proposals")])
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::BAD_GATEWAY,
+                Json(ErrorResponse {
+                    error: format!("dashd error: {}", e),
+                }),
+            )
+        })?;
+
+    Ok(Json(GovernanceListResponse { proposals }))
+}
+
+// -- Helper functions --
+
+/// Query dashd for a block's ChainLock status. Returns None if dashd not connected or error.
+async fn query_block_chainlock(rpc: &Option<DashdRpc>, hash_hex: &str) -> Option<bool> {
+    let rpc = rpc.as_ref()?;
+    let block = rpc.get_block(hash_hex).await.ok()?;
+    block.chainlock
+}
+
+/// Query dashd for a transaction's InstantSend and ChainLock status.
+async fn query_tx_locks(rpc: &Option<DashdRpc>, txid_hex: &str) -> (Option<bool>, Option<bool>) {
+    let rpc = match rpc.as_ref() {
+        Some(r) => r,
+        None => return (None, None),
+    };
+    match rpc.get_raw_transaction(txid_hex).await {
+        Ok(tx) => (tx.instant_lock, tx.chainlock),
+        Err(_) => (None, None),
+    }
+}
+
+fn block_to_response(
+    block: &daino_state::db::BlockRecord,
+    chainlock: Option<bool>,
+) -> BlockResponse {
     BlockResponse {
         hash: hash_to_display(&block.hash),
         height: block.height,
@@ -359,5 +570,6 @@ fn block_to_response(block: &daino_state::db::BlockRecord) -> BlockResponse {
         nonce: block.nonce,
         tx_count: block.tx_count,
         size: block.size,
+        chainlock,
     }
 }
