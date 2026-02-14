@@ -44,7 +44,7 @@ enum Commands {
 
     /// Index block files into the database
     Index {
-        /// Dash Core data directory (contains blocks/blk*.dat)
+        /// Directory containing blk*.dat block files
         #[arg(short, long)]
         datadir: PathBuf,
 

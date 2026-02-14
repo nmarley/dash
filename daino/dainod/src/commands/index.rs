@@ -23,12 +23,11 @@ pub fn index_blocks(
     network: Network,
     max_blocks: usize,
 ) -> Result<()> {
-    let blocks_dir = datadir.join("blocks");
-    if !blocks_dir.exists() {
+    if !datadir.exists() {
         anyhow::bail!(
-            "Blocks directory not found: {:?}\n\
-             Expected Dash Core data directory with blocks/ subdirectory",
-            blocks_dir
+            "Directory not found: {:?}\n\
+             Expected directory containing blk*.dat files",
+            datadir
         );
     }
 
@@ -62,7 +61,7 @@ pub fn index_blocks(
     let mut blocks_skipped: u32 = 0;
 
     loop {
-        let block_file = blocks_dir.join(format!("blk{:05}.dat", file_num));
+        let block_file = datadir.join(format!("blk{:05}.dat", file_num));
         if !block_file.exists() {
             println!("No more block files (stopped at blk{:05}.dat)", file_num);
             break;
