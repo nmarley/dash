@@ -4,9 +4,15 @@
 //! - Pass 1: Scan all block headers to build a block_hash -> file location map
 //! - Chain walk: Follow prev_hash links from genesis to derive correct heights
 //! - Pass 2: Re-read full blocks in chain order and index them
+//!
+//! Pass 2 uses a read-ahead pipeline: a dedicated reader thread handles
+//! disk I/O, deserialization, and hashing, sending parsed blocks through a
+//! bounded channel to the main thread which does UTXO/address extraction
+//! and LMDB writes.
 
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::sync::mpsc;
 use std::time::Instant;
 
 use anyhow::{Context, Result};
@@ -15,6 +21,7 @@ use daino_core::{BlockFileReader, Network, ScannedHeader};
 use daino_state::db::{
     AddrTxRef, BlockBatch, BlockRecord, DainoDB, SpentOutpoint, TxRecord, UtxoEntry,
 };
+use librustdash::Block;
 use librustdash::script::analyze_script;
 
 /// Location of a block within the blk file set.
@@ -24,6 +31,20 @@ struct BlockLocation {
     file_offset: u64,
     block_size: u32,
 }
+
+/// A parsed block ready for indexing, produced by the reader thread.
+struct ReadBlock {
+    height: u32,
+    block: Block,
+    block_hash: [u8; 32],
+    /// Precomputed txids (one per transaction, same order as block.transactions)
+    txids: Vec<[u8; 32]>,
+    /// Block size including magic + size prefix
+    block_size: u32,
+}
+
+/// Read-ahead channel capacity (number of parsed blocks to buffer).
+const READ_AHEAD: usize = 500;
 
 /// Index block files into the database.
 ///
@@ -83,12 +104,10 @@ pub fn index_blocks(
                 for h in headers {
                     all_headers.push((h, file_num));
                 }
-                println!("  blk{:05}.dat: {} blocks", file_num, count,);
+                println!("  blk{:05}.dat: {} blocks", file_num, count);
             }
             Err(e) => {
                 eprintln!("  blk{:05}.dat: error scanning headers: {}", file_num, e);
-                // Continue to next file; partial scans from this file
-                // are already in all_headers from before the error
             }
         }
 
@@ -143,9 +162,8 @@ pub fn index_blocks(
             .push(header.block_hash);
     }
 
-    // Walk the longest chain from genesis using iterative DFS.
-    // At each fork, we pick the branch with the most descendants
-    // (simple longest-chain rule).
+    // Walk the longest chain from genesis.
+    // At each fork, pick the branch with the most descendants.
     let chain_hashes = {
         let mut chain = Vec::with_capacity(all_headers.len());
         let mut current = genesis_hash;
@@ -154,14 +172,12 @@ pub fn index_blocks(
             chain.push(current);
 
             match children.get(&current) {
-                None => break, // tip of chain
+                None => break,
                 Some(kids) if kids.is_empty() => break,
                 Some(kids) if kids.len() == 1 => {
                     current = kids[0];
                 }
                 Some(kids) => {
-                    // Fork: pick the child that leads to the longest chain.
-                    // We do a simple count of descendants for each child.
                     let mut best = kids[0];
                     let mut best_len = count_chain_length(&children, kids[0]);
                     for &kid in &kids[1..] {
@@ -190,8 +206,7 @@ pub fn index_blocks(
         println!("Skipping {} orphan/stale blocks", orphan_count);
     }
 
-    // Build the location map: for each block hash in chain order,
-    // record which file and offset to read from
+    // Build the location map for each block hash in chain order
     let chain_locations: Vec<BlockLocation> = chain_hashes
         .iter()
         .map(|hash| {
@@ -213,7 +228,6 @@ pub fn index_blocks(
         max_blocks
     };
 
-    // Determine the range of heights to index
     let end_height = std::cmp::min(chain_hashes.len() as u32, start_height + limit as u32);
 
     if start_height as usize >= chain_hashes.len() {
@@ -223,39 +237,80 @@ pub fn index_blocks(
     }
 
     println!(
-        "Pass 2: Indexing blocks {} to {} ...",
+        "Pass 2: Indexing blocks {} to {} (read-ahead={}) ...",
         start_height,
         end_height - 1,
+        READ_AHEAD,
     );
 
-    // Cache open file readers by file_num to avoid reopening files
-    let mut readers: HashMap<u32, BlockFileReader> = HashMap::new();
+    // Spawn reader thread with bounded channel
+    let (tx, rx) = mpsc::sync_channel::<ReadBlock>(READ_AHEAD);
+
+    let reader_datadir = PathBuf::from(datadir);
+    let reader_locations: Vec<BlockLocation> =
+        chain_locations[start_height as usize..end_height as usize].to_vec();
+    let reader_start = start_height;
+
+    let reader_handle = std::thread::spawn(move || -> Result<()> {
+        let mut readers: HashMap<u32, BlockFileReader> = HashMap::new();
+
+        for (i, loc) in reader_locations.iter().enumerate() {
+            let height = reader_start + i as u32;
+
+            // Get or open the reader for this file
+            let reader = if let Some(r) = readers.get_mut(&loc.file_num) {
+                r
+            } else {
+                let path = reader_datadir.join(format!("blk{:05}.dat", loc.file_num));
+                let r = BlockFileReader::new(&path, network)
+                    .with_context(|| format!("Failed to open {:?}", path))?;
+                readers.entry(loc.file_num).or_insert(r)
+            };
+
+            let block = reader
+                .read_block_at(loc.file_offset)
+                .with_context(|| format!("Failed to read block at height {}", height))?;
+
+            // Compute hashes on the reader thread (X11 + SHA-256d)
+            let block_hash = block.header.block_hash()?;
+            let mut txids = Vec::with_capacity(block.transactions.len());
+            for tx in &block.transactions {
+                txids.push(tx.txid()?);
+            }
+
+            let block_size = loc.block_size + 8; // +8 for magic + size prefix
+
+            let read_block = ReadBlock {
+                height,
+                block,
+                block_hash,
+                txids,
+                block_size,
+            };
+
+            // Send to writer; if receiver is dropped, stop
+            if tx.send(read_block).is_err() {
+                break;
+            }
+        }
+
+        Ok(())
+    });
+
+    // ── Writer: receive parsed blocks and index into LMDB ───────────
 
     let mut batch: Vec<BlockBatch> = Vec::with_capacity(batch_size);
     let mut total_txs: u64 = 0;
     let t_pass2 = Instant::now();
-    let mut t_last_report = t_pass2;
 
-    for height in start_height..end_height {
-        let loc = &chain_locations[height as usize];
-
-        // Get or open the reader for this file
-        let reader = if let Some(r) = readers.get_mut(&loc.file_num) {
-            r
-        } else {
-            let path = datadir.join(format!("blk{:05}.dat", loc.file_num));
-            let r = BlockFileReader::new(&path, network)
-                .with_context(|| format!("Failed to open {:?}", path))?;
-            readers.entry(loc.file_num).or_insert(r)
-        };
-
-        let block = reader
-            .read_block_at(loc.file_offset)
-            .with_context(|| format!("Failed to read block at height {}", height))?;
-
-        // Compute block hash using X11
-        let block_hash = block.header.block_hash()?;
-        let block_size = (loc.block_size + 8) as u32; // +8 for magic + size prefix
+    for read_block in rx {
+        let ReadBlock {
+            height,
+            block,
+            block_hash,
+            txids,
+            block_size,
+        } = read_block;
 
         let block_record = BlockRecord {
             height,
@@ -269,14 +324,13 @@ pub fn index_blocks(
             size: block_size,
         };
 
-        // Build transaction records, address index, and UTXO updates
         let mut tx_records = Vec::with_capacity(block.transactions.len());
         let mut addr_refs: Vec<([u8; 20], AddrTxRef)> = Vec::new();
         let mut new_utxos: Vec<UtxoEntry> = Vec::new();
         let mut spent: Vec<SpentOutpoint> = Vec::new();
 
         for (tx_idx, tx) in block.transactions.iter().enumerate() {
-            let txid = tx.txid()?;
+            let txid = txids[tx_idx];
             let value_out: i64 = tx.outputs.iter().map(|o| o.value).sum();
 
             tx_records.push(TxRecord {
@@ -291,7 +345,6 @@ pub fn index_blocks(
                 output_count: tx.outputs.len() as u32,
             });
 
-            // Collect spent outpoints from inputs (skip coinbase)
             if !tx.is_coinbase() {
                 for input in &tx.inputs {
                     spent.push(SpentOutpoint {
@@ -301,7 +354,6 @@ pub fn index_blocks(
                 }
             }
 
-            // Extract address hashes from outputs for address + UTXO indexing
             for (vout, output) in tx.outputs.iter().enumerate() {
                 let info = analyze_script(&output.script_pubkey);
                 let addr_hash = info.address_hash;
@@ -336,7 +388,6 @@ pub fn index_blocks(
             spent,
         });
 
-        // Flush batch when full
         if batch.len() >= batch_size {
             db.put_batch(&batch)?;
             batch.clear();
@@ -344,8 +395,7 @@ pub fn index_blocks(
 
         // Progress reporting every 1000 blocks
         if height % 1000 == 0 && height > start_height {
-            let now = Instant::now();
-            let elapsed = now.duration_since(t_pass2).as_secs_f64();
+            let elapsed = t_pass2.elapsed().as_secs_f64();
             let total_blocks = (height - start_height) as f64;
             let blk_per_sec = if elapsed > 0.0 {
                 total_blocks / elapsed
@@ -362,7 +412,6 @@ pub fn index_blocks(
                 "  height={} txs={} | {:.0} blk/s {:.0} tx/s | {:.1}s elapsed",
                 height, total_txs, blk_per_sec, tx_per_sec, elapsed,
             );
-            t_last_report = now;
         }
     }
 
@@ -371,8 +420,12 @@ pub fn index_blocks(
         db.put_batch(&batch)?;
     }
 
-    // Suppress unused variable warning
-    let _ = t_last_report;
+    // Wait for reader thread and propagate any errors
+    match reader_handle.join() {
+        Ok(Ok(())) => {}
+        Ok(Err(e)) => return Err(e.context("Reader thread failed")),
+        Err(_) => anyhow::bail!("Reader thread panicked"),
+    }
 
     print_summary(&db, t_start)?;
     Ok(())
@@ -385,7 +438,6 @@ fn count_chain_length(children: &HashMap<[u8; 32], Vec<[u8; 32]>>, start: [u8; 3
     loop {
         match children.get(&current) {
             Some(kids) if !kids.is_empty() => {
-                // Follow the first child (we just need a length estimate)
                 current = kids[0];
                 len += 1;
             }
