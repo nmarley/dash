@@ -10,9 +10,9 @@
 
 use std::path::Path;
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use heed::types::*;
-use heed::{Database, Env, EnvOpenOptions};
+use heed::{CompactionOption, Database, Env, EnvOpenOptions};
 use librustdash::hash::hash_to_display;
 
 /// A stored block record.
@@ -94,6 +94,18 @@ pub struct SpentOutpoint {
     pub vout: u32,
 }
 
+/// Internal storage format for UTXO values.
+///
+/// The outpoint key already encodes txid + vout, so we only store the
+/// non-key fields in the value. This saves ~38% vs storing the full
+/// `UtxoEntry` (33 bytes vs ~75 bytes per UTXO).
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct UtxoValue {
+    value: i64,
+    block_height: u32,
+    addr_hash: Option<[u8; 20]>,
+}
+
 /// Outpoint key: txid(32) + vout(4 BE) = 36 bytes.
 const OUTPOINT_KEY_LEN: usize = 32 + 4;
 
@@ -102,6 +114,16 @@ fn make_outpoint_key(txid: &[u8; 32], vout: u32) -> [u8; OUTPOINT_KEY_LEN] {
     key[0..32].copy_from_slice(txid);
     key[32..36].copy_from_slice(&vout.to_be_bytes());
     key
+}
+
+/// Extract txid and vout from an outpoint key.
+#[allow(dead_code)]
+fn parse_outpoint_key(key: &[u8]) -> ([u8; 32], u32) {
+    let mut txid = [0u8; 32];
+    txid.copy_from_slice(&key[0..32]);
+    let mut vout_bytes = [0u8; 4];
+    vout_bytes.copy_from_slice(&key[32..36]);
+    (txid, u32::from_be_bytes(vout_bytes))
 }
 
 /// Address UTXO key: addr_hash(20) + txid(32) + vout(4 BE) = 56 bytes.
@@ -301,9 +323,9 @@ impl DainoDB {
             // Remove spent UTXOs
             for outpoint in &batch.spent {
                 let key = make_outpoint_key(&outpoint.txid, outpoint.vout);
-                if let Some(utxo_bytes) = self.utxos.get(&wtxn, &key)?
-                    && let Ok(utxo) = bincode::deserialize::<UtxoEntry>(utxo_bytes)
-                    && let Some(addr_hash) = &utxo.addr_hash
+                if let Some(val_bytes) = self.utxos.get(&wtxn, &key)?
+                    && let Ok(val) = bincode::deserialize::<UtxoValue>(val_bytes)
+                    && let Some(addr_hash) = &val.addr_hash
                 {
                     let addr_key =
                         make_addr_utxo_key(addr_hash, &outpoint.txid, outpoint.vout);
@@ -312,11 +334,16 @@ impl DainoDB {
                 self.utxos.delete(&mut wtxn, &key)?;
             }
 
-            // Add new UTXOs
+            // Add new UTXOs (store only non-key fields)
             for utxo in &batch.new_utxos {
                 let key = make_outpoint_key(&utxo.txid, utxo.vout);
-                let utxo_bytes = bincode::serialize(utxo)?;
-                self.utxos.put(&mut wtxn, &key, &utxo_bytes)?;
+                let val = UtxoValue {
+                    value: utxo.value,
+                    block_height: utxo.block_height,
+                    addr_hash: utxo.addr_hash,
+                };
+                let val_bytes = bincode::serialize(&val)?;
+                self.utxos.put(&mut wtxn, &key, &val_bytes)?;
 
                 if let Some(addr_hash) = &utxo.addr_hash {
                     let addr_key = make_addr_utxo_key(addr_hash, &utxo.txid, utxo.vout);
@@ -425,10 +452,16 @@ impl DainoDB {
             let vout = u32::from_be_bytes(vout_bytes);
 
             let outpoint_key = make_outpoint_key(&txid, vout);
-            if let Some(utxo_bytes) = self.utxos.get(&rtxn, &outpoint_key)?
-                && let Ok(utxo) = bincode::deserialize::<UtxoEntry>(utxo_bytes)
+            if let Some(val_bytes) = self.utxos.get(&rtxn, &outpoint_key)?
+                && let Ok(val) = bincode::deserialize::<UtxoValue>(val_bytes)
             {
-                results.push(utxo);
+                results.push(UtxoEntry {
+                    txid,
+                    vout,
+                    value: val.value,
+                    block_height: val.block_height,
+                    addr_hash: val.addr_hash,
+                });
             }
         }
 
@@ -440,7 +473,16 @@ impl DainoDB {
         let rtxn = self.env.read_txn()?;
         let key = make_outpoint_key(txid, vout);
         match self.utxos.get(&rtxn, &key)? {
-            Some(bytes) => Ok(Some(bincode::deserialize(bytes)?)),
+            Some(bytes) => {
+                let val: UtxoValue = bincode::deserialize(bytes)?;
+                Ok(Some(UtxoEntry {
+                    txid: *txid,
+                    vout,
+                    value: val.value,
+                    block_height: val.block_height,
+                    addr_hash: val.addr_hash,
+                }))
+            }
             None => Ok(None),
         }
     }
@@ -475,6 +517,28 @@ impl DainoDB {
             )),
             None => Ok("empty database".to_string()),
         }
+    }
+
+    /// Return the on-disk size of the LMDB data file in bytes.
+    pub fn real_disk_size(&self) -> Result<u64> {
+        Ok(self.env.real_disk_size()?)
+    }
+
+    /// Compact the database by copying it to `dest` with dead pages omitted.
+    ///
+    /// The destination path must NOT already exist. LMDB's `mdb_env_copyfd2`
+    /// with `MDB_CP_COMPACT` sequentially renumbers all live pages, reclaiming
+    /// space from deleted entries (spent UTXOs, etc.).
+    pub fn compact(&self, dest: &Path) -> Result<()> {
+        if dest.exists() {
+            bail!("Destination already exists: {:?}", dest);
+        }
+        self.env
+            .copy_to_file(dest, CompactionOption::Enabled)
+            .with_context(|| {
+                format!("Failed to compact database to {:?}", dest)
+            })?;
+        Ok(())
     }
 }
 
