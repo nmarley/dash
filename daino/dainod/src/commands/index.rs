@@ -21,8 +21,8 @@ use daino_core::{BlockFileReader, Network, ScannedHeader};
 use daino_state::db::{
     AddrTxRef, BlockBatch, BlockRecord, DainoDB, SpentOutpoint, TxRecord, UtxoEntry,
 };
-use librustdash::Block;
 use librustdash::script::analyze_script;
+use librustdash::Block;
 
 /// Location of a block within the blk file set.
 #[derive(Debug, Clone)]
@@ -222,13 +222,14 @@ pub fn index_blocks(
 
     // ── Pass 2: Read full blocks in chain order and index ────────────
 
-    let limit = if max_blocks == 0 {
-        usize::MAX
+    let end_height = if max_blocks == 0 {
+        chain_hashes.len() as u32
     } else {
-        max_blocks
+        std::cmp::min(
+            chain_hashes.len() as u32,
+            start_height.saturating_add(max_blocks as u32),
+        )
     };
-
-    let end_height = std::cmp::min(chain_hashes.len() as u32, start_height + limit as u32);
 
     if start_height as usize >= chain_hashes.len() {
         println!("Already fully indexed up to height {}.", start_height - 1);
