@@ -3,7 +3,7 @@
 use anyhow::Result;
 use std::path::Path;
 
-pub fn run_server(dbdir: &Path, listen: &str) -> Result<()> {
+pub async fn run_server(dbdir: &Path, listen: &str) -> Result<()> {
     if !dbdir.exists() {
         anyhow::bail!(
             "Database not found at {:?}\nRun `dainod index` first.",
@@ -11,6 +11,5 @@ pub fn run_server(dbdir: &Path, listen: &str) -> Result<()> {
         );
     }
 
-    let rt = tokio::runtime::Runtime::new()?;
-    rt.block_on(daino_serve::start_server(dbdir, listen))
+    daino_serve::start_server(dbdir, listen).await
 }

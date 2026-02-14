@@ -12,6 +12,7 @@ pub mod error;
 pub mod hash;
 pub mod network_info;
 pub mod payloads;
+pub mod script;
 pub mod serialize;
 pub mod transaction;
 pub mod tx_type;
@@ -28,6 +29,10 @@ pub use payloads::{
     AssetLockPayload, AssetUnlockPayload, CbTx, FinalCommitment, LLMQType, MasternodeType, MnhfTx,
     MnhfTxPayload, ProRegTx, ProUpRegTx, ProUpRevTx, ProUpServTx, QuorumCommitmentPayload,
     RevocationReason,
+};
+pub use script::{
+    analyze_script, decode_address, encode_address, script_type_from_version, ScriptInfo,
+    ScriptType,
 };
 pub use transaction::{OutPoint, Transaction, TxIn, TxOut};
 pub use tx_type::DashTxType;

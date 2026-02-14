@@ -74,6 +74,29 @@ enum Commands {
         #[arg(short, long, default_value = "127.0.0.1:3141")]
         listen: String,
     },
+
+    /// Follow a running dashd and continuously index new blocks
+    Follow {
+        /// Database directory
+        #[arg(short = 'D', long, default_value = "daino.db")]
+        dbdir: PathBuf,
+
+        /// dashd JSON-RPC URL
+        #[arg(long, default_value = "http://127.0.0.1:9998")]
+        rpc_url: String,
+
+        /// RPC username
+        #[arg(long, default_value = "dashrpc")]
+        rpc_user: String,
+
+        /// RPC password
+        #[arg(long)]
+        rpc_password: String,
+
+        /// Poll interval in seconds (how often to check for new blocks)
+        #[arg(long, default_value = "2")]
+        poll_interval: u64,
+    },
 }
 
 fn parse_network(s: &str) -> Result<Network> {
@@ -85,7 +108,8 @@ fn parse_network(s: &str) -> Result<Network> {
     }
 }
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     let cli = Cli::parse();
     let network = parse_network(&cli.network)?;
 
@@ -115,6 +139,22 @@ fn main() -> Result<()> {
             max_blocks,
         } => commands::index::index_blocks(&datadir, &dbdir, network, max_blocks),
         Commands::Status { dbdir } => commands::status::show_status(&dbdir),
-        Commands::Serve { dbdir, listen } => commands::serve::run_server(&dbdir, &listen),
+        Commands::Serve { dbdir, listen } => commands::serve::run_server(&dbdir, &listen).await,
+        Commands::Follow {
+            dbdir,
+            rpc_url,
+            rpc_user,
+            rpc_password,
+            poll_interval,
+        } => {
+            commands::follow::follow_dashd(
+                &dbdir,
+                &rpc_url,
+                &rpc_user,
+                &rpc_password,
+                poll_interval,
+            )
+            .await
+        }
     }
 }

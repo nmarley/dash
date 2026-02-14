@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "crates/daino-core",
+    "crates/daino-fetch",
     "crates/daino-serve",
     "crates/daino-state",
     "dainod",
@@ -14,11 +15,13 @@ edition = "2024"
 [workspace.dependencies]
 librustdash = { path = "../librustdash", features = ["x11"] }
 daino-core = { path = "crates/daino-core" }
+daino-fetch = { path = "crates/daino-fetch" }
 daino-serve = { path = "crates/daino-serve" }
 daino-state = { path = "crates/daino-state" }
 anyhow = "1.0"
 byteorder = "1.5"
 hex = "0.4"
+reqwest = { version = "0.12", features = ["json"] }
 sha2 = "0.10"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

@@ -4,7 +4,8 @@ use anyhow::{Context, Result};
 use std::path::Path;
 
 use daino_core::{BlockFileReader, Network};
-use daino_state::db::{BlockRecord, DainoDB, TxRecord};
+use daino_state::db::{AddrTxRef, BlockRecord, DainoDB, TxRecord};
+use librustdash::script::analyze_script;
 
 /// Index block files from a Dash Core data directory into the database.
 ///
@@ -115,8 +116,10 @@ pub fn index_blocks(
                 size: block_size,
             };
 
-            // Build transaction records
+            // Build transaction records and address index
             let mut tx_records = Vec::with_capacity(block.transactions.len());
+            let mut addr_refs: Vec<([u8; 20], AddrTxRef)> = Vec::new();
+
             for (tx_idx, tx) in block.transactions.iter().enumerate() {
                 let txid = tx.txid()?;
                 let value_out: i64 = tx.outputs.iter().map(|o| o.value).sum();
@@ -132,10 +135,24 @@ pub fn index_blocks(
                     input_count: tx.inputs.len() as u32,
                     output_count: tx.outputs.len() as u32,
                 });
+
+                // Extract address hashes from outputs for address indexing
+                for output in &tx.outputs {
+                    let info = analyze_script(&output.script_pubkey);
+                    if let Some(addr_hash) = info.address_hash {
+                        addr_refs.push((
+                            addr_hash,
+                            AddrTxRef {
+                                block_height: current_height,
+                                txid,
+                            },
+                        ));
+                    }
+                }
             }
 
             total_txs += tx_records.len() as u64;
-            db.put_block(&block_record, &tx_records)?;
+            db.put_block(&block_record, &tx_records, &addr_refs)?;
 
             // Progress reporting
             if current_height % 1000 == 0 {

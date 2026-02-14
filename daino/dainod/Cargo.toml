@@ -5,6 +5,7 @@ edition.workspace = true
 
 [dependencies]
 daino-core = { workspace = true }
+daino-fetch = { workspace = true }
 daino-serve = { workspace = true }
 daino-state = { workspace = true }
 librustdash = { workspace = true }

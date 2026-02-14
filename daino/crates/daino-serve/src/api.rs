@@ -15,6 +15,7 @@ use serde::Serialize;
 
 use daino_state::db::DainoDB;
 use librustdash::hash::{hash_to_display, reverse_hash};
+use librustdash::script::decode_address;
 
 /// Shared application state passed to all handlers.
 pub struct AppState {
@@ -248,6 +249,102 @@ pub async fn get_tx(
         value_out: tx.value_out as f64 / 100_000_000.0,
         input_count: tx.input_count,
         output_count: tx.output_count,
+    }))
+}
+
+// -- Address response types --
+
+#[derive(Serialize)]
+pub struct AddrTxsResponse {
+    /// The queried address
+    #[serde(rename = "addrStr")]
+    pub addr_str: String,
+    /// Total number of transactions involving this address
+    #[serde(rename = "txCount")]
+    pub tx_count: usize,
+    /// Transaction IDs (display order hex)
+    pub txids: Vec<String>,
+}
+
+#[derive(Serialize)]
+pub struct AddrSummaryResponse {
+    /// The queried address
+    #[serde(rename = "addrStr")]
+    pub addr_str: String,
+    /// Total number of transactions involving this address
+    #[serde(rename = "txCount")]
+    pub tx_count: usize,
+}
+
+/// GET /api/addr/:addr
+///
+/// Returns a summary for the given Dash address.
+pub async fn get_addr_summary(
+    State(state): State<Arc<AppState>>,
+    Path(addr_str): Path<String>,
+) -> Result<Json<AddrSummaryResponse>, (StatusCode, Json<ErrorResponse>)> {
+    let (_version, addr_hash) = decode_address(&addr_str).ok_or_else(|| {
+        (
+            StatusCode::BAD_REQUEST,
+            Json(ErrorResponse {
+                error: format!("Invalid Dash address: {}", addr_str),
+            }),
+        )
+    })?;
+
+    let tx_refs = state.db.get_addr_txs(&addr_hash).map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: "Database error".to_string(),
+            }),
+        )
+    })?;
+
+    Ok(Json(AddrSummaryResponse {
+        addr_str,
+        tx_count: tx_refs.len(),
+    }))
+}
+
+/// GET /api/addr/:addr/txs
+///
+/// Returns all transaction IDs for the given Dash address, ordered by block height.
+pub async fn get_addr_txs(
+    State(state): State<Arc<AppState>>,
+    Path(addr_str): Path<String>,
+) -> Result<Json<AddrTxsResponse>, (StatusCode, Json<ErrorResponse>)> {
+    let (_version, addr_hash) = decode_address(&addr_str).ok_or_else(|| {
+        (
+            StatusCode::BAD_REQUEST,
+            Json(ErrorResponse {
+                error: format!("Invalid Dash address: {}", addr_str),
+            }),
+        )
+    })?;
+
+    let tx_refs = state.db.get_addr_txs(&addr_hash).map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: "Database error".to_string(),
+            }),
+        )
+    })?;
+
+    // Deduplicate txids (same tx can appear multiple times if it has
+    // multiple outputs to the same address)
+    let mut seen = std::collections::HashSet::new();
+    let txids: Vec<String> = tx_refs
+        .iter()
+        .filter(|r| seen.insert(r.txid))
+        .map(|r| hash_to_display(&r.txid))
+        .collect();
+
+    Ok(Json(AddrTxsResponse {
+        addr_str,
+        tx_count: txids.len(),
+        txids,
     }))
 }
 

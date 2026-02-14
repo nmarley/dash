@@ -24,6 +24,8 @@ pub async fn start_server(dbdir: &std::path::Path, listen_addr: &str) -> Result<
         .route("/api/block/{hash}", get(api::get_block_by_hash))
         .route("/api/block-index/{height}", get(api::get_block_by_height))
         .route("/api/tx/{txid}", get(api::get_tx))
+        .route("/api/addr/{addr}", get(api::get_addr_summary))
+        .route("/api/addr/{addr}/txs", get(api::get_addr_txs))
         .layer(CorsLayer::permissive())
         .with_state(state);
 

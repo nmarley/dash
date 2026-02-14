@@ -3,6 +3,7 @@
 //! Stores and retrieves:
 //! - Blocks by height and hash
 //! - Transactions by txid
+//! - Address history (address -> txids)
 //! - Chain tip metadata
 //!
 //! Uses heed (safe LMDB wrapper) for crash-safe, memory-mapped storage.
@@ -14,13 +15,12 @@ use heed::types::*;
 use heed::{Database, Env, EnvOpenOptions};
 use librustdash::hash::hash_to_display;
 
-/// A stored block record. We store the essential header fields plus
-/// the raw serialized block for re-parsing when needed.
+/// A stored block record.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BlockRecord {
     /// Block height
     pub height: u32,
-    /// Block hash (internal byte order -- X11 hash from dashd, not computed)
+    /// Block hash (internal byte order)
     pub hash: [u8; 32],
     /// Previous block hash (internal byte order)
     pub prev_hash: [u8; 32],
@@ -38,8 +38,7 @@ pub struct BlockRecord {
     pub size: u32,
 }
 
-/// A stored transaction record. Stores location info for the tx
-/// so we can look it up by txid without storing the full raw tx.
+/// A stored transaction record.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TxRecord {
     /// Transaction ID (internal byte order)
@@ -60,6 +59,47 @@ pub struct TxRecord {
     pub input_count: u32,
     /// Number of outputs
     pub output_count: u32,
+}
+
+/// A reference from an address to a transaction.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AddrTxRef {
+    /// Block height (for ordering)
+    pub block_height: u32,
+    /// Transaction ID (internal byte order)
+    pub txid: [u8; 32],
+}
+
+/// Address index key: addr_hash(20) + block_height(4 BE) + txid(32) = 56 bytes.
+/// This compound key allows prefix scanning by addr_hash to get all txs,
+/// naturally ordered by block height.
+const ADDR_KEY_LEN: usize = 20 + 4 + 32;
+
+fn make_addr_key(addr_hash: &[u8; 20], height: u32, txid: &[u8; 32]) -> [u8; ADDR_KEY_LEN] {
+    let mut key = [0u8; ADDR_KEY_LEN];
+    key[0..20].copy_from_slice(addr_hash);
+    key[20..24].copy_from_slice(&height.to_be_bytes());
+    key[24..56].copy_from_slice(txid);
+    key
+}
+
+fn parse_addr_key(key: &[u8]) -> Option<([u8; 20], AddrTxRef)> {
+    if key.len() < ADDR_KEY_LEN {
+        return None;
+    }
+    let mut addr_hash = [0u8; 20];
+    addr_hash.copy_from_slice(&key[0..20]);
+    let mut height_bytes = [0u8; 4];
+    height_bytes.copy_from_slice(&key[20..24]);
+    let mut txid = [0u8; 32];
+    txid.copy_from_slice(&key[24..56]);
+    Some((
+        addr_hash,
+        AddrTxRef {
+            block_height: u32::from_be_bytes(height_bytes),
+            txid,
+        },
+    ))
 }
 
 /// Chain metadata stored in the meta database.
@@ -84,12 +124,14 @@ pub struct DainoDB {
     hash_to_height: Database<Bytes, Bytes>,
     /// txid (32 bytes) -> TxRecord (bincode)
     txs_by_id: Database<Bytes, Bytes>,
+    /// compound key: addr_hash(20)+height(4)+txid(32) -> empty
+    /// prefix scan on addr_hash(20) returns all txs for that address
+    addr_to_txs: Database<Bytes, Bytes>,
     /// "meta" -> ChainMeta (bincode)
     meta: Database<Str, Bytes>,
 }
 
-/// Maximum database size: 10 GB. LMDB pre-allocates virtual address space
-/// (not physical memory), so this is safe to set large.
+/// Maximum database size: 10 GB.
 const MAX_DB_SIZE: usize = 10 * 1024 * 1024 * 1024;
 
 /// Number of named databases we use.
@@ -113,6 +155,7 @@ impl DainoDB {
         let blocks_by_height = env.create_database(&mut wtxn, Some("blocks_by_height"))?;
         let hash_to_height = env.create_database(&mut wtxn, Some("hash_to_height"))?;
         let txs_by_id = env.create_database(&mut wtxn, Some("txs_by_id"))?;
+        let addr_to_txs = env.create_database(&mut wtxn, Some("addr_to_txs"))?;
         let meta = env.create_database(&mut wtxn, Some("meta"))?;
         wtxn.commit()?;
 
@@ -121,31 +164,43 @@ impl DainoDB {
             blocks_by_height,
             hash_to_height,
             txs_by_id,
+            addr_to_txs,
             meta,
         })
     }
 
-    /// Store a block record and its transactions in a single LMDB transaction.
-    pub fn put_block(&self, block: &BlockRecord, txs: &[TxRecord]) -> Result<()> {
+    /// Store a block record, its transactions, and address index entries.
+    pub fn put_block(
+        &self,
+        block: &BlockRecord,
+        txs: &[TxRecord],
+        addr_refs: &[([u8; 20], AddrTxRef)],
+    ) -> Result<()> {
         let mut wtxn = self.env.write_txn()?;
 
-        // Store block by height
+        // Block by height
         let height_key = block.height.to_be_bytes();
         let block_bytes = bincode::serialize(block)?;
         self.blocks_by_height
             .put(&mut wtxn, &height_key, &block_bytes)?;
 
-        // Store hash -> height mapping
+        // Hash -> height
         self.hash_to_height
             .put(&mut wtxn, &block.hash, &height_key)?;
 
-        // Store each transaction
+        // Transactions
         for tx in txs {
             let tx_bytes = bincode::serialize(tx)?;
             self.txs_by_id.put(&mut wtxn, &tx.txid, &tx_bytes)?;
         }
 
-        // Update chain metadata
+        // Address index: compound key = addr(20) + height(4) + txid(32)
+        for (addr_hash, tx_ref) in addr_refs {
+            let key = make_addr_key(addr_hash, tx_ref.block_height, &tx_ref.txid);
+            self.addr_to_txs.put(&mut wtxn, &key, &[])?;
+        }
+
+        // Update metadata
         let meta = self.get_meta_inner(&wtxn)?.unwrap_or(ChainMeta {
             tip_height: 0,
             tip_hash: [0; 32],
@@ -195,6 +250,27 @@ impl DainoDB {
             Some(bytes) => Ok(Some(bincode::deserialize(bytes)?)),
             None => Ok(None),
         }
+    }
+
+    /// Get all transaction references for an address (by 20-byte hash).
+    ///
+    /// Returns txids in block height order (oldest first).
+    pub fn get_addr_txs(&self, addr_hash: &[u8; 20]) -> Result<Vec<AddrTxRef>> {
+        let rtxn = self.env.read_txn()?;
+        let mut results = Vec::new();
+
+        // Prefix scan: iterate all keys starting with addr_hash(20 bytes)
+        let prefix = addr_hash.as_slice();
+        let iter = self.addr_to_txs.prefix_iter(&rtxn, prefix)?;
+
+        for item in iter {
+            let (key, _value) = item?;
+            if let Some((_addr, tx_ref)) = parse_addr_key(key) {
+                results.push(tx_ref);
+            }
+        }
+
+        Ok(results)
     }
 
     /// Get the current chain metadata.
@@ -274,24 +350,20 @@ mod tests {
             output_count: 1,
         };
 
-        db.put_block(&block, &[tx.clone()]).unwrap();
+        db.put_block(&block, &[tx.clone()], &[]).unwrap();
 
-        // Retrieve by height
         let got = db.get_block_by_height(0).unwrap().unwrap();
         assert_eq!(got.height, 0);
         assert_eq!(got.hash, [0xAA; 32]);
         assert_eq!(got.nonce, 99943);
 
-        // Retrieve by hash
         let got = db.get_block_by_hash(&[0xAA; 32]).unwrap().unwrap();
         assert_eq!(got.height, 0);
 
-        // Retrieve tx
         let got_tx = db.get_tx(&[0xCC; 32]).unwrap().unwrap();
         assert_eq!(got_tx.block_height, 0);
         assert_eq!(got_tx.value_out, 5000000000);
 
-        // Check metadata
         let meta = db.get_meta().unwrap().unwrap();
         assert_eq!(meta.tip_height, 0);
         assert_eq!(meta.block_count, 1);
@@ -324,14 +396,13 @@ mod tests {
                 size: 286,
             };
 
-            db.put_block(&block, &[]).unwrap();
+            db.put_block(&block, &[], &[]).unwrap();
         }
 
         let meta = db.get_meta().unwrap().unwrap();
         assert_eq!(meta.tip_height, 9);
         assert_eq!(meta.block_count, 10);
 
-        // Spot check
         let b5 = db.get_block_by_height(5).unwrap().unwrap();
         assert_eq!(b5.nonce, 5);
     }
@@ -342,5 +413,99 @@ mod tests {
         assert!(db.get_block_by_height(999).unwrap().is_none());
         assert!(db.get_block_by_hash(&[0xFF; 32]).unwrap().is_none());
         assert!(db.get_tx(&[0xFF; 32]).unwrap().is_none());
+    }
+
+    #[test]
+    fn test_address_index() {
+        let (_dir, db) = temp_db();
+
+        let addr = [0x11u8; 20];
+        let txid1 = [0xAA; 32];
+        let txid2 = [0xBB; 32];
+        let txid3 = [0xCC; 32];
+
+        // Different address
+        let other_addr = [0x22u8; 20];
+        let txid4 = [0xDD; 32];
+
+        let block = BlockRecord {
+            height: 100,
+            hash: [0x01; 32],
+            prev_hash: [0x00; 32],
+            merkle_root: [0; 32],
+            time: 0,
+            bits: 0,
+            nonce: 0,
+            tx_count: 3,
+            size: 0,
+        };
+
+        let addr_refs = vec![
+            (
+                addr,
+                AddrTxRef {
+                    block_height: 100,
+                    txid: txid1,
+                },
+            ),
+            (
+                addr,
+                AddrTxRef {
+                    block_height: 100,
+                    txid: txid2,
+                },
+            ),
+            (
+                other_addr,
+                AddrTxRef {
+                    block_height: 100,
+                    txid: txid4,
+                },
+            ),
+        ];
+
+        db.put_block(&block, &[], &addr_refs).unwrap();
+
+        // Second block with another tx for the same address
+        let block2 = BlockRecord {
+            height: 200,
+            hash: [0x02; 32],
+            prev_hash: [0x01; 32],
+            merkle_root: [0; 32],
+            time: 0,
+            bits: 0,
+            nonce: 0,
+            tx_count: 1,
+            size: 0,
+        };
+
+        let addr_refs2 = vec![(
+            addr,
+            AddrTxRef {
+                block_height: 200,
+                txid: txid3,
+            },
+        )];
+
+        db.put_block(&block2, &[], &addr_refs2).unwrap();
+
+        // Query: addr should have 3 txs
+        let txs = db.get_addr_txs(&addr).unwrap();
+        assert_eq!(txs.len(), 3);
+        assert_eq!(txs[0].block_height, 100);
+        assert_eq!(txs[0].txid, txid1);
+        assert_eq!(txs[1].block_height, 100);
+        assert_eq!(txs[1].txid, txid2);
+        assert_eq!(txs[2].block_height, 200);
+        assert_eq!(txs[2].txid, txid3);
+
+        // Query: other_addr should have 1 tx
+        let txs = db.get_addr_txs(&other_addr).unwrap();
+        assert_eq!(txs.len(), 1);
+        assert_eq!(txs[0].txid, txid4);
+
+        // Query: unknown address should have 0
+        let txs = db.get_addr_txs(&[0xFF; 20]).unwrap();
+        assert_eq!(txs.len(), 0);
     }
 }
