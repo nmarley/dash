@@ -9,6 +9,6 @@ pub mod block_reader;
 pub mod undo;
 pub mod undo_reader;
 
-pub use block_reader::{BlockFileReader, Network};
+pub use block_reader::{BlockFileReader, Network, ScannedHeader};
 pub use undo::CBlockUndo;
 pub use undo_reader::UndoFileReader;
