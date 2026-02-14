@@ -21,8 +21,8 @@ use daino_core::{BlockFileReader, Network, ScannedHeader};
 use daino_state::db::{
     AddrTxRef, BlockBatch, BlockRecord, DainoDB, SpentOutpoint, TxRecord, UtxoEntry,
 };
-use librustdash::script::analyze_script;
 use librustdash::Block;
+use librustdash::script::analyze_script;
 
 /// Location of a block within the blk file set.
 #[derive(Debug, Clone)]

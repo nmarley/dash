@@ -1,4 +1,4 @@
-use dainod::commands;
+mod commands;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
