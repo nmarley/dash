@@ -1,0 +1,13 @@
+[package]
+name = "daino-core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+librustdash = { workspace = true }
+anyhow = { workspace = true }
+byteorder = { workspace = true }
+hex = { workspace = true }
+sha2 = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }

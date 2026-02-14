@@ -1,0 +1,10 @@
+[package]
+name = "dainod"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+daino-core = { workspace = true }
+anyhow = { workspace = true }
+clap = { version = "4.5", features = ["derive"] }
+hex = { workspace = true }

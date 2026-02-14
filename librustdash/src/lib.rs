@@ -9,6 +9,7 @@ pub mod bitvector;
 pub mod block;
 pub mod bls;
 pub mod error;
+pub mod hash;
 pub mod network_info;
 pub mod payloads;
 pub mod serialize;
@@ -19,6 +20,7 @@ pub use bitvector::BitVector;
 pub use block::{Block, BlockHeader};
 pub use bls::{BlsPublicKey, BlsSignature};
 pub use error::{DashError, Result};
+pub use hash::{hash_to_display, reverse_hash, sha256d};
 pub use network_info::ServiceAddress;
 pub use payloads::{
     AssetLockPayload, AssetUnlockPayload, CbTx, FinalCommitment, LLMQType, MasternodeType, MnhfTx,

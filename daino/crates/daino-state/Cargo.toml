@@ -1,0 +1,13 @@
+[package]
+name = "daino-state"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+daino-core = { workspace = true }
+librustdash = { workspace = true }
+anyhow = { workspace = true }
+hex = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+heed = "0.20"

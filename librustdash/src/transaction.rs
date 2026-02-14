@@ -1,6 +1,7 @@
 //! Transaction types and serialization
 
 use crate::error::Result;
+use crate::hash;
 use crate::serialize::{read_compact_size, write_compact_size};
 use crate::tx_type::DashTxType;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -219,6 +220,24 @@ impl Transaction {
     /// Check if this is a coinbase transaction
     pub fn is_coinbase(&self) -> bool {
         self.inputs.len() == 1 && self.inputs[0].previous_output.is_null()
+    }
+
+    /// Compute the transaction ID (txid).
+    ///
+    /// The txid is SHA-256d of the serialized transaction, returned in
+    /// internal byte order. For display (RPC) order, use
+    /// `hash::reverse_hash()` or `hash::hash_to_display()`.
+    pub fn txid(&self) -> Result<[u8; 32]> {
+        let bytes = self.serialize()?;
+        Ok(hash::sha256d(&bytes))
+    }
+
+    /// Compute the transaction ID as a display string.
+    ///
+    /// Returns the txid in the same hex format used by `getrawtransaction`
+    /// and block explorers (reversed byte order).
+    pub fn txid_hex(&self) -> Result<String> {
+        Ok(hash::hash_to_display(&self.txid()?))
     }
 }
 
