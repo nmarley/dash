@@ -1,227 +1,120 @@
+mod commands;
+
 use anyhow::Result;
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
-use daino_core::{BlockFileReader, Network, UndoFileReader};
+use daino_core::Network;
 
 #[derive(Parser)]
 #[command(name = "dainod")]
-#[command(about = "Dash blockchain indexer and block explorer backend", long_about = None)]
+#[command(about = "Dash blockchain indexer and block explorer backend")]
 struct Cli {
-    /// Path to the file (e.g., blk00000.dat or rev00000.dat)
-    #[arg(value_name = "FILE")]
-    file: PathBuf,
+    #[command(subcommand)]
+    command: Commands,
 
     /// Network type (mainnet, testnet, regtest)
-    #[arg(short, long, default_value = "mainnet")]
+    #[arg(short, long, default_value = "mainnet", global = true)]
     network: String,
+}
 
-    /// Number of blocks/undo records to read (default: 1)
-    #[arg(short, long, default_value = "1")]
-    count: usize,
+#[derive(Subcommand)]
+enum Commands {
+    /// Read and display blocks or undo data from raw files
+    Read {
+        /// Path to the file (e.g., blk00000.dat or rev00000.dat)
+        file: PathBuf,
 
-    /// Read undo file (rev*.dat) instead of block file
-    #[arg(short, long)]
-    undo: bool,
+        /// Number of blocks/undo records to read
+        #[arg(short, long, default_value = "1")]
+        count: usize,
 
-    /// Show coinbase message (useful for genesis block) - block files only
-    #[arg(long)]
-    show_coinbase_message: bool,
+        /// Read undo file (rev*.dat) instead of block file
+        #[arg(short, long)]
+        undo: bool,
 
-    /// Show raw block header bytes (for POW verification) - block files only
-    #[arg(long)]
-    show_raw_block: bool,
+        /// Show coinbase message
+        #[arg(long)]
+        show_coinbase_message: bool,
+
+        /// Show raw block header bytes
+        #[arg(long)]
+        show_raw_block: bool,
+    },
+
+    /// Index block files into the database
+    Index {
+        /// Dash Core data directory (contains blocks/blk*.dat)
+        #[arg(short, long)]
+        datadir: PathBuf,
+
+        /// Database directory for indexed data
+        #[arg(short = 'D', long, default_value = "daino.db")]
+        dbdir: PathBuf,
+
+        /// Maximum number of blocks to index (0 = all)
+        #[arg(short, long, default_value = "0")]
+        max_blocks: usize,
+    },
+
+    /// Show database status
+    Status {
+        /// Database directory
+        #[arg(short = 'D', long, default_value = "daino.db")]
+        dbdir: PathBuf,
+    },
+
+    /// Start the REST API server
+    Serve {
+        /// Database directory
+        #[arg(short = 'D', long, default_value = "daino.db")]
+        dbdir: PathBuf,
+
+        /// Listen address (host:port)
+        #[arg(short, long, default_value = "127.0.0.1:3141")]
+        listen: String,
+    },
+}
+
+fn parse_network(s: &str) -> Result<Network> {
+    match s {
+        "mainnet" => Ok(Network::Mainnet),
+        "testnet" => Ok(Network::Testnet),
+        "regtest" => Ok(Network::Regtest),
+        _ => anyhow::bail!("Invalid network: {}", s),
+    }
 }
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
+    let network = parse_network(&cli.network)?;
 
-    let network = match cli.network.as_str() {
-        "mainnet" => Network::Mainnet,
-        "testnet" => Network::Testnet,
-        "regtest" => Network::Regtest,
-        _ => anyhow::bail!("Invalid network: {}", cli.network),
-    };
-
-    if cli.undo {
-        read_undo_file(&cli, network)
-    } else {
-        read_block_file(&cli, network)
-    }
-}
-
-fn read_undo_file(cli: &Cli, network: Network) -> Result<()> {
-    println!("Reading undo data from: {:?}", cli.file);
-    println!("Network: {:?}", network);
-    println!("Magic bytes: 0x{:08X}", network.magic_bytes());
-    println!();
-
-    let mut reader = UndoFileReader::new(&cli.file, network)?;
-
-    for i in 0..cli.count {
-        match reader.read_next_undo(None)? {
-            Some(block_undo) => {
-                println!("=== Undo Block {} ===", i);
-                println!("  Position in file: {} bytes", reader.last_undo_start());
-                println!("  Transaction undo count: {}", block_undo.vtxundo.len());
-
-                for (tx_idx, tx_undo) in block_undo.vtxundo.iter().enumerate() {
-                    println!("  Transaction {} (non-coinbase):", tx_idx + 1);
-                    println!("    Spent outputs count: {}", tx_undo.vprevout.len());
-
-                    for (out_idx, coin) in tx_undo.vprevout.iter().enumerate() {
-                        println!("      Output {}:", out_idx);
-                        println!("        Value: {} satoshis", coin.txout.value);
-                        println!(
-                            "        ScriptPubKey: {} bytes",
-                            coin.txout.script_pubkey.len()
-                        );
-                        println!(
-                            "        ScriptPubKey (hex): {}",
-                            hex::encode(&coin.txout.script_pubkey)
-                        );
-                        println!("        Height: {}", coin.height);
-                        println!("        Is coinbase: {}", coin.is_coinbase);
-                    }
-                }
-
-                println!();
-            }
-            None => {
-                println!("Reached end of file after {} undo blocks", i);
-                break;
+    match cli.command {
+        Commands::Read {
+            file,
+            count,
+            undo,
+            show_coinbase_message,
+            show_raw_block,
+        } => {
+            if undo {
+                commands::read::read_undo_file(&file, network, count)
+            } else {
+                commands::read::read_block_file(
+                    &file,
+                    network,
+                    count,
+                    show_coinbase_message,
+                    show_raw_block,
+                )
             }
         }
+        Commands::Index {
+            datadir,
+            dbdir,
+            max_blocks,
+        } => commands::index::index_blocks(&datadir, &dbdir, network, max_blocks),
+        Commands::Status { dbdir } => commands::status::show_status(&dbdir),
+        Commands::Serve { dbdir, listen } => commands::serve::run_server(&dbdir, &listen),
     }
-
-    Ok(())
-}
-
-fn read_block_file(cli: &Cli, network: Network) -> Result<()> {
-    println!("Reading blocks from: {:?}", cli.file);
-    println!("Network: {:?}", network);
-    println!("Magic bytes: 0x{:08X}", network.magic_bytes());
-    println!();
-
-    let mut reader = BlockFileReader::new(&cli.file, network)?;
-
-    for i in 0..cli.count {
-        match reader.read_next_block()? {
-            Some(block) => {
-                // Compute txid of coinbase for display
-                let coinbase_txid = if !block.transactions.is_empty() {
-                    block.transactions[0].txid_hex().ok()
-                } else {
-                    None
-                };
-
-                println!("=== Block {} ===", i);
-                println!("  Position in file: {} bytes", reader.last_block_start());
-                println!("  Version: {}", block.header.version);
-
-                let mut prev_hash_reversed = block.header.prev_blockhash;
-                prev_hash_reversed.reverse();
-                println!("  Previous block: {}", hex::encode(prev_hash_reversed));
-
-                let mut merkle_root_reversed = block.header.merkle_root;
-                merkle_root_reversed.reverse();
-                println!("  Merkle root: {}", hex::encode(merkle_root_reversed));
-                println!("  Timestamp: {}", block.header.time);
-                println!("  Bits: 0x{:08X}", block.header.bits);
-                println!("  Nonce: {}", block.header.nonce);
-                println!("  Transaction count: {}", block.transactions.len());
-
-                if !block.transactions.is_empty() {
-                    let coinbase = &block.transactions[0];
-                    println!("  Coinbase tx:");
-                    if let Some(ref txid) = coinbase_txid {
-                        println!("    Txid: {}", txid);
-                    }
-                    println!("    Version: {}", coinbase.version);
-                    println!("    Type: {:?}", coinbase.tx_type);
-                    println!("    Inputs: {}", coinbase.inputs.len());
-                    println!("    Outputs: {}", coinbase.outputs.len());
-                    if let Some(ref payload) = coinbase.extra_payload {
-                        println!("    Extra payload: {} bytes", payload.len());
-                    }
-
-                    if cli.show_coinbase_message
-                        && !coinbase.inputs.is_empty()
-                        && let Some(message) =
-                            extract_coinbase_message(&coinbase.inputs[0].script_sig)
-                    {
-                        println!("  Coinbase message:");
-                        println!("    \"{}\"", message);
-                    }
-                }
-
-                if cli.show_raw_block {
-                    let header_bytes = block.header.serialize()?;
-                    println!("  Raw block header (80 bytes):");
-                    println!("    {}", hex::encode(&header_bytes));
-                }
-
-                println!();
-            }
-            None => {
-                println!("Reached end of file after {} blocks", i);
-                break;
-            }
-        }
-    }
-
-    Ok(())
-}
-
-/// Extract the coinbase message from a coinbase transaction's scriptsig
-fn extract_coinbase_message(script_sig: &[u8]) -> Option<String> {
-    let mut i = 0;
-    let mut best_message: Option<String> = None;
-    let mut best_len = 0;
-
-    while i < script_sig.len() {
-        let opcode = script_sig[i];
-        i += 1;
-
-        let data_len = if opcode <= 0x4b {
-            opcode as usize
-        } else if opcode == 0x4c && i < script_sig.len() {
-            let len = script_sig[i] as usize;
-            i += 1;
-            len
-        } else if opcode == 0x4d && i + 1 < script_sig.len() {
-            let len = script_sig[i] as usize | ((script_sig[i + 1] as usize) << 8);
-            i += 2;
-            len
-        } else if opcode == 0x4e && i + 3 < script_sig.len() {
-            let len = script_sig[i] as usize
-                | ((script_sig[i + 1] as usize) << 8)
-                | ((script_sig[i + 2] as usize) << 16)
-                | ((script_sig[i + 3] as usize) << 24);
-            i += 4;
-            len
-        } else {
-            continue;
-        };
-
-        if i + data_len <= script_sig.len() {
-            let data = &script_sig[i..i + data_len];
-            i += data_len;
-
-            let printable_count = data.iter().filter(|&&b| (0x20..=0x7e).contains(&b)).count();
-
-            if data_len > best_len
-                && printable_count * 100 / data_len >= 80
-                && data_len >= 10
-                && let Ok(msg) = String::from_utf8(data.to_vec())
-            {
-                best_len = data_len;
-                best_message = Some(msg);
-            }
-        } else {
-            break;
-        }
-    }
-
-    best_message
 }
