@@ -1,1 +1,1 @@
-Read AGENT.md in this directory before doing anything.
+Read AGENTS.md in this directory before doing anything.
