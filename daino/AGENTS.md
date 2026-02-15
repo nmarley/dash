@@ -20,6 +20,7 @@ Read these for deeper context as needed:
 - `docs/PLAN_CHAIN_ORDERING.md` -- two-pass indexer design (implemented)
 - `docs/PLAN_READ_AHEAD.md` -- reader/writer pipeline design (implemented)
 - `docs/DASH_DATA_DIRECTORY.md` -- Dash Core data file formats and layout
+- `docs/VISION_RUST_VALIDATOR.md` -- long-term architecture: Rust validator + Zaino-style Daino
 - `../librustdash/docs/REPORT_DAINO.md` -- daino project status report
 - `../librustdash/docs/REPORT_LIBRUSTDASH.md` -- librustdash project status
 - `../librustdash/docs/REPORT_DMTV3.md` -- dmtv3 project status
