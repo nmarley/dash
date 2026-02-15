@@ -397,6 +397,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
+ "daino-core",
  "daino-fetch",
  "daino-state",
  "hex",

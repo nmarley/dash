@@ -38,6 +38,8 @@ pub struct BlockRecord {
     pub tx_count: u32,
     /// Total block size in bytes (serialized block, no file envelope)
     pub size: u32,
+    /// Cumulative proof-of-work (big-endian 256-bit)
+    pub chainwork: [u8; 32],
 }
 
 /// A stored transaction record.
@@ -604,6 +606,7 @@ mod tests {
             nonce: 99943,
             tx_count: 1,
             size: 286,
+            chainwork: [0; 32],
         };
 
         let tx = TxRecord {
@@ -664,6 +667,7 @@ mod tests {
                 nonce: h,
                 tx_count: 1,
                 size: 286,
+                chainwork: [0; 32],
             };
 
             db.put_block(&block, &[], &[], &[], &[]).unwrap();
@@ -709,6 +713,7 @@ mod tests {
             nonce: 0,
             tx_count: 3,
             size: 0,
+            chainwork: [0; 32],
         };
 
         let addr_refs = vec![
@@ -749,6 +754,7 @@ mod tests {
             nonce: 0,
             tx_count: 1,
             size: 0,
+            chainwork: [0; 32],
         };
 
         let addr_refs2 = vec![(
@@ -801,6 +807,7 @@ mod tests {
             nonce: 0,
             tx_count: 1,
             size: 0,
+            chainwork: [0; 32],
         };
 
         let utxos = vec![
@@ -844,6 +851,7 @@ mod tests {
             nonce: 0,
             tx_count: 1,
             size: 0,
+            chainwork: [0; 32],
         };
 
         let new_utxos = vec![UtxoEntry {

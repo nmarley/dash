@@ -9,7 +9,7 @@ use axum::Router;
 use axum::routing::get;
 use tower_http::cors::CorsLayer;
 
-use daino_core::{BlockFileReader, Network};
+use daino_core::{BlockFileReader, Network, add_u256, work_from_bits};
 use daino_state::db::{AddrTxRef, BlockRecord, DainoDB, SpentOutpoint, TxRecord, UtxoEntry};
 use librustdash::hash::hash_to_display;
 use librustdash::script::analyze_script;
@@ -27,6 +27,7 @@ fn index_test_blocks(db: &DainoDB, n: usize) -> Vec<[u8; 32]> {
 
     let mut reader = BlockFileReader::new(&block_file, Network::Mainnet).unwrap();
     let mut block_hashes = Vec::new();
+    let mut prev_chainwork = [0u8; 32];
 
     for height in 0..n {
         let block = reader
@@ -36,6 +37,9 @@ fn index_test_blocks(db: &DainoDB, n: usize) -> Vec<[u8; 32]> {
 
         let block_hash = block.header.block_hash().unwrap();
         let block_size = block.serialize().unwrap().len() as u32;
+
+        let chainwork = add_u256(&prev_chainwork, &work_from_bits(block.header.bits));
+        prev_chainwork = chainwork;
 
         let block_record = BlockRecord {
             height: height as u32,
@@ -48,6 +52,7 @@ fn index_test_blocks(db: &DainoDB, n: usize) -> Vec<[u8; 32]> {
             nonce: block.header.nonce,
             tx_count: block.transactions.len() as u32,
             size: block_size,
+            chainwork,
         };
 
         let mut tx_records = Vec::new();
@@ -189,6 +194,39 @@ async fn test_query_genesis_block() {
     assert_eq!(
         genesis_hash_hex,
         "00000ffd590b1485b3caadc19b22e6379c733355108f107a430458cdf3407ab6"
+    );
+
+    // Verify new fields: difficulty, reward, chainwork
+    let diff = body["difficulty"]
+        .as_f64()
+        .expect("difficulty should be f64");
+    let expected_diff = 0.000244140625; // 1/4096, Dash genesis relative to Bitcoin difficulty-1
+    assert!(
+        (diff - expected_diff).abs() < 1e-12,
+        "genesis difficulty should be {}, got {}",
+        expected_diff,
+        diff
+    );
+
+    let reward = body["reward"].as_str().expect("reward should be string");
+    assert_eq!(
+        reward, "50.00000000",
+        "genesis reward should be 50.00000000, got {}",
+        reward
+    );
+
+    let chainwork = body["chainwork"]
+        .as_str()
+        .expect("chainwork should be string");
+    assert_eq!(
+        chainwork.len(),
+        64,
+        "chainwork should be 64 hex chars, got {}",
+        chainwork.len()
+    );
+    assert_ne!(
+        chainwork, "0000000000000000000000000000000000000000000000000000000000000000",
+        "chainwork should not be zero for genesis"
     );
 }
 

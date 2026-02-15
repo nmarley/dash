@@ -14,6 +14,7 @@ use std::time::Duration;
 
 use anyhow::{Context, Result};
 
+use daino_core::{add_u256, work_from_bits};
 use daino_fetch::rpc::DashdRpc;
 use daino_fetch::{FetchedBlock, catch_up, poll_loop};
 use daino_state::db::{AddrTxRef, BlockRecord, DainoDB, SpentOutpoint, TxRecord, UtxoEntry};
@@ -95,6 +96,16 @@ fn index_fetched_block(db: &DainoDB, fetched: &FetchedBlock) -> Result<()> {
     let block_hash = block.header.block_hash()?;
     let block_size = fetched.raw.len() as u32;
 
+    // Accumulate chainwork: load previous block's chainwork from DB
+    let prev_chainwork = if fetched.height > 0 {
+        db.get_block_by_height(fetched.height as u32 - 1)?
+            .map(|b| b.chainwork)
+            .unwrap_or([0u8; 32])
+    } else {
+        [0u8; 32]
+    };
+    let chainwork = add_u256(&prev_chainwork, &work_from_bits(block.header.bits));
+
     let block_record = BlockRecord {
         height: fetched.height as u32,
         hash: block_hash,
@@ -106,6 +117,7 @@ fn index_fetched_block(db: &DainoDB, fetched: &FetchedBlock) -> Result<()> {
         nonce: block.header.nonce,
         tx_count: block.transactions.len() as u32,
         size: block_size,
+        chainwork,
     };
 
     // Build transaction records, address index, and UTXO updates

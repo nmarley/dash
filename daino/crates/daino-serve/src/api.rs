@@ -61,6 +61,11 @@ pub struct BlockResponse {
     pub time: u32,
     pub nonce: u32,
     pub bits: String,
+    pub difficulty: f64,
+    /// Block reward in DASH (coinbase output value, 8 decimal places)
+    pub reward: String,
+    /// Cumulative proof-of-work (hex, no leading zeros)
+    pub chainwork: String,
     pub confirmations: u32,
     #[serde(rename = "previousblockhash")]
     pub previous_block_hash: String,
@@ -191,13 +196,25 @@ pub async fn get_block_by_hash(
         })?;
 
     // Fetch txid list for this block
-    let txids = state
+    let raw_txids = state
         .db
         .get_block_txids(block.height)
-        .map_err(|_| db_error())?
-        .iter()
-        .map(hash_to_display)
-        .collect();
+        .map_err(|_| db_error())?;
+
+    let txids: Vec<String> = raw_txids.iter().map(hash_to_display).collect();
+
+    // Look up coinbase (first tx) to get block reward
+    let reward = if let Some(coinbase_txid) = raw_txids.first() {
+        state
+            .db
+            .get_tx(coinbase_txid)
+            .ok()
+            .flatten()
+            .map(|tx| format!("{:.8}", tx.value_out as f64 / 100_000_000.0))
+            .unwrap_or_else(|| "0.00000000".to_string())
+    } else {
+        "0.00000000".to_string()
+    };
 
     // Fetch next block hash (height + 1)
     let next_block_hash = state
@@ -226,6 +243,7 @@ pub async fn get_block_by_hash(
         next_block_hash,
         confirmations,
         chainlock,
+        reward,
     )))
 }
 
@@ -619,7 +637,10 @@ fn block_to_response(
     next_block_hash: Option<String>,
     confirmations: u32,
     chainlock: Option<bool>,
+    reward: String,
 ) -> BlockResponse {
+    use daino_core::{difficulty_from_bits, u256_to_hex};
+
     BlockResponse {
         hash: hash_to_display(&block.hash),
         size: block.size,
@@ -630,6 +651,9 @@ fn block_to_response(
         time: block.time,
         nonce: block.nonce,
         bits: format!("{:08x}", block.bits),
+        difficulty: difficulty_from_bits(block.bits),
+        reward,
+        chainwork: u256_to_hex(&block.chainwork),
         confirmations,
         previous_block_hash: hash_to_display(&block.prev_hash),
         next_block_hash,

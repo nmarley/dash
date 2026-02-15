@@ -17,7 +17,7 @@ use std::time::Instant;
 
 use anyhow::{Context, Result};
 
-use daino_core::{BlockFileReader, Network, ScannedHeader};
+use daino_core::{BlockFileReader, Network, ScannedHeader, add_u256, work_from_bits};
 use daino_state::db::{
     AddrTxRef, BlockBatch, BlockRecord, DainoDB, SpentOutpoint, TxRecord, UtxoEntry,
 };
@@ -304,6 +304,15 @@ pub fn index_blocks(
     let mut total_txs: u64 = 0;
     let t_pass2 = Instant::now();
 
+    // Initialize chainwork accumulator (load from previous block on resume)
+    let mut prev_chainwork = if start_height > 0 {
+        db.get_block_by_height(start_height - 1)?
+            .map(|b| b.chainwork)
+            .unwrap_or([0u8; 32])
+    } else {
+        [0u8; 32]
+    };
+
     for read_block in rx {
         let ReadBlock {
             height,
@@ -312,6 +321,11 @@ pub fn index_blocks(
             txids,
             block_size,
         } = read_block;
+
+        // Accumulate chainwork: chainwork[h] = chainwork[h-1] + work(bits)
+        let block_work = work_from_bits(block.header.bits);
+        let chainwork = add_u256(&prev_chainwork, &block_work);
+        prev_chainwork = chainwork;
 
         let block_record = BlockRecord {
             height,
@@ -324,6 +338,7 @@ pub fn index_blocks(
             nonce: block.header.nonce,
             tx_count: block.transactions.len() as u32,
             size: block_size,
+            chainwork,
         };
 
         let mut tx_records = Vec::with_capacity(block.transactions.len());
