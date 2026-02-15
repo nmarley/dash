@@ -1,2 +1,4 @@
 /target
 /data
+# ignore indexes / k/v stores
+*.db

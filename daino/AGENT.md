@@ -12,6 +12,18 @@ separate consensus validator handling validation only.
 This is greenfield code. No backward compatibility needed -- blow away
 the DB and re-index anytime.
 
+## Related Documentation
+
+Read these for deeper context as needed:
+
+- `docs/IDEAS.md` -- backlog / low-priority improvements
+- `docs/PLAN_CHAIN_ORDERING.md` -- two-pass indexer design (implemented)
+- `docs/PLAN_READ_AHEAD.md` -- reader/writer pipeline design (implemented)
+- `docs/DASH_DATA_DIRECTORY.md` -- Dash Core data file formats and layout
+- `../librustdash/docs/REPORT_DAINO.md` -- daino project status report
+- `../librustdash/docs/REPORT_LIBRUSTDASH.md` -- librustdash project status
+- `../librustdash/docs/REPORT_DMTV3.md` -- dmtv3 project status
+
 ## Development Rules
 
 - **Tests must be fast.** Do NOT open real `blk*.dat` files in new
