@@ -178,7 +178,7 @@ CLI binary with subcommands.
 | `src/commands/compact.rs` | 69 | Compaction with before/after sizes |
 | `tests/api_integration.rs` | 310 | 5 integration tests (index real blocks, spin up API, verify HTTP) |
 
-## LMDB Schema (8 databases)
+## LMDB Schema (10 databases)
 
 | Database | Key | Value | Purpose |
 |----------|-----|-------|---------|
@@ -190,8 +190,10 @@ CLI binary with subcommands.
 | `utxos` | txid(32)+vout(4 BE) | UtxoValue (bincode) | UTXO lookup by outpoint |
 | `addr_utxos` | addr(20)+txid(32)+vout(4 BE) | empty | Address UTXO index (prefix scan) |
 | `meta` | "chain" (str) | ChainMeta (bincode) | Chain tip, counts |
+| `tx_raw` | txid (32B) | raw serialized tx bytes | Full tx reconstruction at query time |
+| `spent_by` | txid(32)+vout(4 BE) | spending_txid(32)+vin(4 BE)+height(4 BE) | Spent-by tracking for vout responses |
 
-MAX_DBS=12 (room for future databases). MAX_DB_SIZE=10 GB.
+MAX_DBS=12 (room for future databases). MAX_DB_SIZE=20 GB.
 
 Slim UTXO storage: private `UtxoValue` struct stores only non-key
 fields (~33 bytes vs ~75 bytes per UTXO). The outpoint key already
@@ -206,7 +208,7 @@ encodes txid + vout.
 | `GET /api/status` | `{ info: { blocks, bestblockhash, txcount, version } }` | |
 | `GET /api/block/:hash` | Full block with `difficulty`, `reward`, `chainwork`, `tx[]`, `confirmations`, `previousblockhash`, `nextblockhash`, `chainlock` | Matches Insight format |
 | `GET /api/block-index/:h` | `{ blockHash }` | Height to hash |
-| `GET /api/tx/:txid` | Summary: txid, blockheight, version, type, locktime, valueOut, counts | Missing vin/vout detail |
+| `GET /api/tx/:txid` | Full Insight tx: vin[], vout[], blockhash, blocktime, confirmations, size, valueIn, fees, isCoinBase | Matches Insight format |
 | `GET /api/addr/:addr` | `{ addrStr, txCount }` | |
 | `GET /api/addr/:addr/txs` | `{ addrStr, txCount, txids[] }` | Deduplicated |
 | `GET /api/addr/:addr/utxo` | `[{ txid, vout, value, satoshis, height }]` | |
@@ -231,27 +233,29 @@ Fields we don't emit yet (Insight-specific, low priority):
 - `isMainChain` -- always true for us (no reorg support yet)
 - `poolInfo` -- cosmetic (coinbase signature matching)
 
-### Transaction response -- PARTIAL
+### Transaction response -- FULLY ALIGNED
 
-We return summary fields only. Insight returns full vin/vout with
-scriptPubKey, spent info, etc. Key gaps:
+All core Insight fields are present: `txid`, `version`, `type`,
+`locktime`, `vin[]`, `vout[]`, `blockhash`, `blockheight`,
+`confirmations`, `time`, `blocktime`, `isCoinBase`, `valueOut`,
+`size`, `valueIn`, `fees`.
 
-- **No `vin[]` array** -- we don't store input details (scriptSig,
-  sequence, coinbase hex, previous output address/value)
-- **No `vout[]` array** -- we don't store per-output scriptPubKey
-  (hex, asm, addresses, type)
-- **No `blockhash`** -- could derive from block_height lookup
-- **No `blocktime`** -- same, derive from block lookup
-- **No `size`** -- not stored in TxRecord
-- **No `isCoinBase`** -- not stored, could derive from tx_index == 0
-- **No spent info** -- `spentTxId`, `spentIndex`, `spentHeight` on
-  each vout (requires a spending-tx index we don't have)
-- **`valueOut`** -- we return float, Insight returns integer (satoshis
-  as whole number)
-- **`txlock`** -- requires dashd RPC, works when connected
+Each `vin` entry includes: `txid`, `vout`, `sequence`, `n`,
+`scriptSig.hex`, `addr`, `valueSat`, `value`, `doubleSpentTxID`.
+Coinbase inputs use: `coinbase`, `sequence`, `n`.
 
-Closing these gaps requires either storing more data per tx (vin/vout
-details, raw scriptPubKey) or doing additional DB lookups at query time.
+Each `vout` entry includes: `value` (8-decimal string), `n`,
+`scriptPubKey.hex`, `scriptPubKey.addresses`, `scriptPubKey.type`,
+`spentTxId`, `spentIndex`, `spentHeight`.
+
+Input address/value resolution uses raw tx bytes from `tx_raw` DB
+(deserializes the previous transaction to get its output details).
+Spent-by info comes from the `spent_by` DB.
+
+Fields not yet implemented (low priority):
+- `scriptSig.asm` / `scriptPubKey.asm` -- script disassembly
+- `extraPayload` / `extraPayloadSize` -- Dash special tx payloads
+- `txlock` / `chainlock` -- requires dashd RPC (works when connected)
 
 ## External Dependencies
 
@@ -293,12 +297,10 @@ datadir at `~/Library/Application Support/DashCore/`.
 
 See `docs/IDEAS.md` for lower-priority items. Key next steps:
 
-- **Transaction response parity with Insight** -- vin/vout arrays,
-  scriptPubKey, spent info, blockhash, size, isCoinBase
-- **`/api/block/:hash` full block endpoint** -- return full block by
-  height too (currently height returns only hash)
 - Pagination for address tx/utxo endpoints
 - Balance calculation endpoint (`/api/addr/{addr}/balance`)
+- `scriptSig.asm` / `scriptPubKey.asm` -- script disassembly
+- `extraPayload` / `extraPayloadSize` -- Dash special tx payloads
 - WebSocket / real-time event notifications
 - Auto-reload DB on file change in serve mode
 - `isMainChain` field (meaningful with reorg support)
