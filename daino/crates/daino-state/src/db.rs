@@ -98,6 +98,51 @@ pub struct SpentOutpoint {
     pub vout: u32,
 }
 
+/// Records which transaction spent a given output.
+///
+/// Stored in the `spent_by` database, keyed by the spent outpoint.
+/// This powers the `spentTxId`, `spentIndex`, and `spentHeight` fields
+/// in the Insight transaction API response.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SpentByEntry {
+    /// Outpoint being spent: transaction ID (internal byte order)
+    pub spent_txid: [u8; 32],
+    /// Outpoint being spent: output index
+    pub spent_vout: u32,
+    /// Transaction that spent this output (internal byte order)
+    pub spending_txid: [u8; 32],
+    /// Input index within the spending transaction
+    pub spending_vin: u32,
+    /// Block height of the spending transaction
+    pub spending_height: u32,
+}
+
+/// Spent-by value: spending_txid(32) + vin_index(4 BE) + block_height(4 BE) = 40 bytes.
+const SPENT_BY_VAL_LEN: usize = 32 + 4 + 4;
+
+fn make_spent_by_value(
+    spending_txid: &[u8; 32],
+    spending_vin: u32,
+    spending_height: u32,
+) -> [u8; SPENT_BY_VAL_LEN] {
+    let mut val = [0u8; SPENT_BY_VAL_LEN];
+    val[0..32].copy_from_slice(spending_txid);
+    val[32..36].copy_from_slice(&spending_vin.to_be_bytes());
+    val[36..40].copy_from_slice(&spending_height.to_be_bytes());
+    val
+}
+
+fn parse_spent_by_value(val: &[u8]) -> Option<([u8; 32], u32, u32)> {
+    if val.len() < SPENT_BY_VAL_LEN {
+        return None;
+    }
+    let mut txid = [0u8; 32];
+    txid.copy_from_slice(&val[0..32]);
+    let vin = u32::from_be_bytes([val[32], val[33], val[34], val[35]]);
+    let height = u32::from_be_bytes([val[36], val[37], val[38], val[39]]);
+    Some((txid, vin, height))
+}
+
 /// Internal storage format for UTXO values.
 ///
 /// The outpoint key already encodes txid + vout, so we only store the
@@ -182,6 +227,10 @@ pub struct BlockBatch {
     pub addr_refs: Vec<([u8; 20], AddrTxRef)>,
     pub new_utxos: Vec<UtxoEntry>,
     pub spent: Vec<SpentOutpoint>,
+    /// Raw serialized bytes for each transaction: (txid, raw_bytes).
+    pub raw_txs: Vec<([u8; 32], Vec<u8>)>,
+    /// Spent-by records: which transaction spent each output.
+    pub spent_by: Vec<SpentByEntry>,
 }
 
 /// Chain metadata stored in the meta database.
@@ -218,10 +267,14 @@ pub struct DainoDB {
     addr_utxos: Database<Bytes, Bytes>,
     /// "meta" -> ChainMeta (bincode)
     meta: Database<Str, Bytes>,
+    /// txid (32 bytes) -> raw serialized transaction bytes
+    tx_raw: Database<Bytes, Bytes>,
+    /// outpoint key: txid(32)+vout(4 BE) -> spending_txid(32)+vin(4 BE)+height(4 BE)
+    spent_by: Database<Bytes, Bytes>,
 }
 
-/// Maximum database size: 10 GB.
-const MAX_DB_SIZE: usize = 10 * 1024 * 1024 * 1024;
+/// Maximum database size: 20 GB.
+const MAX_DB_SIZE: usize = 20 * 1024 * 1024 * 1024;
 
 /// Number of named databases we use.
 const MAX_DBS: u32 = 12;
@@ -249,6 +302,8 @@ impl DainoDB {
         let utxos = env.create_database(&mut wtxn, Some("utxos"))?;
         let addr_utxos = env.create_database(&mut wtxn, Some("addr_utxos"))?;
         let meta = env.create_database(&mut wtxn, Some("meta"))?;
+        let tx_raw = env.create_database(&mut wtxn, Some("tx_raw"))?;
+        let spent_by = env.create_database(&mut wtxn, Some("spent_by"))?;
         wtxn.commit()?;
 
         Ok(DainoDB {
@@ -261,6 +316,8 @@ impl DainoDB {
             utxos,
             addr_utxos,
             meta,
+            tx_raw,
+            spent_by,
         })
     }
 
@@ -284,6 +341,8 @@ impl DainoDB {
             addr_refs: addr_refs.to_vec(),
             new_utxos: new_utxos.to_vec(),
             spent: spent.to_vec(),
+            raw_txs: Vec::new(),
+            spent_by: Vec::new(),
         }])
     }
 
@@ -363,6 +422,22 @@ impl DainoDB {
                     let addr_key = make_addr_utxo_key(addr_hash, &utxo.txid, utxo.vout);
                     self.addr_utxos.put(&mut wtxn, &addr_key, &[])?;
                 }
+            }
+
+            // Raw transaction bytes
+            for (txid, raw_bytes) in &batch.raw_txs {
+                self.tx_raw.put(&mut wtxn, txid, raw_bytes)?;
+            }
+
+            // Spent-by tracking
+            for entry in &batch.spent_by {
+                let key = make_outpoint_key(&entry.spent_txid, entry.spent_vout);
+                let val = make_spent_by_value(
+                    &entry.spending_txid,
+                    entry.spending_vin,
+                    entry.spending_height,
+                );
+                self.spent_by.put(&mut wtxn, &key, &val)?;
             }
 
             total_new_txs += batch.txs.len() as u64;
@@ -518,6 +593,28 @@ impl DainoDB {
                     addr_hash: val.addr_hash,
                 }))
             }
+            None => Ok(None),
+        }
+    }
+
+    /// Get raw serialized transaction bytes by txid.
+    pub fn get_raw_tx(&self, txid: &[u8; 32]) -> Result<Option<Vec<u8>>> {
+        let rtxn = self.env.read_txn()?;
+        match self.tx_raw.get(&rtxn, txid.as_slice())? {
+            Some(bytes) => Ok(Some(bytes.to_vec())),
+            None => Ok(None),
+        }
+    }
+
+    /// Get spent-by info for an outpoint: which transaction spent it.
+    ///
+    /// Returns (spending_txid, spending_vin_index, spending_block_height),
+    /// or None if the output has not been spent (or was never indexed).
+    pub fn get_spent_by(&self, txid: &[u8; 32], vout: u32) -> Result<Option<([u8; 32], u32, u32)>> {
+        let rtxn = self.env.read_txn()?;
+        let key = make_outpoint_key(txid, vout);
+        match self.spent_by.get(&rtxn, &key)? {
+            Some(val) => Ok(parse_spent_by_value(val)),
             None => Ok(None),
         }
     }

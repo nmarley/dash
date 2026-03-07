@@ -22,7 +22,7 @@ use daino_core::{
     scan_undo_offsets, work_from_bits,
 };
 use daino_state::db::{
-    AddrTxRef, BlockBatch, BlockRecord, DainoDB, SpentOutpoint, TxRecord, UtxoEntry,
+    AddrTxRef, BlockBatch, BlockRecord, DainoDB, SpentByEntry, SpentOutpoint, TxRecord, UtxoEntry,
 };
 use librustdash::Block;
 use librustdash::script::analyze_script;
@@ -442,10 +442,17 @@ pub fn index_blocks(
         let mut addr_refs: Vec<([u8; 20], AddrTxRef)> = Vec::new();
         let mut new_utxos: Vec<UtxoEntry> = Vec::new();
         let mut spent: Vec<SpentOutpoint> = Vec::new();
+        let mut raw_txs: Vec<([u8; 32], Vec<u8>)> = Vec::with_capacity(block.transactions.len());
+        let mut spent_by: Vec<SpentByEntry> = Vec::new();
 
         for (tx_idx, tx) in block.transactions.iter().enumerate() {
             let txid = txids[tx_idx];
             let value_out: i64 = tx.outputs.iter().map(|o| o.value).sum();
+
+            // Store raw serialized transaction bytes
+            if let Ok(raw) = tx.serialize() {
+                raw_txs.push((txid, raw));
+            }
 
             tx_records.push(TxRecord {
                 txid,
@@ -469,6 +476,15 @@ pub fn index_blocks(
                     spent.push(SpentOutpoint {
                         txid: input.previous_output.hash,
                         vout: input.previous_output.n,
+                    });
+
+                    // Record which transaction spent this output
+                    spent_by.push(SpentByEntry {
+                        spent_txid: input.previous_output.hash,
+                        spent_vout: input.previous_output.n,
+                        spending_txid: txid,
+                        spending_vin: vin_idx as u32,
+                        spending_height: height,
                     });
 
                     // Use undo data for input-side address indexing:
@@ -522,6 +538,8 @@ pub fn index_blocks(
             addr_refs,
             new_utxos,
             spent,
+            raw_txs,
+            spent_by,
         });
 
         if batch.len() >= batch_size {
