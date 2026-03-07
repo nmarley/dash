@@ -17,19 +17,25 @@ use std::time::Instant;
 
 use anyhow::{Context, Result};
 
-use daino_core::{BlockFileReader, Network, ScannedHeader, add_u256, work_from_bits};
+use daino_core::{
+    BlockFileReader, CBlockUndo, Network, ScannedHeader, UndoFileReader, add_u256,
+    scan_undo_offsets, work_from_bits,
+};
 use daino_state::db::{
     AddrTxRef, BlockBatch, BlockRecord, DainoDB, SpentOutpoint, TxRecord, UtxoEntry,
 };
 use librustdash::Block;
 use librustdash::script::analyze_script;
 
-/// Location of a block within the blk file set.
+/// Location of a block within the blk file set, with optional undo offset.
 #[derive(Debug, Clone)]
 struct BlockLocation {
     file_num: u32,
     file_offset: u64,
     block_size: u32,
+    /// Byte offset of the undo entry in the corresponding rev file.
+    /// None for the genesis block (which has no undo data).
+    undo_offset: Option<u64>,
 }
 
 /// A parsed block ready for indexing, produced by the reader thread.
@@ -41,6 +47,9 @@ struct ReadBlock {
     txids: Vec<[u8; 32]>,
     /// Block size including magic + size prefix
     block_size: u32,
+    /// Undo data for this block (None for genesis).
+    /// Contains the previous outputs spent by each non-coinbase transaction.
+    undo: Option<CBlockUndo>,
 }
 
 /// Read-ahead channel capacity (number of parsed blocks to buffer).
@@ -207,7 +216,7 @@ pub fn index_blocks(
     }
 
     // Build the location map for each block hash in chain order
-    let chain_locations: Vec<BlockLocation> = chain_hashes
+    let mut chain_locations: Vec<BlockLocation> = chain_hashes
         .iter()
         .map(|hash| {
             let idx = hash_to_idx[hash];
@@ -216,9 +225,74 @@ pub fn index_blocks(
                 file_num: *fnum,
                 file_offset: header.file_offset,
                 block_size: header.block_size,
+                undo_offset: None,
             }
         })
         .collect();
+
+    // Compute undo file offsets.
+    //
+    // Within each rev file, undo entries appear in ascending chain-height
+    // order (Dash Core writes them during ConnectBlock, which processes
+    // blocks in height order). The genesis block has no undo entry.
+    //
+    // Strategy: group non-genesis chain heights by file, sort each group,
+    // scan the rev file to get sequential entry offsets, then zip.
+
+    println!("Scanning undo files for offsets...");
+
+    let mut file_heights: HashMap<u32, Vec<u32>> = HashMap::new();
+    for (height, loc) in chain_locations.iter().enumerate() {
+        if height > 0 {
+            file_heights
+                .entry(loc.file_num)
+                .or_default()
+                .push(height as u32);
+        }
+    }
+    for heights in file_heights.values_mut() {
+        heights.sort();
+    }
+
+    for (fnum, sorted_heights) in &file_heights {
+        let rev_path = datadir.join(format!("rev{:05}.dat", fnum));
+        if !rev_path.exists() {
+            anyhow::bail!(
+                "Missing undo file {:?} (expected for blk{:05}.dat)",
+                rev_path,
+                fnum,
+            );
+        }
+
+        let offsets = scan_undo_offsets(&rev_path, network)
+            .with_context(|| format!("Failed to scan undo offsets in {:?}", rev_path))?;
+
+        if offsets.len() < sorted_heights.len() {
+            anyhow::bail!(
+                "rev{:05}.dat has {} undo entries but expected at least {} \
+                 (for {} non-genesis chain blocks in blk{:05}.dat)",
+                fnum,
+                offsets.len(),
+                sorted_heights.len(),
+                sorted_heights.len(),
+                fnum,
+            );
+        }
+
+        // The first N entries in the rev file (in height order) correspond
+        // to the N chain blocks from this blk file (in height order).
+        // If there are extra entries, they belong to orphan blocks that
+        // were temporarily connected then disconnected.
+        for (i, &height) in sorted_heights.iter().enumerate() {
+            chain_locations[height as usize].undo_offset = Some(offsets[i]);
+        }
+    }
+
+    println!(
+        "  Mapped undo offsets for {} blocks across {} files",
+        chain_locations.len() - 1,
+        file_heights.len(),
+    );
 
     // ── Pass 2: Read full blocks in chain order and index ────────────
 
@@ -253,24 +327,45 @@ pub fn index_blocks(
     let reader_start = start_height;
 
     let reader_handle = std::thread::spawn(move || -> Result<()> {
-        let mut readers: HashMap<u32, BlockFileReader> = HashMap::new();
+        let mut blk_readers: HashMap<u32, BlockFileReader> = HashMap::new();
+        let mut undo_readers: HashMap<u32, UndoFileReader> = HashMap::new();
 
         for (i, loc) in reader_locations.iter().enumerate() {
             let height = reader_start + i as u32;
 
-            // Get or open the reader for this file
-            let reader = if let Some(r) = readers.get_mut(&loc.file_num) {
+            // Get or open the block reader for this file
+            let reader = if let Some(r) = blk_readers.get_mut(&loc.file_num) {
                 r
             } else {
                 let path = reader_datadir.join(format!("blk{:05}.dat", loc.file_num));
                 let r = BlockFileReader::new(&path, network)
                     .with_context(|| format!("Failed to open {:?}", path))?;
-                readers.entry(loc.file_num).or_insert(r)
+                blk_readers.entry(loc.file_num).or_insert(r)
             };
 
             let block = reader
                 .read_block_at(loc.file_offset)
                 .with_context(|| format!("Failed to read block at height {}", height))?;
+
+            // Read undo data (skip for genesis)
+            let undo = if let Some(undo_offset) = loc.undo_offset {
+                let undo_reader = if let Some(r) = undo_readers.get_mut(&loc.file_num) {
+                    r
+                } else {
+                    let path = reader_datadir.join(format!("rev{:05}.dat", loc.file_num));
+                    let r = UndoFileReader::new(&path, network)
+                        .with_context(|| format!("Failed to open {:?}", path))?;
+                    undo_readers.entry(loc.file_num).or_insert(r)
+                };
+
+                let block_undo = undo_reader
+                    .read_undo_at(undo_offset, Some(block.header.prev_blockhash))
+                    .with_context(|| format!("Failed to read undo at height {}", height))?;
+
+                Some(block_undo)
+            } else {
+                None
+            };
 
             // Compute hashes on the reader thread (X11 + SHA-256d)
             let block_hash = block.header.block_hash()?;
@@ -287,6 +382,7 @@ pub fn index_blocks(
                 block_hash,
                 txids,
                 block_size,
+                undo,
             };
 
             // Send to writer; if receiver is dropped, stop
@@ -320,6 +416,7 @@ pub fn index_blocks(
             block_hash,
             txids,
             block_size,
+            undo,
         } = read_block;
 
         // Accumulate chainwork: chainwork[h] = chainwork[h-1] + work(bits)
@@ -363,11 +460,33 @@ pub fn index_blocks(
             });
 
             if !tx.is_coinbase() {
-                for input in &tx.inputs {
+                // Get undo data for this transaction's inputs.
+                // undo.vtxundo is indexed by (tx_index - 1) since coinbase is excluded.
+                // Each CTxUndo.vprevout has one Coin per input, in the same order.
+                let tx_undo = undo.as_ref().and_then(|u| u.vtxundo.get(tx_idx - 1));
+
+                for (vin_idx, input) in tx.inputs.iter().enumerate() {
                     spent.push(SpentOutpoint {
                         txid: input.previous_output.hash,
                         vout: input.previous_output.n,
                     });
+
+                    // Use undo data for input-side address indexing:
+                    // the spent coin's scriptPubKey tells us the sender address.
+                    if let Some(tu) = tx_undo
+                        && let Some(coin) = tu.vprevout.get(vin_idx)
+                    {
+                        let info = analyze_script(&coin.txout.script_pubkey);
+                        if let Some(ah) = info.address_hash {
+                            addr_refs.push((
+                                ah,
+                                AddrTxRef {
+                                    block_height: height,
+                                    txid,
+                                },
+                            ));
+                        }
+                    }
                 }
             }
 
