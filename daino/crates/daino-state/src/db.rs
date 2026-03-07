@@ -984,4 +984,112 @@ mod tests {
         // Unknown address should have no UTXOs
         assert_eq!(db.get_addr_utxos(&[0xFF; 20]).unwrap().len(), 0);
     }
+
+    #[test]
+    fn test_raw_tx_storage() {
+        let (_dir, db) = temp_db();
+
+        let txid1 = [0xAA; 32];
+        let txid2 = [0xBB; 32];
+        let raw1 = vec![0x01, 0x02, 0x03, 0x04, 0x05];
+        let raw2 = vec![0x10, 0x20, 0x30];
+
+        let block = BlockRecord {
+            height: 0,
+            hash: [0x01; 32],
+            prev_hash: [0x00; 32],
+            merkle_root: [0; 32],
+            version: 2,
+            time: 0,
+            bits: 0,
+            nonce: 0,
+            tx_count: 2,
+            size: 0,
+            chainwork: [0; 32],
+        };
+
+        db.put_batch(&[BlockBatch {
+            block,
+            txs: Vec::new(),
+            addr_refs: Vec::new(),
+            new_utxos: Vec::new(),
+            spent: Vec::new(),
+            raw_txs: vec![(txid1, raw1.clone()), (txid2, raw2.clone())],
+            spent_by: Vec::new(),
+        }])
+        .unwrap();
+
+        // Retrieve raw bytes
+        assert_eq!(db.get_raw_tx(&txid1).unwrap().unwrap(), raw1);
+        assert_eq!(db.get_raw_tx(&txid2).unwrap().unwrap(), raw2);
+
+        // Unknown txid returns None
+        assert!(db.get_raw_tx(&[0xFF; 32]).unwrap().is_none());
+    }
+
+    #[test]
+    fn test_spent_by_tracking() {
+        let (_dir, db) = temp_db();
+
+        let spent_txid = [0xAA; 32];
+        let spending_txid = [0xBB; 32];
+
+        let block = BlockRecord {
+            height: 100,
+            hash: [0x01; 32],
+            prev_hash: [0x00; 32],
+            merkle_root: [0; 32],
+            version: 2,
+            time: 0,
+            bits: 0,
+            nonce: 0,
+            tx_count: 1,
+            size: 0,
+            chainwork: [0; 32],
+        };
+
+        db.put_batch(&[BlockBatch {
+            block,
+            txs: Vec::new(),
+            addr_refs: Vec::new(),
+            new_utxos: Vec::new(),
+            spent: Vec::new(),
+            raw_txs: Vec::new(),
+            spent_by: vec![
+                SpentByEntry {
+                    spent_txid,
+                    spent_vout: 0,
+                    spending_txid,
+                    spending_vin: 0,
+                    spending_height: 100,
+                },
+                SpentByEntry {
+                    spent_txid,
+                    spent_vout: 1,
+                    spending_txid,
+                    spending_vin: 1,
+                    spending_height: 100,
+                },
+            ],
+        }])
+        .unwrap();
+
+        // Look up spent-by for vout 0
+        let (stxid, svin, sheight) = db.get_spent_by(&spent_txid, 0).unwrap().unwrap();
+        assert_eq!(stxid, spending_txid);
+        assert_eq!(svin, 0);
+        assert_eq!(sheight, 100);
+
+        // Look up spent-by for vout 1
+        let (stxid, svin, sheight) = db.get_spent_by(&spent_txid, 1).unwrap().unwrap();
+        assert_eq!(stxid, spending_txid);
+        assert_eq!(svin, 1);
+        assert_eq!(sheight, 100);
+
+        // Unspent output returns None
+        assert!(db.get_spent_by(&spent_txid, 2).unwrap().is_none());
+
+        // Unknown txid returns None
+        assert!(db.get_spent_by(&[0xFF; 32], 0).unwrap().is_none());
+    }
 }
