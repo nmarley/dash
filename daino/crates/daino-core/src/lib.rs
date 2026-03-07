@@ -15,4 +15,4 @@ pub use difficulty::{
     add_u256, difficulty_from_bits, target_from_bits, u256_to_hex, work_from_bits,
 };
 pub use undo::CBlockUndo;
-pub use undo_reader::UndoFileReader;
+pub use undo_reader::{UndoFileReader, scan_undo_offsets};
