@@ -17,6 +17,7 @@ the DB and re-index anytime.
 Read these for deeper context as needed:
 
 - `../PLAN-daino-foundation.md` -- active foundation plan (do this first)
+- `docs/VERIFY.md` -- correctness gate: verify index vs dashd RPC
 - `docs/IDEAS.md` -- backlog / low-priority improvements
 - `docs/PLAN_CHAIN_ORDERING.md` -- two-pass indexer design (implemented)
 - `docs/PLAN_READ_AHEAD.md` -- reader/writer pipeline design (implemented)
@@ -33,13 +34,14 @@ Do not start pagination, balance, ZMQ polish, or other feature work
 until these are addressed. Full plan: `../PLAN-daino-foundation.md`.
 
 1. **ZMQ scaffold only** -- follow mode polls RPC.
-2. **No automated dashd cross-check** -- correctness gate still manual.
 
 Resolved: dual index paths unified via `daino_state::build_block_batch`.
 Resolved: `disconnect_tip` / `disconnect_to_height` and follow reorg
 reconcile (common ancestor via RPC, then disconnect + re-catch-up).
 Resolved: `TxProvider` in daino-core; `DainoDB` implements it; serve
 reads raw txs only through the trait.
+Resolved: `dainod verify` cross-checks hashes/txids vs dashd RPC
+(see `docs/VERIFY.md`).
 
 ## Development Rules
 
@@ -83,6 +85,10 @@ cargo run -p dainod -- serve --dbdir /tmp/daino-db --port 3141
 
 # Check DB status
 cargo run -p dainod -- status --dbdir /tmp/daino-db
+
+# Cross-check index against dashd (see docs/VERIFY.md)
+cargo run -p dainod -- verify --dbdir /tmp/daino-db \
+  --rpc-url http://127.0.0.1:9998 --rpc-user dashrpc --rpc-password secret
 ```
 
 ## Technical Discoveries
@@ -190,7 +196,8 @@ CLI binary with subcommands.
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `src/main.rs` | 210 | clap CLI: `read`, `index`, `status`, `serve`, `follow`, `compact` |
+| `src/main.rs` | ~240 | clap CLI: `read`, `index`, `status`, `serve`, `follow`, `compact`, `verify` |
+| `src/commands/verify.rs` | ~280 | Cross-check local index vs dashd RPC |
 | `src/commands/index.rs` | 504 | Two-pass indexer with read-ahead pipeline |
 | `src/commands/follow.rs` | 194 | dashd RPC tip-following |
 | `src/commands/read.rs` | 188 | Raw block/undo file display |
@@ -313,6 +320,14 @@ datadir at `~/Library/Application Support/DashCore/`.
   3,734 blk/s), CPU utilization 62% to 72%
 - **Batch size default:** 1000 blocks per LMDB transaction
 - **Read-ahead buffer:** 500 parsed blocks in bounded channel
+
+## Correctness gate
+
+- Procedure: `docs/VERIFY.md` (`dainod verify` vs dashd RPC).
+- Smoke (Jul 2026): indexed `data/blk*.dat` height 0; tip hash
+  `00000ffd590b1485b3caadc19b22e6379c733355108f107a430458cdf3407ab6`
+  (Dash mainnet genesis). Full `verify` against a live dashd still
+  required once RPC is available.
 
 ## Backlog
 

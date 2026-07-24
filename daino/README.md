@@ -66,10 +66,16 @@ cargo run -p dainod -- follow \
 # Compact LMDB (reclaim dead pages)
 cargo run -p dainod -- compact --dbdir /tmp/daino-db
 
+# Cross-check index against dashd RPC
+cargo run -p dainod -- verify --dbdir /tmp/daino-db \
+  --rpc-url http://127.0.0.1:9998 --rpc-user dashrpc --rpc-password secret
+
 # Read raw blk/rev files (debug)
 cargo run -p dainod -- read /path/to/blk00000.dat
 cargo run -p dainod -- read --undo /path/to/rev00000.dat
 ```
+
+See `docs/VERIFY.md` for the correctness gate procedure.
 
 `--datadir` is the directory that directly contains `blk*.dat` (no
 extra `blocks/` suffix assumed).
@@ -100,15 +106,14 @@ With `--rpc-*` on `serve`: `/api/chainlock`, `/api/sporks`,
 - Long-term path (Rust validator + thin indexer):
   `docs/VISION_RUST_VALIDATOR.md`.
 
-## Known gaps (foundation)
+## Known gaps
 
-- No block disconnect / reorg support yet (index is append-only)
-- `index` and `follow` do not yet share one apply pipeline
-- `TxProvider` trait is designed but not implemented
 - ZMQ subscriber is scaffolded; follow mode polls RPC
 - Pagination and balance endpoints planned but deferred
+  (`docs/PLAN_PAGINATION_BALANCE.md`)
 
-See `../PLAN-daino-foundation.md`.
+Foundation items done: shared apply path, disconnect/reorg, TxProvider,
+`dainod verify`. See `../PLAN-daino-foundation.md`.
 
 ## License
 

@@ -124,6 +124,33 @@ enum Commands {
         #[arg(long, default_value = "2")]
         poll_interval: u64,
     },
+
+    /// Cross-check the local index against dashd RPC
+    Verify {
+        /// Database directory
+        #[arg(short = 'D', long, default_value = "daino.db")]
+        dbdir: PathBuf,
+
+        /// dashd JSON-RPC URL
+        #[arg(long, default_value = "http://127.0.0.1:9998")]
+        rpc_url: String,
+
+        /// RPC username
+        #[arg(long, default_value = "dashrpc")]
+        rpc_user: String,
+
+        /// RPC password
+        #[arg(long)]
+        rpc_password: String,
+
+        /// Number of heights to sample (always includes 0 and tip)
+        #[arg(long, default_value = "16")]
+        samples: u32,
+
+        /// Extra heights to check (repeatable)
+        #[arg(long = "height")]
+        heights: Vec<u32>,
+    },
 }
 
 fn parse_network(s: &str) -> Result<Network> {
@@ -203,6 +230,24 @@ async fn main() -> Result<()> {
                 &rpc_user,
                 &rpc_password,
                 poll_interval,
+            )
+            .await
+        }
+        Commands::Verify {
+            dbdir,
+            rpc_url,
+            rpc_user,
+            rpc_password,
+            samples,
+            heights,
+        } => {
+            commands::verify::run_verify(
+                &dbdir,
+                &rpc_url,
+                &rpc_user,
+                &rpc_password,
+                samples,
+                &heights,
             )
             .await
         }
