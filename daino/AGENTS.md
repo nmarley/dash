@@ -32,15 +32,14 @@ Read these for deeper context as needed:
 Do not start pagination, balance, ZMQ polish, or other feature work
 until these are addressed. Full plan: `../PLAN-daino-foundation.md`.
 
-1. **No disconnect/reorg** -- `DainoDB` has no reverse of `put_batch`.
-   Follower docs mention walk-back; code only advances the tip.
-2. **`TxProvider` not implemented** -- vision requires raw-tx access
+1. **`TxProvider` not implemented** -- vision requires raw-tx access
    behind a trait; serve hits LMDB directly.
-3. **ZMQ scaffold only** -- follow mode polls RPC.
-4. **No automated dashd cross-check** -- correctness gate still manual.
+2. **ZMQ scaffold only** -- follow mode polls RPC.
+3. **No automated dashd cross-check** -- correctness gate still manual.
 
-Resolved: dual index paths unified via `daino_state::build_block_batch`
-(file index uses undo; follow uses UTXO lookup for spent addrs).
+Resolved: dual index paths unified via `daino_state::build_block_batch`.
+Resolved: `disconnect_tip` / `disconnect_to_height` and follow reorg
+reconcile (common ancestor via RPC, then disconnect + re-catch-up).
 
 ## Development Rules
 
@@ -158,7 +157,8 @@ Key types:
 - `BlockBatch` -- batch of block data for `put_batch()`
 - `ChainMeta` -- `tip_height`, `tip_hash`, `block_count`, `tx_count`
 
-DB methods: `put_block()`, `put_batch()`, `get_block_by_height()`,
+DB methods: `put_block()`, `put_batch()`, `disconnect_tip()`,
+`disconnect_to_height()`, `get_block_by_height()`,
 `get_block_by_hash()`, `get_block_txids()`, `get_tx()`,
 `get_addr_txs()`, `get_addr_utxos()`, `get_utxo()`, `get_meta()`,
 `tip_height()`, `status_summary()`, `real_disk_size()`, `compact()`

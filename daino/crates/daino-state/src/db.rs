@@ -394,20 +394,8 @@ impl DainoDB {
                 self.addr_to_txs.put(&mut wtxn, &key, &[])?;
             }
 
-            // Remove spent UTXOs
-            for outpoint in &batch.spent {
-                let key = make_outpoint_key(&outpoint.txid, outpoint.vout);
-                if let Some(val_bytes) = self.utxos.get(&wtxn, &key)?
-                    && let Ok(val) = bincode::deserialize::<UtxoValue>(val_bytes)
-                    && let Some(addr_hash) = &val.addr_hash
-                {
-                    let addr_key = make_addr_utxo_key(addr_hash, &outpoint.txid, outpoint.vout);
-                    self.addr_utxos.delete(&mut wtxn, &addr_key)?;
-                }
-                self.utxos.delete(&mut wtxn, &key)?;
-            }
-
-            // Add new UTXOs (store only non-key fields)
+            // Add new UTXOs before removing spends so same-block spends work:
+            // a later tx in this batch can spend an output created earlier here.
             for utxo in &batch.new_utxos {
                 let key = make_outpoint_key(&utxo.txid, utxo.vout);
                 let val = UtxoValue {
@@ -422,6 +410,19 @@ impl DainoDB {
                     let addr_key = make_addr_utxo_key(addr_hash, &utxo.txid, utxo.vout);
                     self.addr_utxos.put(&mut wtxn, &addr_key, &[])?;
                 }
+            }
+
+            // Remove spent UTXOs (including same-block spends just added above)
+            for outpoint in &batch.spent {
+                let key = make_outpoint_key(&outpoint.txid, outpoint.vout);
+                if let Some(val_bytes) = self.utxos.get(&wtxn, &key)?
+                    && let Ok(val) = bincode::deserialize::<UtxoValue>(val_bytes)
+                    && let Some(addr_hash) = &val.addr_hash
+                {
+                    let addr_key = make_addr_utxo_key(addr_hash, &outpoint.txid, outpoint.vout);
+                    self.addr_utxos.delete(&mut wtxn, &addr_key)?;
+                }
+                self.utxos.delete(&mut wtxn, &key)?;
             }
 
             // Raw transaction bytes
@@ -669,6 +670,214 @@ impl DainoDB {
             .copy_to_file(dest, CompactionOption::Enabled)
             .with_context(|| format!("Failed to compact database to {:?}", dest))?;
         Ok(())
+    }
+
+    /// Disconnect the current tip block, reversing every index write from apply.
+    ///
+    /// Returns the disconnected `BlockRecord`, or `None` if the database is empty.
+    /// Restores UTXOs spent by the tip only when those outpoints were created
+    /// in an earlier block (same-block spends are not restored).
+    pub fn disconnect_tip(&self) -> Result<Option<BlockRecord>> {
+        let meta = match self.get_meta()? {
+            Some(m) => m,
+            None => return Ok(None),
+        };
+
+        let tip_height = meta.tip_height;
+        let height_key = tip_height.to_be_bytes();
+
+        let mut wtxn = self.env.write_txn()?;
+
+        let block_bytes = self
+            .blocks_by_height
+            .get(&wtxn, &height_key)?
+            .ok_or_else(|| anyhow::anyhow!("tip height {tip_height} missing block record"))?;
+        let block: BlockRecord = bincode::deserialize(block_bytes)?;
+
+        let txid_blob = self
+            .block_txs
+            .get(&wtxn, &height_key)?
+            .ok_or_else(|| anyhow::anyhow!("tip height {tip_height} missing block_txs"))?
+            .to_vec();
+
+        let mut tip_txids = Vec::with_capacity(txid_blob.len() / 32);
+        for chunk in txid_blob.chunks_exact(32) {
+            let mut txid = [0u8; 32];
+            txid.copy_from_slice(chunk);
+            tip_txids.push(txid);
+        }
+        let tip_txid_set: std::collections::HashSet<[u8; 32]> = tip_txids.iter().copied().collect();
+
+        // Load and deserialize raw txs for this block (needed for outputs,
+        // inputs, and address-index reversal).
+        let mut tip_txs = Vec::with_capacity(tip_txids.len());
+        for txid in &tip_txids {
+            let raw = self
+                .tx_raw
+                .get(&wtxn, txid.as_slice())?
+                .ok_or_else(|| {
+                    anyhow::anyhow!("missing tx_raw for tip tx {}", hash_to_display(txid))
+                })?
+                .to_vec();
+            let tx = librustdash::Transaction::deserialize(&raw).with_context(|| {
+                format!("failed to deserialize tip tx {}", hash_to_display(txid))
+            })?;
+            tip_txs.push((*txid, tx));
+        }
+
+        // Reverse in reverse tx order for clarity (not required for correctness
+        // given same-block spend handling below).
+        for (txid, tx) in tip_txs.iter().rev() {
+            // Remove outputs created by this tx from the UTXO set.
+            for (vout, output) in tx.outputs.iter().enumerate() {
+                let vout = vout as u32;
+                let key = make_outpoint_key(txid, vout);
+                if let Some(val_bytes) = self.utxos.get(&wtxn, &key)?
+                    && let Ok(val) = bincode::deserialize::<UtxoValue>(val_bytes)
+                    && let Some(addr_hash) = &val.addr_hash
+                {
+                    let addr_key = make_addr_utxo_key(addr_hash, txid, vout);
+                    self.addr_utxos.delete(&mut wtxn, &addr_key)?;
+                }
+                self.utxos.delete(&mut wtxn, &key)?;
+
+                // Output-side address history for this tip height
+                let info = librustdash::script::analyze_script(&output.script_pubkey);
+                if let Some(ah) = info.address_hash {
+                    let addr_key = make_addr_key(&ah, tip_height, txid);
+                    self.addr_to_txs.delete(&mut wtxn, &addr_key)?;
+                }
+            }
+
+            if !tx.is_coinbase() {
+                for input in &tx.inputs {
+                    let prev_hash = input.previous_output.hash;
+                    let prev_n = input.previous_output.n;
+                    let out_key = make_outpoint_key(&prev_hash, prev_n);
+
+                    // Always clear spent_by for this outpoint.
+                    self.spent_by.delete(&mut wtxn, &out_key)?;
+
+                    // Copy out of LMDB before further writes (MDB_GET pointers
+                    // are invalidated by subsequent puts/deletes on the txn).
+                    let prev_raw = self
+                        .tx_raw
+                        .get(&wtxn, prev_hash.as_slice())?
+                        .map(|b| b.to_vec())
+                        .ok_or_else(|| {
+                            anyhow::anyhow!(
+                                "disconnect: missing tx_raw for spent prev {}",
+                                hash_to_display(&prev_hash)
+                            )
+                        })?;
+                    let prev_tx =
+                        librustdash::Transaction::deserialize(&prev_raw).with_context(|| {
+                            format!(
+                                "disconnect: bad tx_raw for spent prev {}",
+                                hash_to_display(&prev_hash)
+                            )
+                        })?;
+                    let prev_out = prev_tx.outputs.get(prev_n as usize).ok_or_else(|| {
+                        anyhow::anyhow!(
+                            "disconnect: prev {} missing vout {}",
+                            hash_to_display(&prev_hash),
+                            prev_n
+                        )
+                    })?;
+
+                    let info = librustdash::script::analyze_script(&prev_out.script_pubkey);
+                    if let Some(ah) = info.address_hash {
+                        let addr_key = make_addr_key(&ah, tip_height, txid);
+                        self.addr_to_txs.delete(&mut wtxn, &addr_key)?;
+                    }
+
+                    // Restore UTXO only if created outside this tip block.
+                    if tip_txid_set.contains(&prev_hash) {
+                        continue;
+                    }
+
+                    let prev_height = {
+                        let bytes = self.txs_by_id.get(&wtxn, prev_hash.as_slice())?;
+                        bytes
+                            .and_then(|b| bincode::deserialize::<TxRecord>(b).ok())
+                            .map(|r| r.block_height)
+                            .unwrap_or(0)
+                    };
+                    let val = UtxoValue {
+                        value: prev_out.value,
+                        block_height: prev_height,
+                        addr_hash: info.address_hash,
+                    };
+                    let val_bytes = bincode::serialize(&val)?;
+                    self.utxos.put(&mut wtxn, &out_key, &val_bytes)?;
+                    if let Some(ah) = val.addr_hash {
+                        let addr_utxo = make_addr_utxo_key(&ah, &prev_hash, prev_n);
+                        self.addr_utxos.put(&mut wtxn, &addr_utxo, &[])?;
+                    }
+                }
+            }
+
+            self.txs_by_id.delete(&mut wtxn, txid.as_slice())?;
+            self.tx_raw.delete(&mut wtxn, txid.as_slice())?;
+        }
+
+        self.block_txs.delete(&mut wtxn, &height_key)?;
+        self.blocks_by_height.delete(&mut wtxn, &height_key)?;
+        self.hash_to_height
+            .delete(&mut wtxn, block.hash.as_slice())?;
+
+        let tx_count_removed = tip_txs.len() as u64;
+        let new_meta = if tip_height == 0 {
+            // Database becomes empty.
+            None
+        } else {
+            let prev_height = tip_height - 1;
+            let prev_key = prev_height.to_be_bytes();
+            let prev_bytes = self
+                .blocks_by_height
+                .get(&wtxn, &prev_key)?
+                .ok_or_else(|| anyhow::anyhow!("missing previous block at height {prev_height}"))?;
+            let prev: BlockRecord = bincode::deserialize(prev_bytes)?;
+            Some(ChainMeta {
+                tip_height: prev.height,
+                tip_hash: prev.hash,
+                block_count: meta.block_count.saturating_sub(1),
+                tx_count: meta.tx_count.saturating_sub(tx_count_removed),
+            })
+        };
+
+        if let Some(m) = new_meta {
+            let meta_bytes = bincode::serialize(&m)?;
+            self.meta.put(&mut wtxn, "chain", &meta_bytes)?;
+        } else {
+            self.meta.delete(&mut wtxn, "chain")?;
+        }
+
+        wtxn.commit()?;
+        Ok(Some(block))
+    }
+
+    /// Disconnect tip blocks until the remaining tip height is `target_height`.
+    ///
+    /// If the tip is already at or below `target_height`, this is a no-op.
+    /// Returns the number of blocks disconnected. Does not remove the block
+    /// at `target_height` itself. To empty the database, call `disconnect_tip`
+    /// until it returns `None`.
+    pub fn disconnect_to_height(&self, target_height: u32) -> Result<u32> {
+        let mut removed = 0u32;
+        loop {
+            let tip = match self.tip_height()? {
+                Some(h) => h,
+                None => break,
+            };
+            if tip <= target_height {
+                break;
+            }
+            self.disconnect_tip()?
+                .ok_or_else(|| anyhow::anyhow!("disconnect_tip returned None with tip present"))?;
+            removed += 1;
+        }
+        Ok(removed)
     }
 }
 
@@ -1091,5 +1300,229 @@ mod tests {
 
         // Unknown txid returns None
         assert!(db.get_spent_by(&[0xFF; 32], 0).unwrap().is_none());
+    }
+
+    fn p2pkh_script(addr: [u8; 20]) -> Vec<u8> {
+        let mut s = vec![0x76, 0xa9, 0x14];
+        s.extend_from_slice(&addr);
+        s.extend_from_slice(&[0x88, 0xac]);
+        s
+    }
+
+    fn synth_coinbase(value: i64, addr: [u8; 20]) -> librustdash::Transaction {
+        synth_coinbase_with_height(value, addr, 0)
+    }
+
+    fn synth_coinbase_with_height(
+        value: i64,
+        addr: [u8; 20],
+        height: u32,
+    ) -> librustdash::Transaction {
+        use librustdash::tx_type::DashTxType;
+        use librustdash::{OutPoint, TxIn, TxOut};
+        // Unique script_sig per height so coinbases do not share txids.
+        let mut script_sig = vec![0x03];
+        script_sig.extend_from_slice(&height.to_le_bytes()[..3]);
+        librustdash::Transaction {
+            version: 1,
+            tx_type: DashTxType::Normal,
+            inputs: vec![TxIn {
+                previous_output: OutPoint {
+                    hash: [0u8; 32],
+                    n: u32::MAX,
+                },
+                script_sig,
+                sequence: u32::MAX,
+            }],
+            outputs: vec![TxOut {
+                value,
+                script_pubkey: p2pkh_script(addr),
+            }],
+            lock_time: 0,
+            extra_payload: None,
+        }
+    }
+
+    fn synth_spend(
+        prev_txid: [u8; 32],
+        prev_vout: u32,
+        value: i64,
+        addr: [u8; 20],
+    ) -> librustdash::Transaction {
+        use librustdash::tx_type::DashTxType;
+        use librustdash::{OutPoint, TxIn, TxOut};
+        librustdash::Transaction {
+            version: 1,
+            tx_type: DashTxType::Normal,
+            inputs: vec![TxIn {
+                previous_output: OutPoint {
+                    hash: prev_txid,
+                    n: prev_vout,
+                },
+                script_sig: vec![],
+                sequence: u32::MAX,
+            }],
+            outputs: vec![TxOut {
+                value,
+                script_pubkey: p2pkh_script(addr),
+            }],
+            lock_time: 0,
+            extra_payload: None,
+        }
+    }
+
+    fn synth_block(prev: [u8; 32], txs: Vec<librustdash::Transaction>) -> librustdash::Block {
+        librustdash::Block {
+            header: librustdash::BlockHeader {
+                version: 2,
+                prev_blockhash: prev,
+                merkle_root: [0u8; 32],
+                time: 1_390_095_618,
+                bits: 0x1e0ffff0,
+                nonce: 0,
+            },
+            transactions: txs,
+        }
+    }
+
+    fn apply_synth(
+        db: &DainoDB,
+        height: u32,
+        hash: [u8; 32],
+        block: &librustdash::Block,
+        spent_addrs: Option<&std::collections::HashMap<([u8; 32], u32), [u8; 20]>>,
+    ) {
+        let batch = crate::apply::build_block_batch(
+            height,
+            block,
+            hash,
+            100,
+            [height as u8; 32],
+            None,
+            None,
+            spent_addrs,
+        )
+        .unwrap();
+        db.put_batch(&[batch]).unwrap();
+    }
+
+    #[test]
+    fn test_disconnect_tip_restores_utxo() {
+        let (_dir, db) = temp_db();
+        let miner = [0x11u8; 20];
+        let receiver = [0x22u8; 20];
+
+        let cb = synth_coinbase(50_0000_0000, miner);
+        let cb_txid = cb.txid().unwrap();
+        let block0 = synth_block([0u8; 32], vec![cb]);
+        let hash0 = [0x01u8; 32];
+        apply_synth(&db, 0, hash0, &block0, None);
+
+        assert_eq!(
+            db.get_utxo(&cb_txid, 0).unwrap().unwrap().value,
+            50_0000_0000
+        );
+        assert_eq!(db.get_addr_utxos(&miner).unwrap().len(), 1);
+
+        let spend = synth_spend(cb_txid, 0, 49_0000_0000, receiver);
+        let spend_txid = spend.txid().unwrap();
+        let block1 = synth_block(hash0, vec![synth_coinbase(25_0000_0000, miner), spend]);
+        let hash1 = [0x02u8; 32];
+        let mut spent_addrs = std::collections::HashMap::new();
+        spent_addrs.insert((cb_txid, 0u32), miner);
+        apply_synth(&db, 1, hash1, &block1, Some(&spent_addrs));
+
+        assert!(db.get_utxo(&cb_txid, 0).unwrap().is_none());
+        assert!(db.get_spent_by(&cb_txid, 0).unwrap().is_some());
+        assert_eq!(db.tip_height().unwrap(), Some(1));
+
+        let disconnected = db.disconnect_tip().unwrap().unwrap();
+        assert_eq!(disconnected.height, 1);
+        assert_eq!(disconnected.hash, hash1);
+
+        assert_eq!(db.tip_height().unwrap(), Some(0));
+        assert!(db.get_block_by_hash(&hash1).unwrap().is_none());
+        assert!(db.get_tx(&spend_txid).unwrap().is_none());
+        assert!(db.get_raw_tx(&spend_txid).unwrap().is_none());
+        assert!(db.get_spent_by(&cb_txid, 0).unwrap().is_none());
+
+        // Coinbase UTXO restored
+        let u = db.get_utxo(&cb_txid, 0).unwrap().unwrap();
+        assert_eq!(u.value, 50_0000_0000);
+        assert_eq!(u.addr_hash, Some(miner));
+        assert_eq!(db.get_addr_utxos(&miner).unwrap().len(), 1);
+        assert_eq!(db.get_addr_utxos(&receiver).unwrap().len(), 0);
+
+        // Disconnect genesis
+        db.disconnect_tip().unwrap().unwrap();
+        assert!(db.tip_height().unwrap().is_none());
+        assert!(db.get_utxo(&cb_txid, 0).unwrap().is_none());
+        assert!(db.disconnect_tip().unwrap().is_none());
+    }
+
+    #[test]
+    fn test_disconnect_to_height() {
+        let (_dir, db) = temp_db();
+        let addr = [0x33u8; 20];
+        let mut prev = [0u8; 32];
+        for h in 0..5u32 {
+            let hash = [h as u8 + 1; 32];
+            let block = synth_block(prev, vec![synth_coinbase(1000 + h as i64, addr)]);
+            apply_synth(&db, h, hash, &block, None);
+            prev = hash;
+        }
+        assert_eq!(db.tip_height().unwrap(), Some(4));
+
+        let removed = db.disconnect_to_height(2).unwrap();
+        assert_eq!(removed, 2);
+        assert_eq!(db.tip_height().unwrap(), Some(2));
+        assert!(db.get_block_by_height(3).unwrap().is_none());
+        assert!(db.get_block_by_height(2).unwrap().is_some());
+
+        // No-op when already at or below target
+        assert_eq!(db.disconnect_to_height(2).unwrap(), 0);
+        assert_eq!(db.disconnect_to_height(5).unwrap(), 0);
+    }
+
+    #[test]
+    fn test_disconnect_same_block_spend() {
+        let (_dir, db) = temp_db();
+        let a = [0x44u8; 20];
+        let b = [0x55u8; 20];
+
+        // Height 0: coinbase to a
+        let cb0 = synth_coinbase_with_height(10_000, a, 0);
+        let cb0_txid = cb0.txid().unwrap();
+        let block0 = synth_block([0u8; 32], vec![cb0]);
+        let hash0 = [0x10u8; 32];
+        apply_synth(&db, 0, hash0, &block0, None);
+
+        // Height 1: coinbase + mid creates output + end spends mid in same block
+        let cb1 = synth_coinbase_with_height(10_000, a, 1);
+        let cb1_txid = cb1.txid().unwrap();
+        assert_ne!(cb0_txid, cb1_txid);
+        let mid = synth_spend(cb0_txid, 0, 9_000, b);
+        let mid_txid = mid.txid().unwrap();
+        let end = synth_spend(mid_txid, 0, 8_000, a);
+        let end_txid = end.txid().unwrap();
+        let block1 = synth_block(hash0, vec![cb1, mid, end]);
+        let hash1 = [0x11u8; 32];
+
+        let mut spent_addrs = std::collections::HashMap::new();
+        spent_addrs.insert((cb0_txid, 0u32), a);
+        spent_addrs.insert((mid_txid, 0u32), b);
+        apply_synth(&db, 1, hash1, &block1, Some(&spent_addrs));
+
+        assert!(db.get_utxo(&cb0_txid, 0).unwrap().is_none());
+        assert!(db.get_utxo(&mid_txid, 0).unwrap().is_none());
+        assert!(db.get_utxo(&end_txid, 0).unwrap().is_some());
+
+        db.disconnect_tip().unwrap().unwrap();
+
+        // cb0 UTXO restored; mid/end gone (same-block)
+        assert!(db.get_utxo(&cb0_txid, 0).unwrap().is_some());
+        assert!(db.get_utxo(&mid_txid, 0).unwrap().is_none());
+        assert!(db.get_utxo(&end_txid, 0).unwrap().is_none());
+        assert_eq!(db.tip_height().unwrap(), Some(0));
     }
 }
