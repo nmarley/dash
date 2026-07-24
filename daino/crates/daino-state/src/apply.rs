@@ -8,8 +8,8 @@ use std::collections::HashMap;
 
 use anyhow::{Context, Result};
 use daino_core::CBlockUndo;
-use librustdash::script::analyze_script;
 use librustdash::Block;
+use librustdash::script::analyze_script;
 
 use crate::db::{
     AddrTxRef, BlockBatch, BlockRecord, SpentByEntry, SpentOutpoint, TxRecord, UtxoEntry,
@@ -69,8 +69,9 @@ pub fn build_block_batch(
         let txid = if let Some(ids) = txids {
             ids[tx_idx]
         } else {
-            tx.txid()
-                .with_context(|| format!("Failed to compute txid at height {height} idx {tx_idx}"))?
+            tx.txid().with_context(|| {
+                format!("Failed to compute txid at height {height} idx {tx_idx}")
+            })?
         };
 
         let value_out: i64 = tx.outputs.iter().map(|o| o.value).sum();
@@ -305,10 +306,7 @@ mod tests {
 
         let spend = spend_tx(cb_txid, 0, 49_0000_0000, receiver);
         let spend_txid = spend.txid().unwrap();
-        let block1 = bare_block(vec![
-            coinbase_tx(25_0000_0000, miner),
-            spend,
-        ]);
+        let block1 = bare_block(vec![coinbase_tx(25_0000_0000, miner), spend]);
 
         let mut spent_addrs = HashMap::new();
         spent_addrs.insert((cb_txid, 0u32), miner);
