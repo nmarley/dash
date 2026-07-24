@@ -9,4 +9,5 @@ pub mod apply;
 pub mod db;
 
 pub use apply::{build_block_batch, spent_addrs_from_utxos};
+pub use daino_core::TxProvider;
 pub use db::{BlockBatch, DainoDB};

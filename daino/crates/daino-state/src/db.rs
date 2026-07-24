@@ -11,6 +11,7 @@
 use std::path::Path;
 
 use anyhow::{Context, Result, bail};
+use daino_core::TxProvider;
 use heed::types::*;
 use heed::{CompactionOption, Database, Env, EnvOpenOptions};
 use librustdash::hash::hash_to_display;
@@ -599,6 +600,9 @@ impl DainoDB {
     }
 
     /// Get raw serialized transaction bytes by txid.
+    ///
+    /// Prefer calling this through the [`TxProvider`] trait at API
+    /// boundaries so the backend can be swapped later.
     pub fn get_raw_tx(&self, txid: &[u8; 32]) -> Result<Option<Vec<u8>>> {
         let rtxn = self.env.read_txn()?;
         match self.tx_raw.get(&rtxn, txid.as_slice())? {
@@ -878,6 +882,12 @@ impl DainoDB {
             removed += 1;
         }
         Ok(removed)
+    }
+}
+
+impl TxProvider for DainoDB {
+    fn get_raw_tx(&self, txid: &[u8; 32]) -> Result<Option<Vec<u8>>> {
+        DainoDB::get_raw_tx(self, txid)
     }
 }
 
@@ -1228,12 +1238,16 @@ mod tests {
         }])
         .unwrap();
 
-        // Retrieve raw bytes
+        // Retrieve raw bytes via inherent method and TxProvider
         assert_eq!(db.get_raw_tx(&txid1).unwrap().unwrap(), raw1);
         assert_eq!(db.get_raw_tx(&txid2).unwrap().unwrap(), raw2);
-
-        // Unknown txid returns None
+        assert_eq!(TxProvider::get_raw_tx(&db, &txid1).unwrap().unwrap(), raw1);
         assert!(db.get_raw_tx(&[0xFF; 32]).unwrap().is_none());
+
+        let batch = TxProvider::get_raw_tx_batch(&db, &[txid1, [0xFF; 32], txid2]).unwrap();
+        assert_eq!(batch[0].as_ref().unwrap(), &raw1);
+        assert!(batch[1].is_none());
+        assert_eq!(batch[2].as_ref().unwrap(), &raw2);
     }
 
     #[test]

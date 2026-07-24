@@ -32,14 +32,14 @@ Read these for deeper context as needed:
 Do not start pagination, balance, ZMQ polish, or other feature work
 until these are addressed. Full plan: `../PLAN-daino-foundation.md`.
 
-1. **`TxProvider` not implemented** -- vision requires raw-tx access
-   behind a trait; serve hits LMDB directly.
-2. **ZMQ scaffold only** -- follow mode polls RPC.
-3. **No automated dashd cross-check** -- correctness gate still manual.
+1. **ZMQ scaffold only** -- follow mode polls RPC.
+2. **No automated dashd cross-check** -- correctness gate still manual.
 
 Resolved: dual index paths unified via `daino_state::build_block_batch`.
 Resolved: `disconnect_tip` / `disconnect_to_height` and follow reorg
 reconcile (common ancestor via RPC, then disconnect + re-catch-up).
+Resolved: `TxProvider` in daino-core; `DainoDB` implements it; serve
+reads raw txs only through the trait.
 
 ## Development Rules
 
@@ -123,15 +123,16 @@ Five crates plus the `dainod` binary. ~5,900 lines of Rust, ~40 tests.
 
 ### daino-core (`crates/daino-core/`)
 
-Shared types and block/undo file reading.
+Shared types, provider traits, and block/undo file reading.
 
 | File | Lines | Purpose |
 |------|-------|---------|
 | `src/block_reader.rs` | 263 | `BlockFileReader` with `read_next_block()`, `scan_headers()`, `read_block_at()` |
 | `src/difficulty.rs` | 449 | `target_from_bits()`, `difficulty_from_bits()`, `work_from_bits()`, `add_u256()`, `u256_to_hex()` |
+| `src/provider.rs` | ~60 | `TxProvider` trait for raw tx retrieval |
 | `src/undo.rs` | 347 | Undo data structures, varint, amount/script decompression |
 | `src/undo_reader.rs` | 129 | `UndoFileReader` for `rev*.dat` files |
-| `src/lib.rs` | 18 | Module declarations, re-exports |
+| `src/lib.rs` | ~20 | Module declarations, re-exports |
 
 Key types:
 - `BlockFileReader` -- reads `blk*.dat`. `scan_headers()` for header-only pass (80 bytes + seek), `read_block_at(offset)` for seek-based random access.

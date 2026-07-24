@@ -18,6 +18,7 @@ use axum::http::StatusCode;
 use axum::response::Json;
 use serde::Serialize;
 
+use daino_core::TxProvider;
 use daino_fetch::rpc::DashdRpc;
 use daino_state::db::DainoDB;
 use librustdash::Transaction;
@@ -378,10 +379,8 @@ pub async fn get_tx(
             )
         })?;
 
-    // Get raw transaction bytes and deserialize
-    let raw_bytes = state
-        .db
-        .get_raw_tx(&internal_txid)
+    // Get raw transaction bytes via TxProvider (LMDB today, validator later)
+    let raw_bytes = TxProvider::get_raw_tx(&state.db, &internal_txid)
         .map_err(|_| db_error())?
         .ok_or_else(|| {
             (
@@ -440,13 +439,13 @@ pub async fn get_tx(
                 n: i as u32,
             });
         } else {
-            // Look up the spent output's value and address via the UTXO
-            // or spent_by DB. We use get_raw_tx on the previous tx to
-            // get the output's scriptPubKey and value.
+            // Look up the spent output's value and address via TxProvider
+            // (raw prev tx) with UTXO fallback.
             let prev_txid = input.previous_output.hash;
             let prev_vout = input.previous_output.n;
 
-            let (addr, value_sat) = resolve_input_details(&state.db, &prev_txid, prev_vout);
+            let (addr, value_sat) =
+                resolve_input_details(&state.db, &state.db, &prev_txid, prev_vout);
 
             if let Some(v) = value_sat {
                 value_in_total += v;
@@ -553,13 +552,16 @@ pub async fn get_tx(
 }
 
 /// Resolve input address and value by looking up the previous transaction's output.
+///
+/// Raw bytes come only through [`TxProvider`]. UTXO fallback still uses
+/// `DainoDB` directly (spent outputs are rarely still in the UTXO set).
 fn resolve_input_details(
+    txs: &impl TxProvider,
     db: &DainoDB,
     prev_txid: &[u8; 32],
     prev_vout: u32,
 ) -> (Option<String>, Option<i64>) {
-    // First try: look up the previous tx's raw bytes and extract the output
-    if let Ok(Some(raw)) = db.get_raw_tx(prev_txid)
+    if let Ok(Some(raw)) = txs.get_raw_tx(prev_txid)
         && let Ok(prev_tx) = Transaction::deserialize(&raw)
         && let Some(output) = prev_tx.outputs.get(prev_vout as usize)
     {
@@ -570,7 +572,7 @@ fn resolve_input_details(
         return (addr, Some(output.value));
     }
 
-    // Fallback: check if there's still a live UTXO (shouldn't be, since it's spent)
+    // Fallback: live UTXO (unusual for a spent input)
     if let Ok(Some(utxo)) = db.get_utxo(prev_txid, prev_vout) {
         let addr = utxo
             .addr_hash
