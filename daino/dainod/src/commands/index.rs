@@ -21,11 +21,9 @@ use daino_core::{
     BlockFileReader, CBlockUndo, Network, ScannedHeader, UndoFileReader, add_u256,
     scan_undo_offsets, work_from_bits,
 };
-use daino_state::db::{
-    AddrTxRef, BlockBatch, BlockRecord, DainoDB, SpentByEntry, SpentOutpoint, TxRecord, UtxoEntry,
-};
+use daino_state::build_block_batch;
+use daino_state::db::{BlockBatch, DainoDB};
 use librustdash::Block;
-use librustdash::script::analyze_script;
 
 /// Location of a block within the blk file set, with optional undo offset.
 #[derive(Debug, Clone)]
@@ -424,123 +422,19 @@ pub fn index_blocks(
         let chainwork = add_u256(&prev_chainwork, &block_work);
         prev_chainwork = chainwork;
 
-        let block_record = BlockRecord {
+        let block_batch = build_block_batch(
             height,
-            hash: block_hash,
-            prev_hash: block.header.prev_blockhash,
-            merkle_root: block.header.merkle_root,
-            version: block.header.version,
-            time: block.header.time,
-            bits: block.header.bits,
-            nonce: block.header.nonce,
-            tx_count: block.transactions.len() as u32,
-            size: block_size,
+            &block,
+            block_hash,
+            block_size,
             chainwork,
-        };
+            Some(&txids),
+            undo.as_ref(),
+            None,
+        )?;
 
-        let mut tx_records = Vec::with_capacity(block.transactions.len());
-        let mut addr_refs: Vec<([u8; 20], AddrTxRef)> = Vec::new();
-        let mut new_utxos: Vec<UtxoEntry> = Vec::new();
-        let mut spent: Vec<SpentOutpoint> = Vec::new();
-        let mut raw_txs: Vec<([u8; 32], Vec<u8>)> = Vec::with_capacity(block.transactions.len());
-        let mut spent_by: Vec<SpentByEntry> = Vec::new();
-
-        for (tx_idx, tx) in block.transactions.iter().enumerate() {
-            let txid = txids[tx_idx];
-            let value_out: i64 = tx.outputs.iter().map(|o| o.value).sum();
-
-            // Store raw serialized transaction bytes
-            if let Ok(raw) = tx.serialize() {
-                raw_txs.push((txid, raw));
-            }
-
-            tx_records.push(TxRecord {
-                txid,
-                block_height: height,
-                tx_index: tx_idx as u32,
-                version: tx.version,
-                tx_type: tx.tx_type as u16,
-                lock_time: tx.lock_time,
-                value_out,
-                input_count: tx.inputs.len() as u32,
-                output_count: tx.outputs.len() as u32,
-            });
-
-            if !tx.is_coinbase() {
-                // Get undo data for this transaction's inputs.
-                // undo.vtxundo is indexed by (tx_index - 1) since coinbase is excluded.
-                // Each CTxUndo.vprevout has one Coin per input, in the same order.
-                let tx_undo = undo.as_ref().and_then(|u| u.vtxundo.get(tx_idx - 1));
-
-                for (vin_idx, input) in tx.inputs.iter().enumerate() {
-                    spent.push(SpentOutpoint {
-                        txid: input.previous_output.hash,
-                        vout: input.previous_output.n,
-                    });
-
-                    // Record which transaction spent this output
-                    spent_by.push(SpentByEntry {
-                        spent_txid: input.previous_output.hash,
-                        spent_vout: input.previous_output.n,
-                        spending_txid: txid,
-                        spending_vin: vin_idx as u32,
-                        spending_height: height,
-                    });
-
-                    // Use undo data for input-side address indexing:
-                    // the spent coin's scriptPubKey tells us the sender address.
-                    if let Some(tu) = tx_undo
-                        && let Some(coin) = tu.vprevout.get(vin_idx)
-                    {
-                        let info = analyze_script(&coin.txout.script_pubkey);
-                        if let Some(ah) = info.address_hash {
-                            addr_refs.push((
-                                ah,
-                                AddrTxRef {
-                                    block_height: height,
-                                    txid,
-                                },
-                            ));
-                        }
-                    }
-                }
-            }
-
-            for (vout, output) in tx.outputs.iter().enumerate() {
-                let info = analyze_script(&output.script_pubkey);
-                let addr_hash = info.address_hash;
-
-                if let Some(ah) = addr_hash {
-                    addr_refs.push((
-                        ah,
-                        AddrTxRef {
-                            block_height: height,
-                            txid,
-                        },
-                    ));
-                }
-
-                new_utxos.push(UtxoEntry {
-                    txid,
-                    vout: vout as u32,
-                    value: output.value,
-                    block_height: height,
-                    addr_hash,
-                });
-            }
-        }
-
-        total_txs += tx_records.len() as u64;
-
-        batch.push(BlockBatch {
-            block: block_record,
-            txs: tx_records,
-            addr_refs,
-            new_utxos,
-            spent,
-            raw_txs,
-            spent_by,
-        });
+        total_txs += block_batch.txs.len() as u64;
+        batch.push(block_batch);
 
         if batch.len() >= batch_size {
             db.put_batch(&batch)?;

@@ -10,11 +10,9 @@ use axum::routing::get;
 use tower_http::cors::CorsLayer;
 
 use daino_core::{BlockFileReader, Network, add_u256, work_from_bits};
-use daino_state::db::{
-    AddrTxRef, BlockBatch, BlockRecord, DainoDB, SpentByEntry, SpentOutpoint, TxRecord, UtxoEntry,
-};
+use daino_state::build_block_batch;
+use daino_state::db::DainoDB;
 use librustdash::hash::hash_to_display;
-use librustdash::script::analyze_script;
 
 /// Index N blocks from the test data into a temp database.
 fn index_test_blocks(db: &DainoDB, n: usize) -> Vec<[u8; 32]> {
@@ -43,98 +41,19 @@ fn index_test_blocks(db: &DainoDB, n: usize) -> Vec<[u8; 32]> {
         let chainwork = add_u256(&prev_chainwork, &work_from_bits(block.header.bits));
         prev_chainwork = chainwork;
 
-        let block_record = BlockRecord {
-            height: height as u32,
-            hash: block_hash,
-            prev_hash: block.header.prev_blockhash,
-            merkle_root: block.header.merkle_root,
-            version: block.header.version,
-            time: block.header.time,
-            bits: block.header.bits,
-            nonce: block.header.nonce,
-            tx_count: block.transactions.len() as u32,
-            size: block_size,
+        let batch = build_block_batch(
+            height as u32,
+            &block,
+            block_hash,
+            block_size,
             chainwork,
-        };
-
-        let mut tx_records = Vec::new();
-        let mut addr_refs: Vec<([u8; 20], AddrTxRef)> = Vec::new();
-        let mut new_utxos: Vec<UtxoEntry> = Vec::new();
-        let mut spent: Vec<SpentOutpoint> = Vec::new();
-        let mut raw_txs: Vec<([u8; 32], Vec<u8>)> = Vec::new();
-        let mut spent_by: Vec<SpentByEntry> = Vec::new();
-
-        for (tx_idx, tx) in block.transactions.iter().enumerate() {
-            let txid = tx.txid().unwrap();
-            let value_out: i64 = tx.outputs.iter().map(|o| o.value).sum();
-
-            tx_records.push(TxRecord {
-                txid,
-                block_height: height as u32,
-                tx_index: tx_idx as u32,
-                version: tx.version,
-                tx_type: tx.tx_type as u16,
-                lock_time: tx.lock_time,
-                value_out,
-                input_count: tx.inputs.len() as u32,
-                output_count: tx.outputs.len() as u32,
-            });
-
-            // Store raw serialized transaction bytes
-            raw_txs.push((txid, tx.serialize().unwrap()));
-
-            if !tx.is_coinbase() {
-                for (vin_idx, input) in tx.inputs.iter().enumerate() {
-                    spent.push(SpentOutpoint {
-                        txid: input.previous_output.hash,
-                        vout: input.previous_output.n,
-                    });
-
-                    // Track which tx spent each output
-                    spent_by.push(SpentByEntry {
-                        spent_txid: input.previous_output.hash,
-                        spent_vout: input.previous_output.n,
-                        spending_txid: txid,
-                        spending_vin: vin_idx as u32,
-                        spending_height: height as u32,
-                    });
-                }
-            }
-
-            for (vout, output) in tx.outputs.iter().enumerate() {
-                let info = analyze_script(&output.script_pubkey);
-                let addr_hash = info.address_hash;
-
-                if let Some(ah) = addr_hash {
-                    addr_refs.push((
-                        ah,
-                        AddrTxRef {
-                            block_height: height as u32,
-                            txid,
-                        },
-                    ));
-                }
-
-                new_utxos.push(UtxoEntry {
-                    txid,
-                    vout: vout as u32,
-                    value: output.value,
-                    block_height: height as u32,
-                    addr_hash,
-                });
-            }
-        }
-
-        db.put_batch(&[BlockBatch {
-            block: block_record,
-            txs: tx_records,
-            addr_refs,
-            new_utxos,
-            spent,
-            raw_txs,
-            spent_by,
-        }])
+            None,
+            None,
+            None,
+        )
         .unwrap();
+
+        db.put_batch(&[batch]).unwrap();
         block_hashes.push(block_hash);
     }
 

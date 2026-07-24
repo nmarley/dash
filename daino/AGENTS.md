@@ -34,12 +34,13 @@ until these are addressed. Full plan: `../PLAN-daino-foundation.md`.
 
 1. **No disconnect/reorg** -- `DainoDB` has no reverse of `put_batch`.
    Follower docs mention walk-back; code only advances the tip.
-2. **Dual index paths** -- `dainod index` (files + undo + tx_raw +
-   spent_by) and `dainod follow` (RPC) do not share one apply pipeline.
-3. **`TxProvider` not implemented** -- vision requires raw-tx access
+2. **`TxProvider` not implemented** -- vision requires raw-tx access
    behind a trait; serve hits LMDB directly.
-4. **ZMQ scaffold only** -- follow mode polls RPC.
-5. **No automated dashd cross-check** -- correctness gate still manual.
+3. **ZMQ scaffold only** -- follow mode polls RPC.
+4. **No automated dashd cross-check** -- correctness gate still manual.
+
+Resolved: dual index paths unified via `daino_state::build_block_batch`
+(file index uses undo; follow uses UTXO lookup for spent addrs).
 
 ## Development Rules
 
@@ -144,8 +145,9 @@ LMDB-backed storage. 8 named databases.
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `src/db.rs` | 890 | `DainoDB` with all DB operations |
-| `src/lib.rs` | 4 | Re-exports |
+| `src/db.rs` | ~1100 | `DainoDB` with all DB operations |
+| `src/apply.rs` | ~280 | `build_block_batch` shared apply path |
+| `src/lib.rs` | ~12 | Re-exports |
 
 Key types:
 - `BlockRecord` -- `height`, `hash`, `prev_hash`, `merkle_root`, `version: i32`, `time`, `bits`, `nonce`, `tx_count`, `size`, `chainwork: [u8; 32]`

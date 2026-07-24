@@ -5,6 +5,8 @@
 //! - Transaction index (txid -> block location)
 //! - Address index (address -> transaction history)
 
+pub mod apply;
 pub mod db;
 
-pub use db::DainoDB;
+pub use apply::{build_block_batch, spent_addrs_from_utxos};
+pub use db::{BlockBatch, DainoDB};
