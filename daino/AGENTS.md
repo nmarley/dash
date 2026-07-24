@@ -16,14 +16,30 @@ the DB and re-index anytime.
 
 Read these for deeper context as needed:
 
+- `../PLAN-daino-foundation.md` -- active foundation plan (do this first)
 - `docs/IDEAS.md` -- backlog / low-priority improvements
 - `docs/PLAN_CHAIN_ORDERING.md` -- two-pass indexer design (implemented)
 - `docs/PLAN_READ_AHEAD.md` -- reader/writer pipeline design (implemented)
+- `docs/PLAN_PAGINATION_BALANCE.md` -- deferred until foundation is done
 - `docs/DASH_DATA_DIRECTORY.md` -- Dash Core data file formats and layout
 - `docs/VISION_RUST_VALIDATOR.md` -- long-term architecture: Rust validator + Zaino-style Daino
 - `../librustdash/docs/REPORT_DAINO.md` -- daino project status report
 - `../librustdash/docs/REPORT_LIBRUSTDASH.md` -- librustdash project status
 - `../librustdash/docs/REPORT_DMTV3.md` -- dmtv3 project status
+
+## Current Gaps (foundation)
+
+Do not start pagination, balance, ZMQ polish, or other feature work
+until these are addressed. Full plan: `../PLAN-daino-foundation.md`.
+
+1. **No disconnect/reorg** -- `DainoDB` has no reverse of `put_batch`.
+   Follower docs mention walk-back; code only advances the tip.
+2. **Dual index paths** -- `dainod index` (files + undo + tx_raw +
+   spent_by) and `dainod follow` (RPC) do not share one apply pipeline.
+3. **`TxProvider` not implemented** -- vision requires raw-tx access
+   behind a trait; serve hits LMDB directly.
+4. **ZMQ scaffold only** -- follow mode polls RPC.
+5. **No automated dashd cross-check** -- correctness gate still manual.
 
 ## Development Rules
 
@@ -47,7 +63,7 @@ Read these for deeper context as needed:
 # Build everything
 cargo build --workspace
 
-# Run all tests (37 tests across workspace)
+# Run all tests (~40 tests across workspace)
 cargo test --workspace
 
 # Run tests for a specific crate
@@ -78,7 +94,9 @@ These are non-obvious facts learned during development:
   SHA-256d.
 - **X11 FFI:** The x11-hash C library lives at `~/projects/x11-hash`.
   `libx11.a` must be pre-built with `make libx11.a`. librustdash's X11
-  support is behind an optional `x11` feature flag.
+  support is behind an optional `x11` feature flag. Path dep from
+  `librustdash/Cargo.toml` is `../../../x11-hash/rust` (repo is under
+  `projects/dashpay/dash`, not `projects/dash`).
 - **Dash address version bytes:** P2PKH mainnet=0x4c ('X'),
   P2SH mainnet=0x10 ('7'), P2PKH testnet=0x8c ('y'),
   P2SH testnet=0x13 ('8').
@@ -101,7 +119,7 @@ These are non-obvious facts learned during development:
 
 ## Workspace Structure
 
-Five crates plus the `dainod` binary. ~5,100 lines of Rust, 37 tests.
+Five crates plus the `dainod` binary. ~5,900 lines of Rust, ~40 tests.
 
 ### daino-core (`crates/daino-core/`)
 
@@ -295,7 +313,10 @@ datadir at `~/Library/Application Support/DashCore/`.
 
 ## Backlog
 
-See `docs/IDEAS.md` for lower-priority items. Key next steps:
+Foundation work first: `../PLAN-daino-foundation.md`.
+
+After foundation, see `docs/IDEAS.md` and
+`docs/PLAN_PAGINATION_BALANCE.md`. Lower-priority items:
 
 - Pagination for address tx/utxo endpoints
 - Balance calculation endpoint (`/api/addr/{addr}/balance`)

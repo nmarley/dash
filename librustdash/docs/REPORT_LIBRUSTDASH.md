@@ -1,8 +1,8 @@
 # librustdash -- Project Status Report
 
-**Date:** February 14, 2026
-**Location:** `/Users/nathan/projects/dash/librustdash`
-**Branch:** `reorgs` (clean, up to date with `nmarley/reorgs`)
+**Date:** July 24, 2026
+**Location:** `/Users/nathan/projects/dashpay/dash/librustdash`
+**Branch:** `r2` (with daino; library also used from earlier lineage)
 
 ## Overview
 
@@ -13,10 +13,12 @@ modeled after `librustzcash` in the Zcash ecosystem.
 
 ## Current State
 
-- **105 tests passing** (98 unit + 2 golden + 5 doc-tests)
-- **Phase 1 complete** -- all primitives implemented
-- **Working tree clean** -- no uncommitted changes
+- **120 tests passing** (113 unit + 2 golden + 5 doc-tests)
+- **Phase 1 complete** -- primitives, payloads, hashing, basic scripts
 - **Edition:** Rust 2021
+- **x11 path:** `../../../x11-hash/rust` relative to this crate
+  (repo lives at `projects/dashpay/dash`; x11-hash at `projects/x11-hash`)
+- **Re-verified:** July 2026 (`cargo test`, `make libx11.a`)
 
 ## Dependencies
 
@@ -28,8 +30,9 @@ modeled after `librustzcash` in the Zcash ecosystem.
 | `byteorder` | 1.5 | Endian-aware integer I/O |
 | `thiserror` | 1.0 | Error derive macros |
 | `sha2` | 0.10 | SHA-256 hashing |
+| `x11_hash` | path (optional feature) | X11 PoW hash via C FFI |
 
-Dev: `proptest 1.5`, `serde_json 1.0`
+Dev: `proptest`, `serde_json`, `x11_hash` (always on for tests)
 
 ## Source Modules
 
@@ -37,47 +40,25 @@ Dev: `proptest 1.5`, `serde_json 1.0`
 |------|---------|
 | `lib.rs` | Crate root, public re-exports |
 | `block.rs` | BlockHeader (80 bytes) and Block types |
-| `transaction.rs` | Transaction, TxIn, TxOut, OutPoint with version/type encoding |
-| `tx_type.rs` | DashTxType enum (all 10 Dash transaction types) |
+| `transaction.rs` | Transaction, TxIn, TxOut, OutPoint |
+| `tx_type.rs` | DashTxType enum (all 10 types) |
 | `serialize.rs` | CompactSize varint read/write |
+| `hash.rs` | sha256d, x11_hash, display helpers |
+| `script.rs` | Script analysis, address encode/decode |
 | `payloads/` | All 9 special transaction payload types |
 | `bls.rs` | BLS signature types (opaque bytes) |
 | `bitvector.rs` | Bit vector utilities |
-| `network_info.rs` | Network parameters |
+| `network_info.rs` | ServiceAddress and related |
 | `error.rs` | Error types |
 
-### Special Transaction Payloads (in `src/payloads/`)
+### Special Transaction Payloads
 
-All 9 payload types implemented with serialization and doc-tests:
+All 9 implemented with serialization and tests:
 
 - CbTx (Coinbase, v1/v2/v3)
-- AssetLockPayload
-- AssetUnlockPayload
-- ProRegTx (Masternode registration)
-- ProUpServTx (Masternode service update)
-- ProUpRegTx (Masternode registrar update)
-- ProUpRevTx (Masternode revocation)
-- QuorumCommitment (LLMQ quorum commitment)
-- MnhfSignal (Masternode hard fork signal)
-
-## Test Coverage
-
-- 3 serialization tests (CompactSize encoding/decoding, edge cases)
-- 4 transaction type tests (enum conversions, display)
-- 11 transaction tests (version/type encoding, empty tx, coinbase, special tx)
-- 6 block tests (header size, roundtrip, blocks with transactions)
-- 2 golden tests (real Dash mainnet transaction roundtrip, version/type decoding)
-- 5 doc-tests (ProRegTx, ProUpServTx, ProUpRegTx, ProUpRevTx, MnhfSignal)
-- Plus additional tests added since the Phase 1 report (total now 105)
-
-## Branch Lineage
-
-```
-develop (Dash Core C++)
-  +-- ngm-rust (librustdash primitives)
-       +-- daino (indexer scaffolding)
-            +-- reorgs (undo file reading) <-- current
-```
+- AssetLockPayload / AssetUnlockPayload
+- ProRegTx, ProUpServTx, ProUpRegTx, ProUpRevTx
+- QuorumCommitment, MnhfSignal
 
 ## What's Implemented (Phase 1 -- COMPLETE)
 
@@ -85,42 +66,52 @@ develop (Dash Core C++)
 - CompactSize varint serialization
 - DashTxType enum with all 10 variants
 - Transaction, TxIn, TxOut, OutPoint with Dash version/type encoding
-- BlockHeader (80-byte) and Block types
-- CbTx payload (v1, v2, v3)
-- AssetLock/AssetUnlock payloads
-- ProRegTx, ProUpServTx, ProUpRegTx, ProUpRevTx payloads
-- QuorumCommitment, MnhfSignal payloads
-- BLS types, BitVector, network info
+- BlockHeader and Block types
+- All special tx payloads listed above
+- BLS opaque types, BitVector, network address helpers
+- SHA-256d and optional X11 hashing
+- Script type analysis and Dash address encode/decode
 - Golden tests with real Dash mainnet data
 
-## Planned Next Steps
+## Planned Next Steps (library)
 
-1. **Hash utilities** (sha256d, txid, block hash, merkle root) -- detailed
-   plan in `docs/HASH_INTEGRATION_PLAN.md`
-2. **dash_protocol crate** -- network constants, activation heights
-3. **dash_consensus crate** -- X11 PoW (via FFI), difficulty adjustment,
-   block/tx validation (long-term)
+These remain library-side; daino foundation work is separate
+(`PLAN-daino-foundation.md`):
+
+1. Stronger merkle root helpers / more hash golden vectors if needed
+2. Deeper script support as consumers require it
+3. Longer-term: consensus-oriented crates (validation, not Phase 1)
+
+Do not block daino foundation on a multi-crate workspace split.
+Keep librustdash the single primitives home for now.
 
 ## Design Documents
 
 All in `docs/`:
 
-| Document | Lines | Description |
-|----------|-------|-------------|
-| ARCHITECTURE.md | 390 | Crate organization (librustzcash pattern) |
-| DAINO_ARCHITECTURE.md | 1465 | Full indexer architecture design |
-| HASH_INTEGRATION_PLAN.md | 683 | Hash utilities implementation plan |
-| IMPLEMENTATION_PLAN.md | 292 | Phase 1 TDD plan (completed) |
-| INDEXER_ARCHITECTURE.md | 1136 | Indexer design with trait abstractions |
-| LIBRUSTDASH_DESIGN.md | 817 | Core design document |
-| ROADMAP.md | 378 | 5-phase modernization roadmap |
-| SERIALIZATION.md | 634 | Binary format reference |
-| WHERE_TO_ORGANIZE_X11.md | 513 | X11 architectural decision |
-| X11_RUST_PORT_ANALYSIS.md | 577 | X11 feasibility analysis |
-| X11_SUMMARY.md | 104 | X11 decision summary |
+| Document | Description |
+|----------|-------------|
+| ARCHITECTURE.md | Crate organization (librustzcash pattern) |
+| DAINO_ARCHITECTURE.md | Full indexer architecture design |
+| HASH_INTEGRATION_PLAN.md | Hash utilities plan (largely done in tree) |
+| IMPLEMENTATION_PLAN.md | Phase 1 TDD plan (completed) |
+| INDEXER_ARCHITECTURE.md | Indexer design with trait abstractions |
+| LIBRUSTDASH_DESIGN.md | Core design document |
+| ROADMAP.md | Multi-phase modernization roadmap |
+| SERIALIZATION.md | Binary format reference |
+| X11_* | X11 port analysis and decisions |
+| REPORT_DAINO.md | daino status |
+| REPORT_DMTV3.md | dmtv3 status |
 
 ## Downstream Consumers
 
-- **daino** (`/Users/nathan/projects/dash/daino`) -- uses `Block::deserialize()`
-- **dmtv3** (`/Users/nathan/projects/dmtv3`) -- uses Transaction, TxIn, TxOut,
-  OutPoint, DashTxType, ProRegTx, ProUpServTx, Block, BlockHeader
+- **daino** (`../daino`) -- block deserialize, X11 hash, script/address
+- **dmtv3** (external) -- Transaction types and ProTx payloads when wired
+
+## Branch Lineage
+
+```
+develop (Dash Core C++)
+  +-- ngm-rust (librustdash primitives)
+       +-- daino / reorgs / massive-refactor / r2
+```
